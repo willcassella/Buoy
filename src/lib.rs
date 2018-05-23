@@ -1,6 +1,6 @@
 
-mod context;
-mod element;
+pub mod context;
+pub mod element;
 
 #[cfg(test)]
 mod tests {
@@ -26,8 +26,8 @@ mod tests {
         ctx.push_template_handler(Box::new(identity_filter));
             ctx.push_template(Box::new(duper));
                 ctx.push_template(Box::new(printer));
-                ctx.pop(); // duper
-            ctx.pop(); // printer
+                ctx.pop(); // printer
+            ctx.pop(); // super
         ctx.pop(); // identity_filter
     }
 
