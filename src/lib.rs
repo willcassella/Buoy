@@ -1,10 +1,19 @@
 
-pub mod context;
-pub mod element;
+mod context;
+mod template;
+mod layout;
+
+pub use self::context::IContext;
+pub use self::layout::{Area, Bounds};
+
+pub mod element {
+    pub use super::template::{Template, TemplateHandler};
+    pub use super::layout::{Layout, BoundsHandler};
+}
 
 #[cfg(test)]
 mod tests {
-    use super::context::Context;
+    use super::Context;
     use super::element::Template;
 
     fn identity_filter(ctx: &mut Context, elem: Box<Template>) {
