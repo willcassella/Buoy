@@ -15,9 +15,9 @@ pub struct Area {
 }
 
 pub trait Layout {
-    fn run(&self, ctx: &mut LayoutContext, area: Area);
+    fn run(self: Box<Self>, ctx: &mut LayoutContext, area: Area);
 }
 
-pub trait BoundsHandler {
-    fn run(&mut self, ctx: &mut LayoutContext, bounds: Bounds);
+pub trait BoundsCalculator {
+    fn run(self: Box<Self>, ctx: &mut LayoutContext, child_bounds: &[Bounds]);
 }

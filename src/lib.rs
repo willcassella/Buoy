@@ -1,6 +1,5 @@
 
 mod context;
-mod template;
 mod layout;
 
 pub use self::context::IContext;

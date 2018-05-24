@@ -1,46 +1,47 @@
 use std::rc::Rc;
-use super::template::{Template, TemplateHandler};
+use super::widget::{Widget, WidgetHandler};
 use super::layout::{Layout, Area, Bounds, BoundsHandler};
 
-pub trait Context {
+pub trait LayoutContext {
+    // Pushes the minimum required width and height for this subtree onto the stack. This is handled UP
+    fn set_bounds(&mut self, bounds: Bounds);
+
+    // Pushes a handler that gets called when all children have called 'push_bounds' (or have not registered a relevant handler)
+    fn set_bounds_calc(&mut self, handler: Box<BoundsHandler>);
+
+    // Pushes an area for children to render in. This is handled DOWN via 'yield_children'
+    fn set_area(&mut self, area: Area);
+
+    // Pushes a function that gets called when a parent calls 'push_area'
+    fn set_layout_calc(&mut self, layout: Box<Layout>);
+}
+
+pub trait WidgetContext: LayoutContext {
     fn pop(&mut self);
+
+    fn push_widget(&mut self, template: Box<Widget>);
+
+    fn push_widget_handler(&mut self, handler: Box<WidgetHandler>);
+
+    fn hook_anchor(&mut self, name: &str, handler, Box<Widget>);
+
+    fn drop_anchor(&mut self, name: &str, handler: Box<WidgetHandler>);
+
+    fn yield_child(&mut self);
 
     fn yield_children(&mut self);
 }
 
-pub trait LayoutContext: Context {
-    // Pushes the minimum required width and height for this subtree onto the stack. This is handled UP
-    fn push_bounds(&mut self, bounds: Bounds);
-
-    // Pushes a handler that gets called when a child calls 'push_bounds'
-    // Problem: what if the child never calls 'push_bounds'? What if you have multiple children, how do you know when the last one gets called?
-    //  What are the use cases for this, anyway?
-    //      - 
-    fn push_bounds_handler(&mut self, handler: Box<BoundsHandler>);
-
-    // Pushes an area for children to render in. This is handled DOWN via 'yield_children'
-    fn push_area(&mut self, area: Area);
-
-    // Pushes a function that gets called when a parent calls 'push_area'. via 'yield_children'
-    fn push_layout(&mut self, layout: Box<Layout>);
-}
-
-pub trait TemplateContext: LayoutContext {
-    fn push_template(&mut self, template: Box<Template>);
-
-    fn push_template_handler(&mut self, handler: Box<TemplateHandler>);
-}
-
 enum ElementType {
-    Template,
-    TemplateHandler,
+    Widget,
+    WidgetHandler,
     Bounds,
 }
 
 #[derive(Clone)]
-pub struct TemplateElement {
-    pub template: Box<Template>,
-    pub children: Vec<TemplateElement>,
+pub struct WidgetElement {
+    pub widget: Box<Widget>,
+    pub children: Vec<WidgetElement>,
     pub handler: Option<Rc<TemplateHandlerElement>>,
 }
 
