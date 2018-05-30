@@ -1,13 +1,7 @@
-mod context;
-mod widget;
-mod widgets;
-
+pub mod context;
+pub mod widget;
 pub mod layout;
-
-pub mod element {
-    pub use super::widget::{Widget, WidgetHandler, SyncWidgetHandler};
-    pub use super::layout::{Layout, BoundsCalculator};
-}
+pub mod widgets;
 
 #[cfg(test)]
 mod tests {

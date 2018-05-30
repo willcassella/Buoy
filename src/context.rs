@@ -1,11 +1,12 @@
-use std::rc::Rc;
-use super::widget::{Widget, WidgetHandler, SyncWidgetHandler};
-use super::layout::{Area, Bounds, BoundsCalculator, LayoutCalculator};
+use super::widget::{Bounds, Widget, WidgetHandler};
+use super::layout::{Layout, LayoutHandler};
 
-pub trait WidgetContext : BoundsContext {
+pub trait WidgetContext {
     // Moves the context upward to the parent of the current element
+    // This will panic if the parent is not in scope for this context!
     fn pop(&mut self);
 
+    // Sets the bounds for this point in the stack
     fn push_bounds(&mut self, bounds: Bounds);
 
     // Gets the bounds for this point in the stack
@@ -14,11 +15,13 @@ pub trait WidgetContext : BoundsContext {
     // Pushes a widget as a child of whatever the current top of the stack is.
     fn push_widget(&mut self, template: Box<Widget>);
 
+    fn push_layout(&mut self, layout: Box<Layout>);
+
     fn push_layout_handler(&mut self, layout_handler: Box<LayoutHandler>);
 
-    fn anchor_child(&mut self, handler: Option<Rc<WidgetHandler>>);
+    fn anchor_child(&mut self, handler: Option<Box<WidgetHandler>>);
 
-    fn anchor_children(&mut self, handler: Option<Rc<WidgetHandler>>);
+    fn anchor_children(&mut self, handler: Option<Box<WidgetHandler>>);
 }
 
 // struct LayoutElement {
