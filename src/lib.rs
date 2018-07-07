@@ -1,7 +1,8 @@
 pub mod context;
-pub mod widget;
-pub mod layout;
+pub mod tree;
 pub mod widgets;
+pub mod command_list;
+pub mod layout;
 
 #[cfg(test)]
 mod tests {

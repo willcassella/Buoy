@@ -1,27 +1,133 @@
-use super::widget::{Bounds, Widget, WidgetHandler};
-use super::layout::{Layout, LayoutHandler};
+use std::rc::Rc;
+use layout::{Bounds};
+use tree::{Filter, Generator, Element, Socket};
 
-pub trait WidgetContext {
+pub struct Context {
+    bounds: Vec<Bounds>,
+    socket: Option<Box<SocketElement>>,
+    filter: Option<Rc<FilterElement>>,
+    generators: Vec<GeneratorElement>,
+    stack: Vec<ElementType>,
+
+    ready_generators: Vec<GeneratorElement>,
+}
+
+impl Context {
     // Moves the context upward to the parent of the current element
     // This will panic if the parent is not in scope for this context!
-    fn pop(&mut self);
+    pub fn pop(&mut self) {
+        let elem_type = self.stack.pop().expect("Bad pop");
+        match elem_type {
+            ElementType::Filter => {
+                let filter = self.filter.take().expect("Corrupted build stack");
+                self.filter = filter.parent_filter.clone();
+            },
+            ElementType::Generator => {
+                let generator_element = self.generators.pop().expect("Corrupted build stack");
 
-    // Sets the bounds for this point in the stack
-    fn push_bounds(&mut self, bounds: Bounds);
+                // Attach it to the parent generator, if it exists
+                if let Some(parent) = self.generators.last_mut() {
+                    parent.children.push(generator_element);
+                } else {
+                    // Otherwise schedule it to be run next
+                    self.ready_generators.push(generator_element);
+                }
+            },
+            ElementType::Socket => {
+                let socket_element = self.socket.take().expect("Corrupted build stack");
+                self.socket = socket_element.parent_socket.clone();
+            },
+            ElementType::Bounds => {
+                self.stack.pop().expect("Corrupted build stack");
+            }
+        }
+    }
 
-    // Gets the bounds for this point in the stack
-    fn get_bounds(&self) -> Bounds;
+    // Pushes a generator as a child of whatever the current top of the stack is.
+    pub fn push_generator(&mut self, generator: Box<Generator>) {
+        let element = GeneratorElement {
+            generator,
+            parent_filter: self.filter.clone(),
+            parent_socket: self.socket.clone(),
+            children: Vec::new(),
+        };
 
-    // Pushes a widget as a child of whatever the current top of the stack is.
-    fn push_widget(&mut self, template: Box<Widget>);
+        self.generators.push(element);
+        self.stack.push(ElementType::Generator);
+    }
 
-    fn push_layout(&mut self, layout: Box<Layout>);
+    // Pushes a callback for every Generator/Socket that gets pushed in the current scope
+    pub fn push_filter(&mut self, filter: Box<Filter>) {
+        let element = FilterElement {
+            filter,
+            parent_filter: self.filter.clone(),
+        };
 
-    fn push_layout_handler(&mut self, layout_handler: Box<LayoutHandler>);
+        self.filter = Some(Rc::new(element));
+        self.stack.push(ElementType::Filter);
+    }
 
-    fn anchor_child(&mut self, handler: Option<Box<WidgetHandler>>);
+    pub fn push_socket(&mut self, socket: Box<Socket>) {
+        let element = SocketElement {
+            socket,
+            parent_filter: self.filter.clone(),
+            parent_socket: self.socket.clone(),
+            children: Vec::new(),
+        };
 
-    fn anchor_children(&mut self, handler: Option<Box<WidgetHandler>>);
+        self.socket = Some(Rc::new(element));
+        self.stack.push(ElementType::Socket);
+    }
+
+    pub fn push_bounds(&mut self, bounds: Bounds) {
+        self.bounds.push(bounds);
+        self.stack.push(ElementType::Bounds);
+    }
+
+    pub fn get_bounds(&self) -> Bounds {
+        *self.bounds.last().expect("Corrupted build stack")
+    }
+
+    // Pushes a function that gets called with a final area
+    pub fn element(&mut self, _bounds: Bounds, _element: Box<Element>) {
+        unimplemented!()
+    }
+
+    pub fn children(&mut self) {
+        unimplemented!()
+    }
+}
+
+enum ElementType {
+    Filter,
+    Generator,
+    Socket,
+    Bounds,
+}
+
+struct FilterElement {
+    filter: Box<Filter>,
+    parent_filter: Option<Rc<FilterElement>>,
+}
+
+enum SpecialElement {
+    Generator(GeneratorElement),
+    Socket(SocketElement),
+}
+
+struct GeneratorElement {
+    generator: Box<Generator>,
+    parent_filter: Option<Rc<FilterElement>>,
+    parent_socket: Option<Rc<SocketElement>>,
+    children: Vec<SpecialElement>,
+}
+
+struct SocketElement {
+    bounds: Bounds,
+    socket: Box<Socket>,
+    parent_filter: Option<Rc<FilterElement>>,
+    parent_socket: Option<Rc<SocketElement>>,
+    children: Vec<SpecialElement>,
 }
 
 // struct LayoutElement {

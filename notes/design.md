@@ -1,0 +1,12 @@
+So how is the UI constructed?
+- Parents push/pop widgets
+- One widget doesn't necessarily correspond to a single element
+    - Problem: It's a little bit wierd how the widget function is given a size boundary, when that size boundary won't necessarily apply to the layout it adds
+    - So why am I splitting things up like this?
+        - Widgets should follow "referential transparency"
+            - Meaning a widget that directly pushes several layouts should be equivalent to pushing several widgets that each push a single layout
+- So a widget can do the following:
+    - Push a widget filter (callback for widgets that get pushed)
+    - Push a bounds (used for widgets that get pushed)
+    - Push a layout (gets called with final coordinates and size)
+        - Should pushing a layout also require passing layout bounds?
