@@ -10,14 +10,14 @@ pub struct BlockBorder {
     pub top: f32,
     pub right: f32,
     pub bottom: f32,
-    pub border_color: Color,
+    pub color: Color,
 }
 
 fn generate_quads(border: BlockBorder, area: Area, commands: &mut CommandList) {
-    let top_quad = ColoredQuad::new(Quad::new(area.x, area.y, area.width, border.top), border.border_color);
-    let bottom_quad = ColoredQuad::new(Quad::new(area.x, area.y + area.height - border.bottom, area.width, border.bottom), border.border_color);
-    let left_quad = ColoredQuad::new(Quad::new(area.x, area.y + border.top, border.left, area.height - border.top - border.bottom), border.border_color);
-    let right_quad = ColoredQuad::new(Quad::new(area.x + area.width - border.right, area.y + border.top, border.right, area.height - border.bottom - border.top), border.border_color);
+    let top_quad = ColoredQuad::new(Quad::new(area.x, area.y, area.width, border.top), border.color);
+    let bottom_quad = ColoredQuad::new(Quad::new(area.x, area.y + area.height - border.bottom, area.width, border.bottom), border.color);
+    let left_quad = ColoredQuad::new(Quad::new(area.x, area.y + border.top, border.left, area.height - border.top - border.bottom), border.color);
+    let right_quad = ColoredQuad::new(Quad::new(area.x + area.width - border.right, area.y + border.top, border.right, area.height - border.bottom - border.top), border.color);
     commands.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
 }
 
@@ -28,8 +28,29 @@ impl Default for BlockBorder {
             top: 0_f32,
             right: 0_f32,
             bottom: 0_f32,
-            border_color: constants::BLACK,
+            color: constants::BLACK,
         }
+    }
+}
+
+impl BlockBorder {
+    pub fn uniform(size: f32) -> Self {
+        BlockBorder {
+            left: size,
+            top: size,
+            right: size,
+            bottom: size,
+            color: constants::BLACK,
+        }
+    }
+
+    pub fn push(self, ctx: &mut Context) {
+        ctx.push_socket(Box::new(self));
+    }
+
+    pub fn color(&mut self, v: Color) -> &mut Self {
+        self.color = v;
+        self
     }
 }
 

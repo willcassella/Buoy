@@ -17,6 +17,20 @@ pub struct Bounds {
 }
 
 impl Bounds {
+    pub fn zero() -> Self {
+        Bounds {
+            width: 0_f32,
+            height: 0_f32,
+        }
+    }
+
+    pub fn infinite() -> Self {
+        Bounds {
+            width: f32::INFINITY,
+            height: f32::INFINITY,
+        }
+    }
+
     pub fn to_flex(&self) -> FlexBounds {
         FlexBounds {
             min_width: self.width,

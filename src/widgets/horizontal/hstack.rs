@@ -64,12 +64,12 @@ impl Socket for HStack {
     }
 }
 
-fn render_left_to_right(children: Vec<(Box<Element>, f32)>, mut area: Area, out: &mut CommandList) {
+fn render_left_to_right(children: &Vec<(Box<Element>, f32)>, mut area: Area, out: &mut CommandList) {
     for (child, width) in children {
         let child_area = Area {
             x: area.x,
             y: area.y,
-            width,
+            width: *width,
             height: area.height,
         };
 
@@ -79,14 +79,14 @@ fn render_left_to_right(children: Vec<(Box<Element>, f32)>, mut area: Area, out:
     }
 }
 
-fn render_right_to_left(children: Vec<(Box<Element>, f32)>, area: Area, out: &mut CommandList) {
+fn render_right_to_left(children: &Vec<(Box<Element>, f32)>, area: Area, out: &mut CommandList) {
     let mut x = area.x + area.width;
 
     for (child, width) in children {
         let child_area = Area {
             x: x - width,
             y: area.y,
-            width,
+            width: *width,
             height: area.height,
         };
 
@@ -100,10 +100,10 @@ impl Element for HStack {
     fn render(&self, area: Area, out: &mut CommandList) {
         match self.dir {
             HDir::LeftToRight => {
-                render_left_to_right(self.children, area, out);
+                render_left_to_right(&self.children, area, out);
             },
             HDir::RightToLeft => {
-                render_right_to_left(self.children, area, out);
+                render_right_to_left(&self.children, area, out);
             }
         }
     }

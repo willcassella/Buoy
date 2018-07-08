@@ -1,289 +1,210 @@
-use std::rc::Rc;
+use std::mem;
 use layout::{Bounds};
 use tree::{Filter, Generator, Element, Socket};
 
 pub struct Context {
-    bounds: Vec<Bounds>,
-    socket: Option<Box<SocketElement>>,
-    filter: Option<Rc<FilterElement>>,
-    generators: Vec<GeneratorElement>,
-    stack: Vec<ElementType>,
+    bounds: Bounds,
 
-    ready_generators: Vec<GeneratorElement>,
+    children: Vec<TreeElement>,
+    stack: Vec<StackElement>,
+    roots: Vec<TreeElement>,
+}
+
+impl Context {
+    fn new(bounds: Bounds) -> Self {
+        Context {
+            bounds,
+            children: Vec::new(),
+            stack: Vec::new(),
+            roots: Vec::new(),
+        }
+    }
 }
 
 impl Context {
     // Moves the context upward to the parent of the current element
     // This will panic if the parent is not in scope for this context!
     pub fn pop(&mut self) {
-        let elem_type = self.stack.pop().expect("Bad pop");
-        match elem_type {
-            ElementType::Filter => {
-                let filter = self.filter.take().expect("Corrupted build stack");
-                self.filter = filter.parent_filter.clone();
-            },
-            ElementType::Generator => {
-                let generator_element = self.generators.pop().expect("Corrupted build stack");
+        let element = self.stack.pop().expect("Bad pop");
+        let element = TreeElement::StackElement(element);
 
-                // Attach it to the parent generator, if it exists
-                if let Some(parent) = self.generators.last_mut() {
-                    parent.children.push(generator_element);
-                } else {
-                    // Otherwise schedule it to be run next
-                    self.ready_generators.push(generator_element);
-                }
-            },
-            ElementType::Socket => {
-                let socket_element = self.socket.take().expect("Corrupted build stack");
-                self.socket = socket_element.parent_socket.clone();
-            },
-            ElementType::Bounds => {
-                self.stack.pop().expect("Corrupted build stack");
-            }
+        if let Some(parent) = self.stack.last_mut() {
+            parent.children.push(element);
+        } else {
+            self.roots.push(element);
         }
     }
 
-    // Pushes a generator as a child of whatever the current top of the stack is.
     pub fn push_generator(&mut self, generator: Box<Generator>) {
-        let element = GeneratorElement {
-            generator,
-            parent_filter: self.filter.clone(),
-            parent_socket: self.socket.clone(),
+        let element = StackElement {
+            element: Builder::Generator(generator),
             children: Vec::new(),
         };
 
-        self.generators.push(element);
-        self.stack.push(ElementType::Generator);
+        self.stack.push(element);
     }
 
-    // Pushes a callback for every Generator/Socket that gets pushed in the current scope
     pub fn push_filter(&mut self, filter: Box<Filter>) {
-        let element = FilterElement {
-            filter,
-            parent_filter: self.filter.clone(),
+        let element = StackElement {
+            element: Builder::Filter(filter),
+            children: Vec::new(),
         };
 
-        self.filter = Some(Rc::new(element));
-        self.stack.push(ElementType::Filter);
+        self.stack.push(element);
     }
 
     pub fn push_socket(&mut self, socket: Box<Socket>) {
-        let element = SocketElement {
-            socket,
-            parent_filter: self.filter.clone(),
-            parent_socket: self.socket.clone(),
+        // Need to add socket as a child of whatever the top of the stack is (socket or generator)
+        let element = StackElement {
+            element: Builder::Socket(socket),
             children: Vec::new(),
         };
 
-        self.socket = Some(Rc::new(element));
-        self.stack.push(ElementType::Socket);
+        self.stack.push(element);
     }
 
-    pub fn push_bounds(&mut self, bounds: Bounds) {
-        self.bounds.push(bounds);
-        self.stack.push(ElementType::Bounds);
-    }
-
-    pub fn get_bounds(&self) -> Bounds {
-        *self.bounds.last().expect("Corrupted build stack")
+    pub fn self_max(&self) -> Bounds {
+        self.bounds
     }
 
     // Pushes a function that gets called with a final area
-    pub fn element(&mut self, _bounds: Bounds, _element: Box<Element>) {
-        unimplemented!()
+    pub fn element(&mut self, bounds: Bounds, element: Box<Element>) {
+        let element = TreeElement::Terminal(bounds, element);
+
+        if let Some(parent) = self.stack.last_mut() {
+            parent.children.push(element);
+        } else {
+            self.roots.push(element);
+        }
     }
 
     pub fn children(&mut self) {
-        unimplemented!()
+        if let Some(parent) = self.stack.last_mut() {
+            parent.children.append(&mut self.children);
+        } else {
+            self.roots.append(&mut self.children);
+        }
     }
 }
 
-enum ElementType {
-    Filter,
-    Generator,
-    Socket,
-    Bounds,
+enum TreeElement {
+    Terminal(Bounds, Box<Element>),
+    StackElement(StackElement),
 }
 
-struct FilterElement {
-    filter: Box<Filter>,
-    parent_filter: Option<Rc<FilterElement>>,
+enum Builder {
+    Filter(Box<Filter>),
+    Generator(Box<Generator>),
+    Socket(Box<Socket>),
 }
 
-enum SpecialElement {
-    Generator(GeneratorElement),
-    Socket(SocketElement),
+struct StackElement {
+    element: Builder,
+    children: Vec<TreeElement>,
 }
 
-struct GeneratorElement {
-    generator: Box<Generator>,
-    parent_filter: Option<Rc<FilterElement>>,
-    parent_socket: Option<Rc<SocketElement>>,
-    children: Vec<SpecialElement>,
-}
-
-struct SocketElement {
+pub struct GlobalContext {
     bounds: Bounds,
-    socket: Box<Socket>,
-    parent_filter: Option<Rc<FilterElement>>,
-    parent_socket: Option<Rc<SocketElement>>,
-    children: Vec<SpecialElement>,
+    filters: Vec<FilterContext>,
+    sockets: Vec<SocketContext>,
+    elements: Vec<GlobalContextElement>,
 }
 
-// struct LayoutElement {
-//     pub layout: Box<Layout>,
-//     pub children: Arc<Mutex<Vec<Box<Layout>>>>,
-// }
+impl Default for GlobalContext {
+    fn default() -> Self {
+        GlobalContext {
+            bounds: Bounds::zero(),
+            filters: Vec::new(),
+            sockets: Vec::new(),
+            elements: Vec::new(),
+        }
+    }
+}
 
-// impl LayoutContext for LayoutElement {
-//     fn set_area(&mut self, area: Area) {
-//         self.children.as_ref().
-//     }
-// }
+fn insert_front<T>(dest: &mut Vec<T>, source: Vec<T>) {
+    dest.reserve(source.len());
+    for e in source {
+        dest.insert(0, e);
+    }
+}
 
-// pub struct LayoutContext {
-//     pub(crate) area: Area,
-//     pub(crate) layout: Box<Layout>,
-//     pub(crate) children: Vec<LayoutElement>,
-// }
+impl GlobalContext {
+    pub fn run(&mut self, bounds: Bounds, root: Box<Generator>) -> Option<Box<Element>> {
+        self.bounds = bounds;
 
-// impl LayoutContext {
-//     pub fn set_area(&mut self, area: Area) {
-//         // Write something....
-//     }
-// }
+        let root_element = StackElement {
+            element: Builder::Generator(root),
+            children: Vec::new(),
+        };
 
-// pub struct BoundsElement {
-//     pub(crate) parent: Rc<BoundsContext>,
-//     pub(crate) child_bounds: Vec<Bounds>,
-// }
+        let roots = vec![TreeElement::StackElement(root_element)];
+        self.run_impl(roots)
+    }
 
-// pub struct BoundsContext {
-//     pub(crate) parent: Rc<BoundsContext>,
-//     pub(crate) child_bounds: Vec<Bounds>,
+    fn run_impl(&mut self, mut roots: Vec<TreeElement>) -> Option<Box<Element>> {
+        while !roots.is_empty() {
+            // Get the first root (queue)
+            match roots.remove(0) {
+                TreeElement::Terminal(bounds, element) => {
+                    // Get the current socket
+                    // If we have an element but no socket, then we're done building the UI
+                    let socket = match self.sockets.pop() {
+                        Some(socket) => socket,
+                        None => return Some(element),
+                    };
 
-// }
+                    // From the perspective of the socket, current roots are it's children
+                    let mut ctx = Context::new(socket.bounds);
+                    ctx.children = mem::replace(&mut roots, Vec::new());
 
-// enum ElementType {
-//     Widget,
-// }
+                    // Run the socket
+                    socket.socket.child(&mut ctx, bounds, element);
 
-// pub struct WidgetElement {
-//     pub widget: Box<Widget>,
-//     pub children: Vec<WidgetElement>,
-//     pub handler: Option<Rc<WidgetHandlerElement>>,
-// }
+                    // Socket's roots replace the socket (if socket called 'children()', previous roots will still exist
+                    roots = ctx.roots;
+                    self.bounds = socket.bounds;
+                },
+                TreeElement::StackElement(StackElement{ element: Builder::Filter(_filter), children }) => {
+                },
+                TreeElement::StackElement(StackElement{ element: Builder::Generator(generator), children }) => {
+                    let mut ctx = Context::new(self.bounds);
+                    ctx.children = children;
 
-// impl WidgetElement {
-//     pub fn new(template: Box<Template>, handler: Option<Rc<TemplateHandlerElement>>) -> Self {
-//         Self {
-//             template,
-//             children: Vec::new(),
-//             handler,
-//         }
-//     }
-// }
+                    // Run the generator
+                    generator.run(&mut ctx);
 
-// pub struct WidgetHandlerElement {
-//     pub handler: Box<WidgetHandler>,
-//     pub parent: Option<Rc<WidgetHandlerElement>>,
-// }
+                    // Add all of the context roots as roots
+                    insert_front(&mut roots, ctx.roots);
+                },
+                TreeElement::StackElement(StackElement{ element: Builder::Socket(socket), children }) => {
+                    // Create the StackContext
+                    let socket = SocketContext {
+                        socket,
+                        bounds: self.bounds,
+                        siblings: mem::replace(&mut roots, children),
+                    };
 
-// impl TemplateHandlerElement {
-//     pub fn new(handler: Box<TemplateHandler>, parent: Option<Rc<TemplateHandlerElement>>) -> Self {
-//         Self {
-//             handler,
-//             parent
-//         }
-//     }
-// }
+                    self.bounds = socket.socket.get_child_max(self.bounds);
+                    self.sockets.push(socket);
+                },
+            }
+        }
 
-// pub struct WidgetContext {
-//     context_child_handler: // This is either a WidgetHandler or a SyncWidgetHandler
-//     context_children: Vec<TemplateElement>,
+        None
+    }
+}
 
-//     build_stack: Vec<ElementType>,
-//     build_widget_stack: Vec<WidgetElement>,
-//     build_widget_handler: Option<Rc<WidgetHandlerElement>>,
-// }
+struct FilterContext {
+    filter: Box<Filter>,
+}
 
-// impl WidgetContex {
-//     pub fn yield_child(&mut self, handler: Option<Box<SyncWidgetHandler>>) {
-//         // Need to add first child as a child of the current parent
-//         if let Some(parent) = self.build_widget_stack.last_mut() {
-            
-//         }
-//     }
-// }
+struct SocketContext {
+    socket: Box<Socket>,
+    bounds: Bounds,
+    siblings: Vec<TreeElement>,
+}
 
-// impl Context {
-//     pub fn new() -> Self {
-//         Self {
-//             context_children: Vec::new(),
-//             context_next: Vec::new(),
-
-//             build_stack: Vec::new(),
-//             build_template_stack: Vec::new(),
-//             build_template_handler: None,
-//         }
-//     }
-
-//     pub fn pop(&mut self) {
-//         let elem_type = self.build_stack.pop().expect("Bad pop");
-
-//         match elem_type {
-//             ElementType::Template => {
-//                 let elem = self.build_template_stack.pop().unwrap();
-
-//                 if let Some(parent) = self.build_template_stack.last_mut() {
-//                     parent.children.push(elem);
-//                 } else {
-//                     self.context_next.push(elem);
-//                 }
-//             }
-//             ElementType::TemplateHandler => {
-//                 let handler = self.build_template_handler.take().unwrap();
-//                 self.build_template_handler = handler.parent.clone();
-//             }
-//         }
-//     }
-
-//     pub fn yield_children(&mut self) {
-//         if let Some(parent) = self.build_template_stack.last_mut() {
-//             parent.children.append(&mut self.context_children.clone());
-//         } else {
-//             self.context_next.append(&mut self.context_children.clone());
-//         }
-//     }
-
-//     pub fn push_template(&mut self, template: Box<Template>) {
-//         let elem = TemplateElement::new(template, self.build_template_handler.clone());
-//         self.build_template_stack.push(elem);
-//         self.build_stack.push(ElementType::Template);
-//     }
-
-//     pub fn push_template_handler(&mut self, handler: Box<TemplateHandler>) {
-//         let elem = TemplateHandlerElement::new(handler, self.build_template_handler.take());
-//         self.build_template_handler = Some(Rc::new(elem));
-
-//         self.build_stack.push(ElementType::TemplateHandler);
-//     }
-
-//     pub fn run(&mut self) {
-//         while let Some(template) = self.context_next.pop() {
-//             if !self.build_stack.is_empty() {
-//                 panic!("Stack left unpopped");
-//             }
-
-//             // Setup the context based on this template
-//             self.context_children = template.children;
-
-//             if let Some(handler) = template.handler {
-//                 self.build_template_handler = handler.parent.clone();
-//                 handler.handler.run(self, template.template);
-//             } else {
-//                 template.template.run(self);
-//             }
-//         }
-//     }
-// }
+enum GlobalContextElement {
+    Filter,
+    Socket,
+}

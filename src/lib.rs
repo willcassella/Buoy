@@ -6,37 +6,37 @@ pub mod layout;
 
 #[cfg(test)]
 mod tests {
-    // fn identity_filter(ctx: &mut Context, elem: Box<Template>) {
-    //     ctx.push_template(elem);
-    //         ctx.yield_children();
-    //     ctx.pop(); // elem
-    // }
+    use context::{GlobalContext, Context};
+    use widgets::{BlockBorder, Max, HAlign};
+    use tree::Generator;
+    use layout::Bounds;
+    use command_list::constants::*;
 
-    // fn duper(ctx: &mut Context) {
-    //     ctx.yield_children();
-    //     ctx.yield_children();
-    // }
+    struct TestGenerator;
+    impl Generator for TestGenerator {
+        fn run(self: Box<Self>, ctx: &mut Context) {
+            Max::default()
+                .h_align(HAlign::Right)
+                .max_width(100_f32)
+                .push(ctx);
 
-    // fn printer(_ctx: &mut Context) {
-    //     println!("Hello");
-    // }
+                BlockBorder::uniform(10_f32)
+                    .color(BLUE)
+                    .push(ctx);
+                ctx.pop(); // BlockBorder
+            ctx.pop(); // Max
+        }
+    }
 
-    // fn start(ctx: &mut Context) {
-    //     ctx.push_template_handler(Box::new(identity_filter));
-    //         ctx.push_template(Box::new(duper));
-    //             ctx.push_template(Box::new(printer));
-    //             ctx.pop(); // printer
-    //         ctx.pop(); // super
-    //     ctx.pop(); // identity_filter
-    // }
 
-    // #[test]
-    // fn it_works() {
-    //     let mut ctx = Context::new();
+    #[test]
+    fn it_works() {
+        let mut ctx = GlobalContext::default();
+        let bounds = Bounds {
+            width: 800_f32,
+            height: 600_f32,
+        };
 
-    //     ctx.push_template(Box::new(start));
-    //     ctx.pop(); // start
-
-    //     ctx.run();
-    // }
+        let elem = ctx.run(bounds, Box::new(TestGenerator));
+    }
 }
