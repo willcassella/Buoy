@@ -1,9 +1,9 @@
 use std::mem;
-use layout::{Bounds};
+use layout::Area;
 use tree::{Filter, Generator, Element, Socket};
 
 pub struct Context {
-    bounds: Bounds,
+    bounds: Area,
 
     children: Vec<TreeElement>,
     stack: Vec<StackElement>,
@@ -11,7 +11,7 @@ pub struct Context {
 }
 
 impl Context {
-    fn new(bounds: Bounds) -> Self {
+    fn new(bounds: Area) -> Self {
         Context {
             bounds,
             children: Vec::new(),
@@ -63,12 +63,11 @@ impl Context {
         self.stack.push(element);
     }
 
-    pub fn self_max(&self) -> Bounds {
+    pub fn self_max(&self) -> Area {
         self.bounds
     }
 
-    // Pushes a function that gets called with a final area
-    pub fn element(&mut self, bounds: Bounds, element: Box<Element>) {
+    pub fn element(&mut self, bounds: Area, element: Box<Element>) {
         let element = TreeElement::Terminal(bounds, element);
 
         if let Some(parent) = self.stack.last_mut() {
@@ -88,7 +87,7 @@ impl Context {
 }
 
 enum TreeElement {
-    Terminal(Bounds, Box<Element>),
+    Terminal(Area, Box<Element>),
     StackElement(StackElement),
 }
 
@@ -104,7 +103,7 @@ struct StackElement {
 }
 
 pub struct GlobalContext {
-    bounds: Bounds,
+    bounds: Area,
     filters: Vec<FilterContext>,
     sockets: Vec<SocketContext>,
     elements: Vec<GlobalContextElement>,
@@ -113,7 +112,7 @@ pub struct GlobalContext {
 impl Default for GlobalContext {
     fn default() -> Self {
         GlobalContext {
-            bounds: Bounds::zero(),
+            bounds: Area::zero(),
             filters: Vec::new(),
             sockets: Vec::new(),
             elements: Vec::new(),
@@ -129,7 +128,7 @@ fn insert_front<T>(dest: &mut Vec<T>, source: Vec<T>) {
 }
 
 impl GlobalContext {
-    pub fn run(&mut self, bounds: Bounds, root: Box<Generator>) -> Option<Box<Element>> {
+    pub fn run(&mut self, bounds: Area, root: Box<Generator>) -> Option<Box<Element>> {
         self.bounds = bounds;
 
         let root_element = StackElement {
@@ -153,13 +152,14 @@ impl GlobalContext {
                 };
 
                 let mut ctx = Context::new(socket.bounds);
-                ctx.children = mem::replace(&mut roots, Vec::new());
+                // Roots is empty, so no reason to add children...
 
                 // Run the socket
                 socket.socket.close(&mut ctx);
 
                 // Socket's roots replace the socket
-                roots = ctx.roots;
+                roots = socket.siblings;
+                insert_front(&mut roots, ctx.roots);
                 self.bounds = socket.bounds;
                 continue;
             }
@@ -176,13 +176,13 @@ impl GlobalContext {
 
                     // From the perspective of the socket, current roots are it's children
                     let mut ctx = Context::new(socket.bounds);
-                    ctx.children = mem::replace(&mut roots, Vec::new());
+                    ctx.children = mem::replace(&mut roots, socket.siblings);
 
                     // Run the socket
                     socket.socket.child(&mut ctx, bounds, element);
 
                     // Socket's roots replace the socket (if socket called 'children()', previous roots will still exist)
-                    roots = ctx.roots;
+                    insert_front(&mut roots, ctx.roots);
                     self.bounds = socket.bounds;
                 },
                 TreeElement::StackElement(StackElement{ element: Builder::Filter(_filter), children }) => {
@@ -210,8 +210,6 @@ impl GlobalContext {
                 },
             }
         }
-
-        None
     }
 }
 
@@ -221,7 +219,7 @@ struct FilterContext {
 
 struct SocketContext {
     socket: Box<Socket>,
-    bounds: Bounds,
+    bounds: Area,
     siblings: Vec<TreeElement>,
 }
 

@@ -1,7 +1,8 @@
 use context::Context;
-use layout::{Area, Bounds};
-use tree::{Socket, Element};
-use super::super::command_list::{constants, CommandList, Color, Quad, ColoredQuad};
+use layout::{Area, Region};
+use tree::{Socket, Element, NullElement};
+use commands::{CommandList, ColoredQuad, Quad};
+use color::{self, Color};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -13,14 +14,6 @@ pub struct BlockBorder {
     pub color: Color,
 }
 
-fn generate_quads(border: BlockBorder, area: Area, commands: &mut CommandList) {
-    let top_quad = ColoredQuad::new(Quad::new(area.x, area.y, area.width, border.top), border.color);
-    let bottom_quad = ColoredQuad::new(Quad::new(area.x, area.y + area.height - border.bottom, area.width, border.bottom), border.color);
-    let left_quad = ColoredQuad::new(Quad::new(area.x, area.y + border.top, border.left, area.height - border.top - border.bottom), border.color);
-    let right_quad = ColoredQuad::new(Quad::new(area.x + area.width - border.right, area.y + border.top, border.right, area.height - border.top - border.bottom), border.color);
-    commands.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
-}
-
 impl Default for BlockBorder {
     fn default() -> Self {
         BlockBorder {
@@ -28,19 +21,27 @@ impl Default for BlockBorder {
             top: 0_f32,
             right: 0_f32,
             bottom: 0_f32,
-            color: constants::BLACK,
+            color: color::constants::TRANSPARENT,
         }
     }
 }
 
 impl BlockBorder {
+    fn generate_commands(&self, region: Region, cmds: &mut CommandList) {
+        let top_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y, region.area.width, self.top), self.color);
+        let bottom_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y + region.area.height - self.bottom, region.area.width, self.bottom), self.color);
+        let left_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y + self.top, self.left, region.area.height - self.top - self.bottom), self.color);
+        let right_quad = ColoredQuad::new(Quad::new(region.pos.x + region.area.width - self.right, region.pos.y + self.top, self.right, region.area.height - self.top - self.bottom), self.color);
+        cmds.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
+    }
+
     pub fn uniform(size: f32) -> Self {
         BlockBorder {
             left: size,
             top: size,
             right: size,
             bottom: size,
-            color: constants::BLACK,
+            color: color::constants::BLACK,
         }
     }
 
@@ -48,46 +49,74 @@ impl BlockBorder {
         ctx.push_socket(Box::new(self));
     }
 
-    pub fn color(&mut self, v: Color) -> &mut Self {
-        self.color = v;
+    pub fn top(&mut self, top: f32) -> &mut Self {
+        self.top = top;
+        self
+    }
+
+    pub fn bottom(&mut self, bottom: f32) -> &mut Self {
+        self.bottom = bottom;
+        self
+    }
+
+    pub fn left(&mut self, left: f32) -> &mut Self {
+        self.left = left;
+        self
+    }
+
+    pub fn right(&mut self, right: f32) -> &mut Self {
+        self.right = right;
+        self
+    }
+
+    pub fn color(&mut self, color: Color) -> &mut Self {
+        self.color = color;
         self
     }
 }
 
 impl Socket for BlockBorder {
-    fn get_child_max(&self, mut self_max: Bounds) -> Bounds {
+    fn get_child_max(&self, mut self_max: Area) -> Area {
         self_max.width -= self.left + self.right;
         self_max.height -= self.top + self.bottom;
         return self_max;
     }
 
-    fn child(self: Box<Self>, ctx: &mut Context, child_min: Bounds, child_element: Box<Element>) {
+    fn child(self: Box<Self>, ctx: &mut Context, child_min: Area, child_element: Box<Element>) {
         let mut bounds = child_min;
 
         // Add to width/height to account for border
         bounds.width += self.left + self.right;
         bounds.height += self.top + self.bottom;
 
-        ctx.element(bounds, Box::new(move |mut area: Area, commands: &mut CommandList| {
-            generate_quads(*self, area, commands);
+        ctx.element(bounds, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+            // Optimization: If we're fully transparent (ie, for padding), don't render anything
+            if self.color != color::constants::TRANSPARENT {
+                self.generate_commands(region, cmds);
+            }
 
             // Reduce area to account for border
-            area.x += self.left;
-            area.width -= self.left + self.right;
-            area.y += self.top;
-            area.height -= self.top + self.bottom;
+            region.pos.x += self.left;
+            region.area.width -= self.left + self.right;
+            region.pos.y += self.top;
+            region.area.height -= self.top + self.bottom;
 
             // Render the child element
-            child_element.render(area, commands);
+            child_element.render(region, cmds);
         }))
     }
 
     fn close(self: Box<Self>, ctx: &mut Context) {
         // Since we don't have a child, bounds are just size of border
-        let bounds = Bounds{ width: self.left + self.right, height: self.top + self.bottom };
-        ctx.element(bounds, Box::new(move |area: Area, commands: &mut CommandList| {
-            generate_quads(*self, area, commands)
-        }));
+        let bounds = Area{ width: self.left + self.right, height: self.top + self.bottom };
+
+        if self.color == color::constants::TRANSPARENT {
+            ctx.element(bounds, Box::new(NullElement));
+        } else {
+            ctx.element(bounds, Box::new(move |region: Region, cmds: &mut CommandList| {
+                self.generate_commands(region, cmds);
+            }));
+        }
     }
 }
 

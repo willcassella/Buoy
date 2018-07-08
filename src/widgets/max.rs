@@ -1,66 +1,59 @@
 use std::f32;
 use context::Context;
-use layout::{Area, Bounds};
+use layout::{Area, Region};
 use tree::{Socket, Element};
-use command_list::CommandList;
+use commands::CommandList;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub enum HAlign {
-    Stretch,
     Left,
     Right,
     Center,
 }
 
-fn align_horizontally(align: HAlign, bounds: Bounds, mut area: Area) -> Area {
+fn align_horizontally(align: HAlign, bounds: Area, mut region: Region) -> Region {
     match align {
-        HAlign::Stretch => {
-            // Stretch is a no-op
-        }
         HAlign::Left => {
-            area.width = bounds.width;
+            region.area.width = bounds.width;
         },
         HAlign::Right => {
-            area.x = area.x + area.width - bounds.width;
-            area.width = bounds.width;
+            region.pos.x = region.pos.x + region.area.width - bounds.width;
+            region.area.width = bounds.width;
         },
         HAlign::Center => {
-            area.x = (area.x + area.width / 2_f32) - bounds.width / 2_f32;
-            area.width = bounds.width;
+            region.pos.x = (region.pos.x + region.area.width / 2_f32) - bounds.width / 2_f32;
+            region.area.width = bounds.width;
         },
     }
 
-    return area;
+    return region;
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub enum VAlign {
-    Stretch,
     Top,
     Bottom,
     Center,
 }
 
-fn align_vertically(align: VAlign, bounds: Bounds, mut area: Area) -> Area {
+fn align_vertically(align: VAlign, bounds: Area, mut region: Region) -> Region {
     match align {
-        VAlign::Stretch => {
-            // Stretch is a no-op
-        },
         VAlign::Top => {
-            area.height = bounds.height;
+            region.area.height = bounds.height;
         },
         VAlign::Bottom => {
-            area.y = area.y + area.height - bounds.height;
-            area.height = bounds.height;
+            region.pos.y = region.pos.y + region.area.height - bounds.height;
+            region.area.height = bounds.height;
         },
         VAlign::Center => {
-            area.y = (area.y + area.height / 2_f32) - bounds.height / 2_f32;
+            region.pos.y = (region.pos.y + region.area.height / 2_f32) - bounds.height / 2_f32;
+            region.area.height = bounds.height;
         }
     }
 
-    return area;
+    return region;
 }
 
 #[repr(C)]
@@ -68,7 +61,7 @@ fn align_vertically(align: VAlign, bounds: Bounds, mut area: Area) -> Area {
 pub struct Max {
     pub h_align: HAlign,
     pub v_align: VAlign,
-    pub max: Bounds,
+    pub max: Area,
 }
 
 impl Max {
@@ -100,25 +93,30 @@ impl Max {
 impl Default for Max {
     fn default() -> Self {
         Max {
-            h_align: HAlign::Stretch,
-            v_align: VAlign::Stretch,
-            max: Bounds::infinite(),
+            h_align: HAlign::Left,
+            v_align: VAlign::Top,
+            max: Area::infinite(),
         }
     }
 }
 
 impl Socket for Max {
-    fn get_child_max(&self, mut self_max: Bounds) -> Bounds {
+    fn get_child_max(&self, mut self_max: Area) -> Area {
         self_max.width = self_max.width.min(self.max.width);
         self_max.height = self_max.height.min(self.max.height);
         return self_max;
     }
 
-    fn child(self: Box<Self>, ctx: &mut Context, child_min: Bounds, child_element: Box<Element>) {
-        ctx.element(child_min, Box::new(move |mut area: Area, command_list: &mut CommandList| {
-            area = align_horizontally(self.h_align, child_min, area);
-            area = align_vertically(self.v_align, child_min, area);
-            child_element.render(area, command_list);
+    fn child(self: Box<Self>, ctx: &mut Context, child_min: Area, child_element: Box<Element>) {
+        ctx.element(child_min, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+            if self.max.width < region.area.width {
+                region = align_horizontally(self.h_align, self.max, region);
+            }
+            if self.max.height < region.area.height {
+                region = align_vertically(self.v_align, self.max, region);
+            }
+
+            child_element.render(region, cmds);
         }));
     }
 }

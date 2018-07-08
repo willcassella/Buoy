@@ -1,7 +1,9 @@
 mod border;
 pub use self::border::BlockBorder;
 
-mod max;
-pub use self::max::{HAlign, VAlign, Max};
+mod fill;
+pub use self::fill::Fill;
 
-pub mod horizontal;
+pub mod max;
+pub mod min;
+pub mod hstack;
