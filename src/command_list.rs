@@ -99,7 +99,7 @@ impl ColoredQuad {
 
 #[derive(Default)]
 pub struct CommandList {
-    colored_quads: Vec<ColoredQuad>,
+    pub colored_quads: Vec<ColoredQuad>,
 }
 
 impl CommandList {

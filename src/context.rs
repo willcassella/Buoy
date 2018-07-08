@@ -142,7 +142,28 @@ impl GlobalContext {
     }
 
     fn run_impl(&mut self, mut roots: Vec<TreeElement>) -> Option<Box<Element>> {
-        while !roots.is_empty() {
+        loop {
+            // If there are no roots, close the first socket
+            if roots.is_empty() {
+                // Close the first socket
+                // If there is no socket to close, we couldn't build a UI
+                let socket = match self.sockets.pop() {
+                    Some(socket) => socket,
+                    None => return None,
+                };
+
+                let mut ctx = Context::new(socket.bounds);
+                ctx.children = mem::replace(&mut roots, Vec::new());
+
+                // Run the socket
+                socket.socket.close(&mut ctx);
+
+                // Socket's roots replace the socket
+                roots = ctx.roots;
+                self.bounds = socket.bounds;
+                continue;
+            }
+
             // Get the first root (queue)
             match roots.remove(0) {
                 TreeElement::Terminal(bounds, element) => {
@@ -160,7 +181,7 @@ impl GlobalContext {
                     // Run the socket
                     socket.socket.child(&mut ctx, bounds, element);
 
-                    // Socket's roots replace the socket (if socket called 'children()', previous roots will still exist
+                    // Socket's roots replace the socket (if socket called 'children()', previous roots will still exist)
                     roots = ctx.roots;
                     self.bounds = socket.bounds;
                 },

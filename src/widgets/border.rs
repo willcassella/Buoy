@@ -17,7 +17,7 @@ fn generate_quads(border: BlockBorder, area: Area, commands: &mut CommandList) {
     let top_quad = ColoredQuad::new(Quad::new(area.x, area.y, area.width, border.top), border.color);
     let bottom_quad = ColoredQuad::new(Quad::new(area.x, area.y + area.height - border.bottom, area.width, border.bottom), border.color);
     let left_quad = ColoredQuad::new(Quad::new(area.x, area.y + border.top, border.left, area.height - border.top - border.bottom), border.color);
-    let right_quad = ColoredQuad::new(Quad::new(area.x + area.width - border.right, area.y + border.top, border.right, area.height - border.bottom - border.top), border.color);
+    let right_quad = ColoredQuad::new(Quad::new(area.x + area.width - border.right, area.y + border.top, border.right, area.height - border.top - border.bottom), border.color);
     commands.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
 }
 
