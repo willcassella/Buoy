@@ -1,6 +1,6 @@
+use context::Context;
 use layout::{Area, Region};
 use commands::CommandList;
-use context::Context;
 
 pub trait Generator {
     fn get_type(&self) -> i32 {
@@ -11,10 +11,6 @@ pub trait Generator {
 }
 
 pub trait Socket {
-    fn get_type(&self) -> i32 {
-        1
-    }
-
     fn get_child_max(&self, self_max: Area) -> Area {
         self_max
     }
@@ -23,17 +19,45 @@ pub trait Socket {
         self: Box<Self>,
         ctx: &mut Context,
         child_min: Area,
-        child_element: Box<Element>
+        child: Box<Element>
     );
 
     fn close(self: Box<Self>, _ctx: &mut Context) {
     }
 }
 
-pub trait Filter {
-    fn generator(&self, ctx: &mut Context, generator: Box<Generator>);
+pub trait Filter: Sync + Send + FilterClone {
+    fn generator(&self, ctx: &mut Context, generator: Box<Generator>) {
+        let self_id = ctx.self_id();
+        ctx.push_generator(generator, self_id);
+            ctx.children();
+        ctx.pop(); // generator
+    }
 
-    fn socket(&self, ctx: &mut Context, socket: Box<Socket>);
+    fn socket(&self, ctx: &mut Context, socket: Box<Socket>) {
+        let self_id = ctx.self_id();
+        ctx.push_socket(socket, self_id);
+            ctx.children();
+        ctx.pop(); // socket
+    }
+}
+
+pub trait FilterClone {
+    fn filter_clone(&self) -> Box<Filter>;
+}
+
+impl<T> FilterClone for T where
+    T: Filter + Clone + 'static
+{
+    fn filter_clone(&self) -> Box<Filter> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<Filter> {
+    fn clone(&self) -> Self {
+        self.filter_clone()
+    }
 }
 
 pub trait Element {

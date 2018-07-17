@@ -1,4 +1,4 @@
-use context::Context;
+use context::{Context, WidgetId};
 use layout::{Area, Region};
 use tree::{Socket, Element, NullElement};
 use commands::{CommandList, ColoredQuad, Quad};
@@ -45,8 +45,8 @@ impl BlockBorder {
         }
     }
 
-    pub fn push(self, ctx: &mut Context) {
-        ctx.push_socket(Box::new(self));
+    pub fn push(self, ctx: &mut Context, id: WidgetId) {
+        ctx.push_socket(Box::new(self), id);
     }
 
     pub fn top(&mut self, top: f32) -> &mut Self {
@@ -119,44 +119,3 @@ impl Socket for BlockBorder {
         }
     }
 }
-
-// So how does BlockBorder work with respect to multiple children?
-// One thing that might be useful to consider is how elements like BlockBorder work with respect to duplication
-// I think it could be misleading if some elements "duplicate" themselves when wrapped around elements when other's don't...
-// Though how else does BlockBorder implement layout for its children?
-// I don't think it's possible to implement some sort of max function without having Horizontal/Vertical alignment
-// So honest question: Is there value in having elements that by themselves represent potentially more than one element?
-//  - I think it could get very confusing
-
-// So elements like BlockBorder generally only make sense with a single child. How do you handle cases where it's given multiple elements?
-// 1 - Truncation/error
-//      + Easiest solution
-//          + Also the best long-term solution, since there may be more complex scenarios where options 2 and 3 aren't feasible
-//      - How do you communicate this to the user?
-//      - Also might not play nice with some of the filtering stuff I want to support
-//      - Also, does this happen at the widget level, or the layout level?
-//          - Definately the layout level
-// 2 - Just use max width/height
-//      + Works
-//      - Putting more overhead (and burden!) on implementation of BlockBorder than there needs to be
-// 3 - Self-duplication
-//      + Similar to solution #1, now you have multiple elements with single children!
-//      + Could have some neat implications if explored (worth thinking about)
-//      - Confusing for the user, how do you remember which elements duplicate themselves and which elements actually represent "one" element?
-
-// Also, here's how child and parent communicate with eachother:
-// - Child receives min/max offered width and height
-//      - max width means you can't be wider than this space, useful for doing any sort of wrapping/scaling
-//      - min width means you don't need to be smaller than this, useful for shortcutting measurement
-//          - Example: Box has fied max width, parent's min is smaller?
-
-// <min v=5>
-//  <max v=10>
-//      ...
-//  </max>
-// </min>
-
-// So how should children be communicated?
-// Currently my thinking is that children are always communicated to their parents via the stack
-// I think that's nice because it facilitates generic communication between widgets in the hierarchy, and hinders potential for making assumptions about the structure of the UI
-// (though it doesn't eliminate it entirely)

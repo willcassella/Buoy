@@ -1,5 +1,4 @@
 mod context;
-pub use self::context::{Context, GlobalContext};
 
 mod tree;
 pub use self::tree::{Filter, Generator, Socket, Element, NullElement};

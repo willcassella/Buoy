@@ -1,5 +1,5 @@
 use std::f32;
-use context::Context;
+use context::{Context, WidgetId};
 use layout::{Area, Region, Point};
 use tree::{Socket, Element};
 use commands::CommandList;
@@ -19,8 +19,13 @@ pub struct HStack {
 }
 
 impl HStack {
-    pub fn push(self, ctx: &mut Context) {
-        ctx.push_socket(Box::new(self));
+    pub fn push(self, ctx: &mut Context, id: WidgetId) {
+        ctx.push_socket(Box::new(self), id);
+    }
+
+    pub fn dir(&mut self, dir: HDir) -> &mut Self {
+        self.dir = dir;
+        self
     }
 }
 
@@ -51,9 +56,10 @@ impl Socket for HStack {
         self.height = self.height.max(child_min.height);
         self.children.push((child_element, child_min.width));
 
-        ctx.push_socket(self);
-        ctx.children();
-        ctx.pop(); // socket
+        let id = WidgetId::prefix_str(ctx.self_id(), "TODO");
+        ctx.push_socket(self, id);
+            ctx.children();
+        ctx.pop(); // TODO
     }
 
     fn close(self: Box<Self>, ctx: &mut Context) {

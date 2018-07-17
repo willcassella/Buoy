@@ -18,36 +18,40 @@ impl Color {
         (self.0 >> 24) as u8
     }
 
-    pub fn set_red(&mut self, red: u8) {
+    pub fn set_red(mut self, red: u8) -> Self {
         let red = (red as u32) << 24 | 0xFFFFFF;
         self.0 &= red;
+        self
     }
 
     pub fn green(self) -> u8 {
         (self.0 >> 16) as u8
     }
 
-    pub fn set_green(&mut self, green: u8) {
+    pub fn set_green(mut self, green: u8) -> Self {
         let green = (green as u32) << 16 | 0xFF00FFFF;
         self.0 &= green;
+        self
     }
 
     pub fn blue(self) -> u8 {
         (self.0 >> 8) as u8
     }
 
-    pub fn set_blue(&mut self, blue: u8) {
+    pub fn set_blue(mut self, blue: u8) -> Self {
         let blue = (blue as u32) << 8 | 0xFFFF00FF;
         self.0 &= blue;
+        self
     }
 
     pub fn alpha(self) -> u8 {
         self.0 as u8
     }
 
-    pub fn set_alpha(&mut self, alpha: u8) {
+    pub fn set_alpha(mut self, alpha: u8) -> Self {
         let blue = (alpha as u32) | 0xFFFFFF00;
         self.0 &= blue;
+        self
     }
 }
 

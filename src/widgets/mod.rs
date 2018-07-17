@@ -7,3 +7,4 @@ pub use self::fill::Fill;
 pub mod max;
 pub mod min;
 pub mod hstack;
+pub mod pointer;
