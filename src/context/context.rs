@@ -101,7 +101,7 @@ impl Context {
             children: Vec::new(),
         };
 
-        self.stack.insert(0, node);
+        self.stack.push(node);
     }
 
     pub fn push_socket(&mut self, info: WidgetInfo, socket: Box<Socket>) {
@@ -110,7 +110,7 @@ impl Context {
             children: Vec::new(),
         };
 
-        self.stack.insert(0, node);
+        self.stack.push(node);
     }
 
     pub fn push_filter(&mut self, filter: Rc<Filter>) {
@@ -119,7 +119,7 @@ impl Context {
             children: Vec::new(),
         };
 
-        self.stack.insert(0, node);
+        self.stack.push(node);
     }
 
     pub fn element(&mut self, bounds: Area, element: Box<Element>) {
