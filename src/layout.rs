@@ -45,3 +45,9 @@ impl Area {
         }
     }
 }
+
+impl Default for Area {
+    fn default() -> Self {
+        Area::zero()
+    }
+}

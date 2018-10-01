@@ -1,4 +1,4 @@
-use context::{Context, WidgetId};
+use context::{Context, WidgetInfo};
 use layout::Area;
 use Socket;
 use Element;
@@ -11,18 +11,22 @@ pub struct Min {
 }
 
 impl Min {
-    pub fn width(&mut self, width: f32) -> &mut Self {
+    pub fn new() -> Box<Self> {
+        Box::new(Self::default())
+    }
+
+    pub fn width(mut self: Box<Self>, width: f32) -> Box<Self> {
         self.min.width = width;
         self
     }
 
-    pub fn height(&mut self, height: f32) -> &mut Self {
+    pub fn height(mut self: Box<Self>, height: f32) -> Box<Self> {
         self.min.height = height;
         self
     }
 
-    pub fn push(self, ctx: &mut Context, id: WidgetId) {
-        ctx.push_socket(Box::new(self), id);
+    pub fn push(self: Box<Self>, ctx: &mut Context, info: WidgetInfo) {
+        ctx.push_socket(info, self);
     }
 }
 

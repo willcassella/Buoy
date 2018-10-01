@@ -1,4 +1,4 @@
-use context::{Context, WidgetId};
+use context::{Context, WidgetInfo};
 use layout::{Area, Region};
 use tree::{Socket, Element, NullElement};
 use commands::{CommandList, ColoredQuad, Quad};
@@ -14,18 +14,6 @@ pub struct BlockBorder {
     pub color: Color,
 }
 
-impl Default for BlockBorder {
-    fn default() -> Self {
-        BlockBorder {
-            left: 0_f32,
-            top: 0_f32,
-            right: 0_f32,
-            bottom: 0_f32,
-            color: color::constants::TRANSPARENT,
-        }
-    }
-}
-
 impl BlockBorder {
     fn generate_commands(&self, region: Region, cmds: &mut CommandList) {
         let top_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y, region.area.width, self.top), self.color);
@@ -35,43 +23,59 @@ impl BlockBorder {
         cmds.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
     }
 
-    pub fn uniform(size: f32) -> Self {
-        BlockBorder {
+    pub fn new() -> Box<Self> {
+        Box::new(Self::default())
+    }
+
+    pub fn uniform(size: f32) -> Box<Self> {
+        Box::new(BlockBorder {
             left: size,
             top: size,
             right: size,
             bottom: size,
             color: color::constants::BLACK,
-        }
+        })
     }
 
-    pub fn push(self, ctx: &mut Context, id: WidgetId) {
-        ctx.push_socket(Box::new(self), id);
+    pub fn push(self: Box<Self>, ctx: &mut Context, info: WidgetInfo) {
+        ctx.push_socket(info, self);
     }
 
-    pub fn top(&mut self, top: f32) -> &mut Self {
+    pub fn top(mut self: Box<Self>, top: f32) -> Box<Self> {
         self.top = top;
         self
     }
 
-    pub fn bottom(&mut self, bottom: f32) -> &mut Self {
+    pub fn bottom(mut self: Box<Self>, bottom: f32) -> Box<Self> {
         self.bottom = bottom;
         self
     }
 
-    pub fn left(&mut self, left: f32) -> &mut Self {
+    pub fn left(mut self: Box<Self>, left: f32) -> Box<Self> {
         self.left = left;
         self
     }
 
-    pub fn right(&mut self, right: f32) -> &mut Self {
+    pub fn right(mut self: Box<Self>, right: f32) -> Box<Self> {
         self.right = right;
         self
     }
 
-    pub fn color(&mut self, color: Color) -> &mut Self {
+    pub fn color(mut self: Box<Self>, color: Color) -> Box<Self> {
         self.color = color;
         self
+    }
+}
+
+impl Default for BlockBorder {
+    fn default() -> Self {
+        BlockBorder {
+            left: 0_f32,
+            top: 0_f32,
+            right: 0_f32,
+            bottom: 0_f32,
+            color: color::constants::TRANSPARENT,
+        }
     }
 }
 

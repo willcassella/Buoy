@@ -1,5 +1,5 @@
 use std::mem;
-use context::{Window, Context, WidgetId};
+use context::{Window, Context, WidgetInfo, WidgetId};
 use widgets::{Fill, min::Min, BlockBorder, max::{Max, VAlign}, hstack::HStack};
 use tree::Generator;
 use layout::{Region, Area, Point};
@@ -60,14 +60,14 @@ impl Generator for BlueBox {
     fn run(self: Box<Self>, ctx: &mut Context) {
         BlockBorder::uniform(10_f32)
         .color(color::constants::BLUE)
-        .push(ctx, WidgetId::str("BlueBox_border"));
+        .push(ctx, WidgetInfo::new_str_id("BlueBox_border"));
 
             Fill::new(color::constants::WHITE)
-            .push(ctx, WidgetId::str("BlueBox_fill"));
+            .push(ctx, WidgetInfo::new_str_id("BlueBox_fill"));
 
-                Min::default()
+                Min::new()
                 .width(100_f32)
-                .push(ctx, WidgetId::str("BlueBox_inner"));
+                .push(ctx, WidgetInfo::new_str_id("BlueBox_inner"));
 
                 ctx.pop(); // BlueBox_inner
             ctx.pop(); // BlueBox_fill
@@ -78,36 +78,36 @@ impl Generator for BlueBox {
 struct TestGenerator;
 impl Generator for TestGenerator {
     fn run(self: Box<Self>, ctx: &mut Context) {
-        HStack::default()
-        .push(ctx, WidgetId::str("TestGenerator_stack"));
+        HStack::new()
+        .push(ctx, WidgetInfo::new_str_id("TestGenerator_stack"));
 
-            BlockBorder::default().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetId::str("BlueBox_1_padding"));
-                Max::default().height(500_f32).v_align(VAlign::Center).push(ctx, WidgetId::str("BlueBox_1_max"));
-                    ctx.push_generator(Box::new(BlueBox), WidgetId::str("BlueBox_1")); ctx.pop();
+            BlockBorder::new().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetInfo::new(WidgetId::str("BlueBox_1_padding")));
+                Max::new().height(100_f32).v_align(VAlign::Center).push(ctx, WidgetInfo::new_str_id("BlueBox_1_max"));
+                    ctx.push_generator(WidgetInfo::new_str_id("BlueBox_1"), Box::new(BlueBox)); ctx.pop();
                 ctx.pop(); // BlueBox_1_max
             ctx.pop(); // BlueBox_1_padding
 
-            BlockBorder::default().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetId::str("BlueBox_2_padding"));
-                Max::default().height(200_f32).v_align(VAlign::Center).push(ctx, WidgetId::str("BlueBox_2_max"));
-                    ctx.push_generator(Box::new(BlueBox), WidgetId::str("BlueBox_2")); ctx.pop();
+            BlockBorder::new().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetInfo::new_str_id("BlueBox_2_padding"));
+                Max::new().height(200_f32).v_align(VAlign::Center).push(ctx, WidgetInfo::new_str_id("BlueBox_2_max"));
+                    ctx.push_generator(WidgetInfo::new_str_id("BlueBox_2"), Box::new(BlueBox)); ctx.pop();
                 ctx.pop(); // BlueBox_2_max
             ctx.pop(); // BlueBox_2_padding
 
-            BlockBorder::default().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetId::str("BlueBox_3_padding"));
-                Max::default().height(400_f32).v_align(VAlign::Center).push(ctx, WidgetId::str("BlueBox_3_max"));
-                    ctx.push_generator(Box::new(BlueBox), WidgetId::str("BlueBox_3")); ctx.pop();
+            BlockBorder::new().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetInfo::new_str_id("BlueBox_3_padding"));
+                Max::new().height(300_f32).v_align(VAlign::Center).push(ctx, WidgetInfo::new_str_id("BlueBox_3_max"));
+                    ctx.push_generator(WidgetInfo::new_str_id("BlueBox_3"), Box::new(BlueBox)); ctx.pop();
                 ctx.pop(); // BlueBox_3_max
             ctx.pop(); // BlueBox_3_padding
 
-            BlockBorder::default().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetId::str("BlueBox_4_padding"));
-                Max::default().height(300_f32).v_align(VAlign::Center).push(ctx, WidgetId::str("BlueBox_4_max"));
-                    ctx.push_generator(Box::new(BlueBox), WidgetId::str("BlueBox_4")); ctx.pop();
+            BlockBorder::new().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetInfo::new_str_id("BlueBox_4_padding"));
+                Max::new().height(400_f32).v_align(VAlign::Center).push(ctx, WidgetInfo::new_str_id("BlueBox_4_max"));
+                    ctx.push_generator(WidgetInfo::new_str_id("BlueBox_4"), Box::new(BlueBox)); ctx.pop();
                 ctx.pop(); // BlueBox_4_max
             ctx.pop(); // BlueBox_4_padding
 
-            BlockBorder::default().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetId::str("BlueBox_5_padding"));
-                Max::default().height(700_f32).v_align(VAlign::Center).push(ctx, WidgetId::str("BlueBox_5_max"));
-                    ctx.push_generator(Box::new(BlueBox), WidgetId::str("BlueBox_5")); ctx.pop();
+            BlockBorder::new().top(15_f32).bottom(15_f32).right(30_f32).push(ctx, WidgetInfo::new_str_id("BlueBox_5_padding"));
+                Max::new().height(500_f32).v_align(VAlign::Center).push(ctx, WidgetInfo::new_str_id("BlueBox_5_max"));
+                    ctx.push_generator(WidgetInfo::new_str_id("BlueBox_5"), Box::new(BlueBox)); ctx.pop();
                 ctx.pop(); // BlueBox_5_max
             ctx.pop(); // BlueBox_5_padding
 

@@ -1,4 +1,5 @@
-use context::Context;
+use std::rc::Rc;
+use context::{Context, WidgetInfo};
 use layout::{Area, Region};
 use commands::CommandList;
 
@@ -26,37 +27,20 @@ pub trait Socket {
     }
 }
 
-pub trait Filter: Sync + Send + FilterClone {
-    fn generator(&self, ctx: &mut Context, generator: Box<Generator>) {
-        let self_id = ctx.self_id();
-        ctx.push_generator(generator, self_id);
+pub trait Filter {
+    fn generator(&self, alias: &Rc<Filter>, ctx: &mut Context, mut info: WidgetInfo, generator: Box<Generator>) {
+        // Make this filter run on the thing we're pushing
+        info.add_filter(alias.clone());
+        ctx.push_generator(info, generator);
             ctx.children();
         ctx.pop(); // generator
     }
 
-    fn socket(&self, ctx: &mut Context, socket: Box<Socket>) {
-        let self_id = ctx.self_id();
-        ctx.push_socket(socket, self_id);
+    fn socket(&self, alias: &Rc<Filter>, ctx: &mut Context, mut info: WidgetInfo, socket: Box<Socket>) {
+        info.add_filter(alias.clone());
+        ctx.push_socket(info, socket);
             ctx.children();
         ctx.pop(); // socket
-    }
-}
-
-pub trait FilterClone {
-    fn filter_clone(&self) -> Box<Filter>;
-}
-
-impl<T> FilterClone for T where
-    T: Filter + Clone + 'static
-{
-    fn filter_clone(&self) -> Box<Filter> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<Filter> {
-    fn clone(&self) -> Self {
-        self.filter_clone()
     }
 }
 

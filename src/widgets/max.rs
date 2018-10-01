@@ -1,5 +1,5 @@
 use std::f32;
-use context::{Context, WidgetId};
+use context::{Context, WidgetInfo};
 use layout::{Area, Region};
 use tree::{Socket, Element};
 use commands::CommandList;
@@ -65,26 +65,30 @@ pub struct Max {
 }
 
 impl Max {
-    pub fn push(self, ctx: &mut Context, id: WidgetId) {
-        ctx.push_socket(Box::new(self), id);
+    pub fn new() -> Box<Self> {
+        Box::new(Self::default())
     }
 
-    pub fn h_align(&mut self, v: HAlign) -> &mut Self {
+    pub fn push(self: Box<Self>, ctx: &mut Context, info: WidgetInfo) {
+        ctx.push_socket(info, self);
+    }
+
+    pub fn h_align(mut self: Box<Self>, v: HAlign) -> Box<Self> {
         self.h_align = v;
         self
     }
 
-    pub fn v_align(&mut self, v: VAlign) -> &mut Self {
+    pub fn v_align(mut self: Box<Self>, v: VAlign) -> Box<Self> {
         self.v_align = v;
         self
     }
 
-    pub fn width(&mut self, v: f32) -> &mut Self {
+    pub fn width(mut self: Box<Self>, v: f32) -> Box<Self> {
         self.max.width = v;
         self
     }
 
-    pub fn height(&mut self, v: f32) -> &mut Self {
+    pub fn height(mut self: Box<Self>, v: f32) -> Box<Self> {
         self.max.height = v;
         self
     }

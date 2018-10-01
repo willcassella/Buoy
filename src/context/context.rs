@@ -1,11 +1,21 @@
+use std::rc::Rc;
 use std::marker::PhantomData;
+use std::mem::replace;
 use layout::Area;
 use tree::{Filter, Generator, Socket, Element};
-use context::WidgetId;
+use context::{WidgetId, WidgetInfo};
 
-pub type StateId = u16;
-pub type FrameId = u16;
-pub type ContextId = u32;
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct StateId(pub u16);
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct FrameId(pub u16);
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct ContextId(pub u32);
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -22,14 +32,14 @@ pub enum TreeNode {
 }
 
 pub struct NonTerminalNode {
-    pub element: NonTerminalType,
+    pub kind: NonTerminalKind,
     pub children: Vec<TreeNode>,
 }
 
-pub enum NonTerminalType {
-    Filter(Box<Filter>),
-    Generator(WidgetId, Box<Generator>),
-    Socket(WidgetId, Box<Socket>),
+pub enum NonTerminalKind {
+    Filter(Rc<Filter>),
+    Generator(WidgetInfo, Box<Generator>),
+    Socket(WidgetInfo, Box<Socket>),
 }
 
 pub struct Context {
@@ -53,7 +63,7 @@ impl Context {
         bounds: Area,
     ) -> Self {
         Context {
-            next_state_id: 0_u16,
+            next_state_id: StateId(0_u16),
             frame_id,
             context_id,
             widget_id,
@@ -79,55 +89,57 @@ impl Context {
         let node = TreeNode::NonTerminal(node);
 
         if let Some(parent) = self.stack.last_mut() {
-            parent.children.push(node);
+            parent.children.insert(0, node);
         } else {
-            self.roots.push(node);
+            self.roots.insert(0, node);
         }
     }
 
-    pub fn push_generator(&mut self, generator: Box<Generator>, id: WidgetId) {
+    pub fn push_generator(&mut self, info: WidgetInfo, generator: Box<Generator>) {
         let node = NonTerminalNode {
-            element: NonTerminalType::Generator(id, generator),
+            kind: NonTerminalKind::Generator(info, generator),
             children: Vec::new(),
         };
 
-        self.stack.push(node);
+        self.stack.insert(0, node);
     }
 
-    pub fn push_socket(&mut self, socket: Box<Socket>, id: WidgetId) {
+    pub fn push_socket(&mut self, info: WidgetInfo, socket: Box<Socket>) {
         let node = NonTerminalNode {
-            element: NonTerminalType::Socket(id, socket),
+            kind: NonTerminalKind::Socket(info, socket),
             children: Vec::new(),
         };
 
-        self.stack.push(node);
+        self.stack.insert(0, node);
     }
 
-    pub fn push_filter(&mut self, filter: Box<Filter>) {
+    pub fn push_filter(&mut self, filter: Rc<Filter>) {
         let node = NonTerminalNode {
-            element: NonTerminalType::Filter(filter),
+            kind: NonTerminalKind::Filter(filter),
             children: Vec::new(),
         };
 
-        self.stack.push(node);
+        self.stack.insert(0, node);
     }
 
     pub fn element(&mut self, bounds: Area, element: Box<Element>) {
         let node = TreeNode::Terminal(bounds, element);
 
         if let Some(parent) = self.stack.last_mut() {
-            parent.children.push(node);
+            parent.children.insert(0, node);
         } else {
-            self.roots.push(node);
+            self.roots.insert(0, node);
         }
     }
 
     pub fn children(&mut self) {
-        if let Some(parent) = self.stack.last_mut() {
-            parent.children.append(&mut self.children);
-        } else {
-            self.roots.append(&mut self.children);
-        }
+        let dest = match self.stack.last_mut() {
+            Some(parent) => &mut parent.children,
+            None => &mut self.roots,
+        };
+
+        self.children.append(dest);
+        *dest = replace(&mut self.children, Vec::new());
     }
 
     pub fn next_frame(&mut self, _filter: Box<Filter>) {
@@ -136,7 +148,7 @@ impl Context {
 
     pub fn new_state<T: Default + Clone + Send>(&mut self) -> State<T> {
         let id = self.next_state_id;
-        self.next_state_id += 1;
+        self.next_state_id.0 += 1;
 
         State {
             id,
@@ -148,7 +160,7 @@ impl Context {
 
     pub fn new_state_default<T: Default + Clone + Send>(&mut self, _default: T) -> State<T> {
         let id = self.next_state_id;
-        self.next_state_id += 1;
+        self.next_state_id.0 += 1;
 
         State {
             id,

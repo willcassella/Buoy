@@ -1,109 +1,119 @@
+use std::rc::Rc;
 use std::mem::replace;
 use layout::Area;
 use tree::{Socket, Generator, Element, Filter};
-use super::WidgetId;
-use super::context::{ContextId, FrameId, Context, TreeNode, NonTerminalNode, NonTerminalType};
+use super::{WidgetInfo, WidgetId};
+use super::context::{ContextId, FrameId, Context, TreeNode, NonTerminalNode, NonTerminalKind};
 
 struct SocketContext {
-    previous_filter_depth: u32,
-    socket: Box<Socket>,
-    widget_id: WidgetId,
+    id: WidgetId,
+    socket: Box<dyn Socket>,
+
     bounds: Area,
     siblings: Vec<TreeNode>,
+    inner_filters: Vec<Rc<dyn Filter>>,
 }
 
 struct FilterContext {
-    filter: Box<Filter>,
+    filter: Rc<dyn Filter>,
     siblings: Vec<TreeNode>,
 }
 
+#[derive(Default)]
 pub struct Window {
     frame_id: FrameId,
     next_context_id: ContextId,
 
     bounds: Area,
-    filter_depth: u32,
     sockets: Vec<SocketContext>,
     filters: Vec<FilterContext>,
-}
-
-impl Default for Window {
-    fn default() -> Self {
-        Window {
-            frame_id: 0_u16,
-            next_context_id: 0_u32,
-            bounds: Area::zero(),
-            filter_depth: 0_u32,
-            sockets: Vec::new(),
-            filters: Vec::new(),
-        }
-    }
-}
-
-fn insert_front<T>(dest: &mut Vec<T>, source: Vec<T>) {
-    dest.reserve(source.len());
-    for e in source {
-        dest.insert(0, e);
-    }
+    roots: Vec<TreeNode>,
 }
 
 impl Window {
-    pub fn run(&mut self, bounds: Area, root: Box<Generator>) -> Option<Box<Element>> {
+    pub fn run(&mut self, bounds: Area, root: Box<dyn Generator>) -> Option<Box<dyn Element>> {
         self.bounds = bounds;
+        self.next_context_id = Default::default();
 
-        let root_node = NonTerminalNode {
-            element: NonTerminalType::Generator(WidgetId::str(""), root),
+        let root = TreeNode::NonTerminal(NonTerminalNode {
+            kind: NonTerminalKind::Generator(WidgetInfo::new_str_id(""), root),
             children: Vec::new(),
-        };
+        });
 
-        let roots = vec![TreeNode::NonTerminal(root_node)];
-        self.run_impl(roots)
+        self.roots = vec![root];
+        self.run_impl()
     }
 
-    fn run_impl(&mut self, mut roots: Vec<TreeNode>) -> Option<Box<Element>> {
+    fn push_filter(&mut self, filter: Rc<dyn Filter>, siblings: Vec<TreeNode>) {
+        let filter_ctx = FilterContext {
+            filter,
+            siblings,
+        };
+        self.filters.push(filter_ctx);
+    }
+
+    fn pop_filter(&mut self) -> Option<Rc<dyn Filter>> {
+        let filter = match self.filters.pop() {
+            Some(filter) => filter,
+            None => return None,
+        };
+
+        // If there are roots, set this filter back up as a node
+        if !self.roots.is_empty() {
+            let filter_node = TreeNode::NonTerminal(NonTerminalNode {
+                kind: NonTerminalKind::Filter(filter.filter.clone()),
+                children: replace(&mut self.roots, filter.siblings),
+            });
+            self.roots.push(filter_node);
+        } else {
+            self.roots = filter.siblings;
+        }
+
+        return Some(filter.filter);
+    }
+
+    fn run_impl(&mut self) -> Option<Box<Element>> {
         loop {
-            // If there are no roots, close the first socket
-            if roots.is_empty() {
-                // Pop all filters below the socket
-                for _ in 0..self.filter_depth {
-                    self.filters.pop().expect("Corrupt window stack");
+            // If there are no roots, move up the tree
+            if self.roots.is_empty() {
+                // If there's a filter, continue with its siblings
+                if let Some(filter) = self.filters.pop() {
+                    self.roots = filter.siblings;
+                    continue;
                 }
 
-                // Close the first socket
-                // If there is no socket to close, we couldn't build a UI
+                // Close the first socket. If there is no socket to close, we couldn't build a UI
                 let socket = match self.sockets.pop() {
                     Some(socket) => socket,
                     None => return None,
                 };
 
-                // Restore filter depth from before socket was pushed
-                self.filter_depth = socket.previous_filter_depth;
+                // Create filters for each inner filter of the context
+                // Don't have to worry about popping existing filters, because in this case there are none
+                for filter in socket.inner_filters {
+                    self.push_filter(filter, Vec::new());
+                }
 
                 // Construct context object from SocketContext
-                let mut ctx = Context::new(self.frame_id, self.next_context_id, socket.widget_id, socket.bounds);
-                self.next_context_id += 1;
+                let mut ctx = Context::new(self.frame_id, self.next_context_id, socket.id, socket.bounds);
+                self.next_context_id.0 += 1;
 
                 // From the perspective of the socket, current roots are children and siblings are current roots
                 // ...but roots is empty, so no reason to add as children
-                roots = socket.siblings;
+                self.roots = socket.siblings;
 
                 // Run the socket
                 socket.socket.close(&mut ctx);
 
-                // Socket's roots replace the socket
-                insert_front(&mut roots, ctx.roots);
+                self.roots.append(&mut ctx.roots);
                 self.bounds = socket.bounds;
                 continue;
             }
 
-            // Get the first root (queue)
-            match roots.remove(0) {
+            // Get the first root
+            let root = self.roots.pop().unwrap();
+            match root {
                 TreeNode::Terminal(bounds, element) => {
-                    // Pop all filters below the socket
-                    for _ in 0..self.filter_depth {
-                        self.filters.pop().expect("Corrupt filter stack");
-                    }
-
                     // Get the current socket
                     // If we have an element but no socket, then we're done building the UI
                     let socket = match self.sockets.pop() {
@@ -111,55 +121,90 @@ impl Window {
                         None => return Some(element),
                     };
 
-                    // Restore filter depth from before socket was pushed
-                    self.filter_depth = socket.previous_filter_depth;
+                    // Pop all existing filters
+                    while self.pop_filter().is_some() {
+                    }
 
-                    let mut ctx = Context::new(self.frame_id, self.next_context_id, socket.widget_id, socket.bounds);
-                    self.next_context_id += 1;
+                    // Set up filter contexts for each inner filter of the socket
+                    for filter in socket.inner_filters {
+                        self.push_filter(filter, Vec::new());
+                    }
+
+                    // Create a context for running the socket
+                    let mut ctx = Context::new(self.frame_id, self.next_context_id, socket.id, socket.bounds);
+                    self.next_context_id.0 += 1;
 
                     // From the perspective of the socket, current roots are children and siblings are current roots
-                    ctx.children = replace(&mut roots, socket.siblings);
+                    ctx.children = replace(&mut self.roots, socket.siblings);
 
                     // Run the socket
                     socket.socket.child(&mut ctx, bounds, element);
 
-                    // Socket's roots replace the socket (if socket called 'children()', previous roots will still exist)
-                    insert_front(&mut roots, ctx.roots);
+                    self.roots.append(&mut ctx.roots);
                     self.bounds = socket.bounds;
                 },
-                TreeNode::NonTerminal(NonTerminalNode{ element: NonTerminalType::Filter(filter), children }) => {
-                    // Push the filter onto the filter stack
-                    let filter_context = FilterContext {
-                        filter,
-                        siblings: replace(&mut roots, children),
-                    };
+                TreeNode::NonTerminal(NonTerminalNode{ kind: NonTerminalKind::Filter(filter), children }) => {
+                    // If this filter doesn't have any children, just discard it
+                    if children.is_empty() {
+                        continue;
+                    }
 
-                    self.filters.push(filter_context);
-                    self.filter_depth += 1;
+                    let siblings = replace(&mut self.roots, children);
+                    self.push_filter(filter, siblings);
                 },
-                TreeNode::NonTerminal(NonTerminalNode{ element: NonTerminalType::Generator(id, generator), children }) => {
-                    let mut ctx = Context::new(self.frame_id, self.next_context_id, id, self.bounds);
-                    self.next_context_id += 1;
-                    ctx.children = children;
+                TreeNode::NonTerminal(NonTerminalNode{ kind: NonTerminalKind::Generator(info, generator), children }) => {
+                    // Pick the first filter from the filter stack
+                    if let Some(filter) = self.pop_filter() {
+                        // Create a context for running the filter
+                        let mut ctx = Context::new(self.frame_id, self.next_context_id, info.id, self.bounds);
+                        self.next_context_id.0 += 1;
+                        ctx.children = children;
 
-                    // Run the generator
-                    generator.run(&mut ctx);
+                        // Run the filter
+                        filter.generator(&filter, &mut ctx, info, generator);
 
-                    // Add all of the context roots as roots
-                    insert_front(&mut roots, ctx.roots);
+                        // Put the result into the root set
+                        self.roots.append(&mut ctx.roots);
+                    } else {
+                        // Create a context for running the generator
+                        let mut ctx = Context::new(self.frame_id, self.next_context_id, info.id, self.bounds);
+                        self.next_context_id.0 += 1;
+                        ctx.children = children;
+
+                        // Run the generator
+                        generator.run(&mut ctx);
+
+                        // Put the result into the root set
+                        self.roots.append(&mut ctx.roots);
+                    }
                 },
-                TreeNode::NonTerminal(NonTerminalNode{ element: NonTerminalType::Socket(id, socket), children }) => {
-                    // Create the StackContext
-                    let socket = SocketContext {
-                        previous_filter_depth: replace(&mut self.filter_depth, 0),
-                        socket,
-                        widget_id: id,
-                        bounds: self.bounds,
-                        siblings: replace(&mut roots, children),
-                    };
+                TreeNode::NonTerminal(NonTerminalNode{ kind: NonTerminalKind::Socket(info, socket), children }) => {
+                    // Run filter, if one exists
+                    if let Some(filter) = self.pop_filter() {
+                        // Create a context for running the filter
+                        let mut ctx = Context::new(self.frame_id, self.next_context_id, info.id, self.bounds);
+                        self.next_context_id.0 += 1;
+                        ctx.children = children;
 
-                    self.bounds = socket.socket.get_child_max(self.bounds);
-                    self.sockets.push(socket);
+                        // Run the filter
+                        filter.socket(&filter, &mut ctx, info, socket);
+
+                        // Put the result into the root set
+                        self.roots.append(&mut ctx.roots);
+                    } else {
+                        // Otherwise, set up a SocketContext for the new socket
+                        let socket_ctx = SocketContext {
+                            id: info.id,
+                            socket,
+
+                            bounds: self.bounds,
+                            siblings: replace(&mut self.roots, children),
+                            inner_filters: info.inner_filters,
+                        };
+
+                        self.bounds = socket_ctx.socket.get_child_max(self.bounds);
+                        self.sockets.push(socket_ctx);
+                    }
                 },
             }
         }

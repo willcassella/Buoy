@@ -1,4 +1,4 @@
-use context::{Context, WidgetId};
+use context::{Context, WidgetInfo};
 use tree::{Socket, Element};
 use layout::{Region, Area};
 use color::Color;
@@ -11,14 +11,14 @@ pub struct Fill {
 }
 
 impl Fill {
-    pub fn new(color: Color) -> Self {
-        Fill {
+    pub fn new(color: Color) -> Box<Self> {
+        Box::new(Fill {
             color,
-        }
+        })
     }
 
-    pub fn push(self, ctx: &mut Context, id: WidgetId) {
-        ctx.push_socket(Box::new(self), id);
+    pub fn push(self: Box<Self>, ctx: &mut Context, info: WidgetInfo) {
+        ctx.push_socket(info, self);
     }
 }
 
