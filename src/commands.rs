@@ -1,5 +1,5 @@
-use color::Color;
-use layout::Region;
+use crate::color::Color;
+use crate::layout::Region;
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Debug)]

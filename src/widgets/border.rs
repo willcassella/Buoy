@@ -1,8 +1,7 @@
-use context::{Context, WidgetInfo};
-use layout::{Area, Region};
-use tree::{Socket, Element, NullElement};
-use commands::{CommandList, ColoredQuad, Quad};
-use color::{self, Color};
+use crate::{Context, Wrapper, ElementObj, NullElement};
+use crate::layout::{Area, Region};
+use crate::commands::{CommandList, ColoredQuad, Quad};
+use crate::color::{self, Color};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -23,47 +22,34 @@ impl BlockBorder {
         cmds.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
     }
 
-    pub fn new() -> Box<Self> {
-        Box::new(Self::default())
-    }
-
-    pub fn uniform(size: f32) -> Box<Self> {
-        Box::new(BlockBorder {
+    pub fn uniform(size: f32) -> Self {
+        BlockBorder {
             left: size,
             top: size,
             right: size,
             bottom: size,
             color: color::constants::BLACK,
-        })
+        }
     }
 
-    pub fn push(self: Box<Self>, ctx: &mut Context, info: WidgetInfo) {
-        ctx.push_socket(info, self);
-    }
-
-    pub fn top(mut self: Box<Self>, top: f32) -> Box<Self> {
+    pub fn top(&mut self, top: f32) {
         self.top = top;
-        self
     }
 
-    pub fn bottom(mut self: Box<Self>, bottom: f32) -> Box<Self> {
+    pub fn bottom(&mut self, bottom: f32) {
         self.bottom = bottom;
-        self
     }
 
-    pub fn left(mut self: Box<Self>, left: f32) -> Box<Self> {
+    pub fn left(&mut self, left: f32) {
         self.left = left;
-        self
     }
 
-    pub fn right(mut self: Box<Self>, right: f32) -> Box<Self> {
+    pub fn right(&mut self, right: f32) {
         self.right = right;
-        self
     }
 
-    pub fn color(mut self: Box<Self>, color: Color) -> Box<Self> {
+    pub fn color(&mut self, color: Color) {
         self.color = color;
-        self
     }
 }
 
@@ -79,22 +65,22 @@ impl Default for BlockBorder {
     }
 }
 
-impl Socket for BlockBorder {
-    fn get_child_max(&self, mut self_max: Area) -> Area {
+impl Wrapper for BlockBorder {
+    fn child_layout(&self, mut self_max: Area) -> Area {
         self_max.width -= self.left + self.right;
         self_max.height -= self.top + self.bottom;
         return self_max;
     }
 
-    fn child(self: Box<Self>, ctx: &mut Context, child_min: Area, child_element: Box<Element>) {
-        let mut bounds = child_min;
+    fn child_element(self: Box<Self>, ctx: &mut Context, child: ElementObj) {
+        let mut bounds = child.min_area;
 
         // Add to width/height to account for border
         bounds.width += self.left + self.right;
         bounds.height += self.top + self.bottom;
 
-        ctx.element(bounds, Box::new(move |mut region: Region, cmds: &mut CommandList| {
-            // Optimization: If we're fully transparent (ie, for padding), don't render anything
+        ctx.new_element(bounds, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+            // Unless we're fully transparent, render the border
             if self.color != color::constants::TRANSPARENT {
                 self.generate_commands(region, cmds);
             }
@@ -106,7 +92,7 @@ impl Socket for BlockBorder {
             region.area.height -= self.top + self.bottom;
 
             // Render the child element
-            child_element.render(region, cmds);
+            child.element.render(region, cmds);
         }))
     }
 
@@ -115,9 +101,9 @@ impl Socket for BlockBorder {
         let bounds = Area{ width: self.left + self.right, height: self.top + self.bottom };
 
         if self.color == color::constants::TRANSPARENT {
-            ctx.element(bounds, Box::new(NullElement));
+            ctx.new_element(bounds, Box::new(NullElement));
         } else {
-            ctx.element(bounds, Box::new(move |region: Region, cmds: &mut CommandList| {
+            ctx.new_element(bounds, Box::new(move |region: Region, cmds: &mut CommandList| {
                 self.generate_commands(region, cmds);
             }));
         }

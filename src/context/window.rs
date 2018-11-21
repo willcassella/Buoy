@@ -1,209 +1,162 @@
-use std::rc::Rc;
 use std::mem::replace;
-use layout::Area;
-use tree::{Socket, Generator, Element, Filter};
-use super::{WidgetInfo, WidgetId};
-use super::context::{ContextId, FrameId, Context, TreeNode, NonTerminalNode, NonTerminalKind};
+use crate::layout::Area;
+use super::widget::{WidgetId, Widget, WidgetObj, ElementObj, FilterStack};
+use super::context::{Context, ContextId, UINode, UINodeKind, WidgetNode, FrameId};
 
-struct SocketContext {
-    id: WidgetId,
-    socket: Box<dyn Socket>,
+struct WidgetContext {
+    widget_id: WidgetId,
+    widget: Box<Widget>,
 
-    bounds: Area,
-    siblings: Vec<TreeNode>,
-    inner_filters: Vec<Rc<dyn Filter>>,
+    parent_filter_stack: FilterStack,
+    parent_max_children: usize,
+    parent_child_elements: Vec<ElementObj>,
+
+    self_bounds: Area,
+    siblings: Vec<UINode>,
 }
 
-struct FilterContext {
-    filter: Rc<dyn Filter>,
-    siblings: Vec<TreeNode>,
-}
-
-#[derive(Default)]
 pub struct Window {
     frame_id: FrameId,
     next_context_id: ContextId,
 
+    filter_stack: FilterStack,
+    max_children: usize,
+    child_elements: Vec<ElementObj>,
+
     bounds: Area,
-    sockets: Vec<SocketContext>,
-    filters: Vec<FilterContext>,
-    roots: Vec<TreeNode>,
+    widget_stack: Vec<WidgetContext>,
+    roots: Vec<UINode>,
 }
 
 impl Window {
-    pub fn run(&mut self, bounds: Area, root: Box<dyn Generator>) -> Option<Box<dyn Element>> {
+    pub fn run(&mut self, bounds: Area, root: WidgetObj) -> Option<ElementObj> {
+        // Increment frame id
+        self.frame_id.0 += 1;
+
+        // Reset everything else
+        self.next_context_id = ContextId::default();
+        self.filter_stack = FilterStack::new();
+        self.max_children = 1;
+        self.child_elements = Vec::new();
         self.bounds = bounds;
-        self.next_context_id = Default::default();
+        self.widget_stack = Vec::new();
 
-        let root = TreeNode::NonTerminal(NonTerminalNode {
-            kind: NonTerminalKind::Generator(WidgetInfo::new_str_id(""), root),
-            children: Vec::new(),
-        });
-
+        // Insert root as the initial root
+        let root = UINode::widget(WidgetNode{ obj: root, children: Vec::new() });
         self.roots = vec![root];
+
         self.run_impl()
     }
 
-    fn push_filter(&mut self, filter: Rc<dyn Filter>, siblings: Vec<TreeNode>) {
-        let filter_ctx = FilterContext {
-            filter,
-            siblings,
+    fn push_widget(&mut self, widget_node: WidgetNode) {
+        // Calculate the number of children this widget supports and the bounds for each child, given its own bounds
+        let (max_children, child_bounds) = widget_node.obj.widget.child_layout(self.bounds);
+
+        let widget_context = WidgetContext {
+            widget_id: widget_node.obj.id,
+            widget: widget_node.obj.widget,
+
+            // Back up the parent's filter stack, and replace it with this widget's filter stack
+            parent_filter_stack: replace(&mut self.filter_stack, widget_node.obj.filter_stack),
+
+            // Back up the parent's max number of children, and replace it with this widget's max number of children
+            parent_max_children: replace(&mut self.max_children, max_children),
+
+            // Back up the parent's child elements, and create a new array for this widget
+            parent_child_elements: replace(&mut self.child_elements, Vec::new()),
+
+            // Back up the parent's bounds for each child, and replace it with this widget's bounds for its children
+            self_bounds: replace(&mut self.bounds, child_bounds),
+
+            // Back up the roots of the current widget (siblings of this widget), and initialize an array of un-filtered nodes for this widget
+            siblings: replace(&mut self.roots, widget_node.children),
         };
-        self.filters.push(filter_ctx);
+
+        self.widget_stack.push(widget_context);
     }
 
-    fn pop_filter(&mut self) -> Option<Rc<dyn Filter>> {
-        let filter = match self.filters.pop() {
-            Some(filter) => filter,
-            None => return None,
-        };
+    fn pop_widget(&mut self) {
+        let widget_context = self.widget_stack.pop().unwrap();
 
-        // If there are roots, set this filter back up as a node
-        if !self.roots.is_empty() {
-            let filter_node = TreeNode::NonTerminal(NonTerminalNode {
-                kind: NonTerminalKind::Filter(filter.filter.clone()),
-                children: replace(&mut self.roots, filter.siblings),
-            });
-            self.roots.push(filter_node);
-        } else {
-            self.roots = filter.siblings;
-        }
+        // Restore parent's filter stack
+        self.filter_stack = widget_context.parent_filter_stack;
 
-        return Some(filter.filter);
+        // Restore parent's max children
+        self.max_children = widget_context.parent_max_children;
+
+        // restore parent's child elements
+        let widget_child_elements = replace(&mut self.child_elements, widget_context.parent_child_elements);
+
+        // Restore the parent's bounds
+        self.bounds = widget_context.self_bounds;
+
+        // Construct context object from WidgetContext
+        let mut ctx = Context::new(self.frame_id, self.next_context_id, widget_context.widget_id, self.bounds);
+        self.next_context_id.0 += 1;
+
+        // From the perspective of the widget, current roots are children and siblings are current roots
+        ctx.children = replace(&mut self.roots, widget_context.siblings);
+
+        // Run the widget
+        widget_context.widget.child_elements(&mut ctx, widget_child_elements);
+
+        // Roots of the context are now roots
+        self.roots.append(&mut ctx.roots);
     }
 
-    fn run_impl(&mut self) -> Option<Box<Element>> {
+    fn run_impl(&mut self) -> Option<ElementObj> {
         loop {
             // If there are no roots, move up the tree
             if self.roots.is_empty() {
-                // If there's a filter, continue with its siblings
-                if let Some(filter) = self.filters.pop() {
-                    self.roots = filter.siblings;
-                    continue;
+                // If there are no widgets, we couldn't build a UI
+                if self.widget_stack.is_empty() {
+                    return None;
                 }
 
-                // Close the first socket. If there is no socket to close, we couldn't build a UI
-                let socket = match self.sockets.pop() {
-                    Some(socket) => socket,
-                    None => return None,
-                };
-
-                // Create filters for each inner filter of the context
-                // Don't have to worry about popping existing filters, because in this case there are none
-                for filter in socket.inner_filters {
-                    self.push_filter(filter, Vec::new());
-                }
-
-                // Construct context object from SocketContext
-                let mut ctx = Context::new(self.frame_id, self.next_context_id, socket.id, socket.bounds);
-                self.next_context_id.0 += 1;
-
-                // From the perspective of the socket, current roots are children and siblings are current roots
-                // ...but roots is empty, so no reason to add as children
-                self.roots = socket.siblings;
-
-                // Run the socket
-                socket.socket.close(&mut ctx);
-
-                self.roots.append(&mut ctx.roots);
-                self.bounds = socket.bounds;
+                // Run the first widget with children so far
+                self.pop_widget();
                 continue;
             }
 
             // Get the first root
             let root = self.roots.pop().unwrap();
-            match root {
-                TreeNode::Terminal(bounds, element) => {
-                    // Get the current socket
-                    // If we have an element but no socket, then we're done building the UI
-                    let socket = match self.sockets.pop() {
-                        Some(socket) => socket,
-                        None => return Some(element),
-                    };
-
-                    // Pop all existing filters
-                    while self.pop_filter().is_some() {
+            match root.kind {
+                UINodeKind::Element(element_obj) => {
+                    // If there are no widgets, we're done
+                    if self.widget_stack.is_empty() {
+                        return Some(element_obj);
                     }
 
-                    // Set up filter contexts for each inner filter of the socket
-                    for filter in socket.inner_filters {
-                        self.push_filter(filter, Vec::new());
+                    // Add this widget to the array for the parent element
+                    self.child_elements.push(element_obj);
+
+                    // If we've met the parent element's supported number of children, pop it
+                    if self.child_elements.len() == self.max_children {
+                        self.pop_widget();
                     }
-
-                    // Create a context for running the socket
-                    let mut ctx = Context::new(self.frame_id, self.next_context_id, socket.id, socket.bounds);
-                    self.next_context_id.0 += 1;
-
-                    // From the perspective of the socket, current roots are children and siblings are current roots
-                    ctx.children = replace(&mut self.roots, socket.siblings);
-
-                    // Run the socket
-                    socket.socket.child(&mut ctx, bounds, element);
-
-                    self.roots.append(&mut ctx.roots);
-                    self.bounds = socket.bounds;
                 },
-                TreeNode::NonTerminal(NonTerminalNode{ kind: NonTerminalKind::Filter(filter), children }) => {
-                    // If this filter doesn't have any children, just discard it
-                    if children.is_empty() {
-                        continue;
-                    }
-
-                    let siblings = replace(&mut self.roots, children);
-                    self.push_filter(filter, siblings);
-                },
-                TreeNode::NonTerminal(NonTerminalNode{ kind: NonTerminalKind::Generator(info, generator), children }) => {
-                    // Pick the first filter from the filter stack
-                    if let Some(filter) = self.pop_filter() {
+                UINodeKind::Widget(widget_node) => {
+                    // If we still have filters to run on this node
+                    if root.filter_index < self.filter_stack.0.len() {
                         // Create a context for running the filter
-                        let mut ctx = Context::new(self.frame_id, self.next_context_id, info.id, self.bounds);
+                        let mut ctx = Context::new(self.frame_id, self.next_context_id, widget_node.obj.id, self.bounds);
                         self.next_context_id.0 += 1;
-                        ctx.children = children;
+                        ctx.children = widget_node.children;
 
                         // Run the filter
-                        filter.generator(&filter, &mut ctx, info, generator);
+                        let filter = &self.filter_stack.0[root.filter_index];
+                        filter.filter(filter, &mut ctx, widget_node.obj);
 
-                        // Put the result into the root set
+                        // Increment the root filter index
+                        for new_root in &mut ctx.roots {
+                            new_root.filter_index = root.filter_index + 1;
+                        }
+
+                        // Put the results into the root set
                         self.roots.append(&mut ctx.roots);
                     } else {
-                        // Create a context for running the generator
-                        let mut ctx = Context::new(self.frame_id, self.next_context_id, info.id, self.bounds);
-                        self.next_context_id.0 += 1;
-                        ctx.children = children;
-
-                        // Run the generator
-                        generator.run(&mut ctx);
-
-                        // Put the result into the root set
-                        self.roots.append(&mut ctx.roots);
-                    }
-                },
-                TreeNode::NonTerminal(NonTerminalNode{ kind: NonTerminalKind::Socket(info, socket), children }) => {
-                    // Run filter, if one exists
-                    if let Some(filter) = self.pop_filter() {
-                        // Create a context for running the filter
-                        let mut ctx = Context::new(self.frame_id, self.next_context_id, info.id, self.bounds);
-                        self.next_context_id.0 += 1;
-                        ctx.children = children;
-
-                        // Run the filter
-                        filter.socket(&filter, &mut ctx, info, socket);
-
-                        // Put the result into the root set
-                        self.roots.append(&mut ctx.roots);
-                    } else {
-                        // Otherwise, set up a SocketContext for the new socket
-                        let socket_ctx = SocketContext {
-                            id: info.id,
-                            socket,
-
-                            bounds: self.bounds,
-                            siblings: replace(&mut self.roots, children),
-                            inner_filters: info.inner_filters,
-                        };
-
-                        self.bounds = socket_ctx.socket.get_child_max(self.bounds);
-                        self.sockets.push(socket_ctx);
+                        // Otherwise, push this widget onto the widget stack
+                        self.push_widget(widget_node);
                     }
                 },
             }

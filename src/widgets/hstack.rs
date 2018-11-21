@@ -1,8 +1,8 @@
 use std::f32;
-use context::{Context, WidgetInfo, WidgetId};
-use layout::{Area, Region, Point};
-use tree::{Socket, Element};
-use commands::CommandList;
+use std::usize;
+use crate::{Context, Widget, WidgetObj, Element, ElementObj};
+use crate::layout::{Area, Region};
+use crate::commands::CommandList;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -11,116 +11,71 @@ pub enum HDir {
     RightToLeft,
 }
 
-pub struct HStack {
-    pub dir: HDir,
-    width: f32,
-    height: f32,
-    children: Vec<(Box<Element>, f32)>,
+impl Default for HDir {
+    fn default() -> Self {
+        HDir::LeftToRight
+    }
 }
 
-impl HStack {
-    pub fn new() -> Box<Self> {
-        Box::new(Self::default())
-    }
+#[derive(Default)]
+pub struct HStack {
+    pub dir: HDir,
+}
 
-    pub fn push(self: Box<Self>, ctx: &mut Context, info: WidgetInfo) {
-        ctx.push_socket(info, self);
-    }
-
-    pub fn dir(mut self: Box<Self>, dir: HDir) -> Box<Self> {
-        self.dir = dir;
+impl WidgetObj<HStack> {
+    pub fn dir(mut self, dir: HDir) -> Self {
+        self.widget.dir = dir;
         self
     }
 }
 
-impl Default for HStack {
-    fn default() -> Self {
-        HStack {
-            dir: HDir::LeftToRight,
-            width: 0_f32,
-            height: 0_f32,
-            children: Vec::new(),
-        }
-    }
-}
-
-impl Socket for HStack {
-    fn get_child_max(&self, mut self_max: Area) -> Area {
-        self_max.width = f32::INFINITY;
-        return self_max;
+impl Widget for HStack {
+    fn child_layout(&self, mut self_bounds: Area) -> (usize, Area) {
+        self_bounds.width = f32::INFINITY;
+        (usize::MAX, self_bounds)
     }
 
-    fn child(
-        mut self: Box<Self>,
-        ctx: &mut Context,
-        child_min: Area,
-        child_element: Box<Element>
-    ) {
-        self.width += child_min.width;
-        self.height = self.height.max(child_min.height);
-        self.children.push((child_element, child_min.width));
+    fn child_elements(self: Box<Self>, ctx: &mut Context, children: Vec<ElementObj>) {
+        let mut min_area = Area::zero();
 
-        let id = WidgetId::prefix(ctx.self_id(), WidgetId::num(self.children.len() as u64));
-        ctx.push_socket(WidgetInfo::new(id), self);
-            ctx.children();
-        ctx.pop(); // self
-    }
-
-    fn close(self: Box<Self>, ctx: &mut Context) {
-        // Optimization: If there are no children, nothing to render
-        if self.children.is_empty() {
-            return;
+        for child in &children {
+            min_area.width += child.min_area.width;
+            min_area.height = min_area.height.max(child.min_area.height);
         }
 
-        let bounds = Area {
-            width: self.width,
-            height: self.height,
+        let render_func: Box<Element> = match self.dir {
+            HDir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
+                render_left_to_right(children.as_slice(), region, cmds);
+            }),
+            HDir::RightToLeft => Box::new(move |region: Region, cmds: &mut CommandList| {
+                render_right_to_left(children.as_slice(), region, cmds);
+            }),
         };
-        ctx.element(bounds, self);
+
+        ctx.new_element(min_area, render_func);
     }
 }
 
-fn render_left_to_right(children: &Vec<(Box<Element>, f32)>, mut region: Region, cmds: &mut CommandList) {
-    for (child, width) in children {
+fn render_left_to_right(children: &[ElementObj], mut region: Region, cmds: &mut CommandList) {
+    for child in children {
         let mut child_region = region;
-        child_region.area.width = *width;
+        child_region.area.width = child.min_area.width;
 
-        child.render(child_region, cmds);
+        child.element.render(child_region, cmds);
 
-        region.pos.x += width;
+        region.pos.x += child.min_area.width;
+        region.area.width -= child.min_area.width;
     }
 }
 
-fn render_right_to_left(children: &Vec<(Box<Element>, f32)>, region: Region, out: &mut CommandList) {
-    let mut x = region.pos.x + region.area.width;
+fn render_right_to_left(children: &[ElementObj], mut region: Region, out: &mut CommandList) {
+    for child in children {
+        let mut child_region = region;
+        child_region.pos.x = child_region.pos.x + child_region.area.width - child.min_area.width;
+        child_region.area.width = child.min_area.width;
 
-    for (child, width) in children {
-        let child_region = Region {
-            pos: Point {
-                x: x - width,
-                y: region.pos.y,
-            },
-            area: Area {
-                width: *width,
-                height: region.area.height,
-            },
-        };
+        child.element.render(child_region, out);
 
-        child.render(child_region, out);
-
-        x -= width;
-    }
-}
-
-impl Element for HStack {
-    fn render(&self, region: Region, cmds: &mut CommandList) {
-        match self.dir {
-            HDir::LeftToRight => {
-                render_left_to_right(&self.children, region, cmds);
-            },
-            HDir::RightToLeft => {
-                render_right_to_left(&self.children, region, cmds);
-            }
-        }
+        region.area.width -= child.min_area.width;
     }
 }

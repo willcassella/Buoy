@@ -1,10 +1,9 @@
 use std::mem;
-use context::{Window, Context, WidgetInfo, WidgetId};
-use widgets::{Fill, min::Min, BlockBorder, max::{Max, VAlign}, hstack::HStack};
-use tree::Generator;
-use layout::{Region, Area, Point};
-use color;
-use commands::{CommandList, ColoredQuad};
+use crate::{Window, Context, WidgetId, Generator};
+use crate::widgets::{Fill, min::Min, BlockBorder, max::{Max, VAlign}, hstack::HStack};
+use crate::layout::{Region, Area, Point};
+use crate::color;
+use crate::commands::{CommandList, ColoredQuad};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -57,7 +56,7 @@ pub extern fn buoy_free_primitives(primitives: buoy_PrimitiveList) {
 
 struct BlueBox;
 impl Generator for BlueBox {
-    fn run(self: Box<Self>, ctx: &mut Context) {
+    fn generate(self: Box<Self>, ctx: &mut Context) {
         BlockBorder::uniform(10_f32)
         .color(color::constants::BLUE)
         .push(ctx, WidgetInfo::new_str_id("BlueBox_border"));

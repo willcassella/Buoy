@@ -1,9 +1,7 @@
-use std::rc::Rc;
 use std::marker::PhantomData;
 use std::mem::replace;
-use layout::Area;
-use tree::{Filter, Generator, Socket, Element};
-use context::{WidgetId, WidgetInfo};
+use crate::layout::Area;
+use super::{WidgetId, Widget, WidgetObj, Element, ElementObj, Filter};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -26,20 +24,35 @@ pub struct State<T: Default + Clone + Send> {
     _phantom: PhantomData<T>,
 }
 
-pub enum TreeNode {
-    Terminal(Area, Box<Element>),
-    NonTerminal(NonTerminalNode),
+pub struct UINode {
+    pub kind: UINodeKind,
+    pub filter_index: usize,
 }
 
-pub struct NonTerminalNode {
-    pub kind: NonTerminalKind,
-    pub children: Vec<TreeNode>,
+impl UINode {
+    pub fn widget(widget_node: WidgetNode) -> Self {
+        UINode {
+            kind: UINodeKind::Widget(widget_node),
+            filter_index: 0,
+        }
+    }
+
+    pub fn element(element_obj: ElementObj) -> Self {
+        UINode {
+            kind: UINodeKind::Element(element_obj),
+            filter_index: 0,
+        }
+    }
 }
 
-pub enum NonTerminalKind {
-    Filter(Rc<Filter>),
-    Generator(WidgetInfo, Box<Generator>),
-    Socket(WidgetInfo, Box<Socket>),
+pub enum UINodeKind {
+    Element(ElementObj),
+    Widget(WidgetNode),
+}
+
+pub struct WidgetNode {
+    pub obj: WidgetObj,
+    pub children: Vec<UINode>,
 }
 
 pub struct Context {
@@ -50,9 +63,9 @@ pub struct Context {
     widget_id: WidgetId,
     bounds: Area,
 
-    pub(super) children: Vec<TreeNode>,
-    pub(super) stack: Vec<NonTerminalNode>,
-    pub(super) roots: Vec<TreeNode>,
+    pub(super) children: Vec<UINode>,
+    pub(super) stack: Vec<WidgetNode>,
+    pub(super) roots: Vec<UINode>,
 }
 
 impl Context {
@@ -86,7 +99,7 @@ impl Context {
     // This will panic if the parent is not in scope for this context!
     pub fn pop(&mut self) {
         let node = self.stack.pop().expect("Bad pop");
-        let node = TreeNode::NonTerminal(node);
+        let node = UINode::widget(node);
 
         if let Some(parent) = self.stack.last_mut() {
             parent.children.insert(0, node);
@@ -95,41 +108,27 @@ impl Context {
         }
     }
 
-    pub fn push_generator(&mut self, info: WidgetInfo, generator: Box<Generator>) {
-        let node = NonTerminalNode {
-            kind: NonTerminalKind::Generator(info, generator),
+    pub fn push_widget(&mut self, obj: WidgetObj) {
+        let node = WidgetNode {
+            obj,
             children: Vec::new(),
         };
 
         self.stack.push(node);
     }
 
-    pub fn push_socket(&mut self, info: WidgetInfo, socket: Box<Socket>) {
-        let node = NonTerminalNode {
-            kind: NonTerminalKind::Socket(info, socket),
-            children: Vec::new(),
-        };
-
-        self.stack.push(node);
-    }
-
-    pub fn push_filter(&mut self, filter: Rc<Filter>) {
-        let node = NonTerminalNode {
-            kind: NonTerminalKind::Filter(filter),
-            children: Vec::new(),
-        };
-
-        self.stack.push(node);
-    }
-
-    pub fn element(&mut self, bounds: Area, element: Box<Element>) {
-        let node = TreeNode::Terminal(bounds, element);
+    pub fn element(&mut self, element_obj: ElementObj) {
+        let node = UINode::element(element_obj);
 
         if let Some(parent) = self.stack.last_mut() {
             parent.children.insert(0, node);
         } else {
             self.roots.insert(0, node);
         }
+    }
+
+    pub fn new_element(&mut self, min_area: Area, element: Box<Element>) {
+        self.element(ElementObj{ min_area, element });
     }
 
     pub fn children(&mut self) {

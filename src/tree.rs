@@ -1,44 +1,30 @@
 use std::rc::Rc;
+use std::u32;
 use context::{Context, WidgetInfo};
 use layout::{Area, Region};
 use commands::CommandList;
 
-pub trait Generator {
-    fn get_type(&self) -> i32 {
-        1
-    }
-
-    fn run(self: Box<Self>, ctx: &mut Context);
+pub struct Child {
+    pub element: Box<Element>,
+    pub min_area: Area,
 }
 
-pub trait Socket {
-    fn get_child_max(&self, self_max: Area) -> Area {
-        self_max
+pub trait Widget {
+    fn layout_children(&self, self_max: Area) -> (u32, Area) {
+        (u32::MAX, self_max)
     }
 
-    fn child(
+    fn children(
         self: Box<Self>,
         ctx: &mut Context,
-        child_min: Area,
-        child: Box<Element>
+        children: Vec<Child>,
     );
-
-    fn close(self: Box<Self>, _ctx: &mut Context) {
-    }
 }
 
 pub trait Filter {
-    fn generator(&self, alias: &Rc<Filter>, ctx: &mut Context, mut info: WidgetInfo, generator: Box<Generator>) {
-        // Make this filter run on the thing we're pushing
-        info.add_filter(alias.clone());
-        ctx.push_generator(info, generator);
-            ctx.children();
-        ctx.pop(); // generator
-    }
-
-    fn socket(&self, alias: &Rc<Filter>, ctx: &mut Context, mut info: WidgetInfo, socket: Box<Socket>) {
-        info.add_filter(alias.clone());
-        ctx.push_socket(info, socket);
+    fn run(&self, alias: &Rc<Filter>, ctx: &mut Context, mut info: WidgetInfo, widget: Box<Widget>) {
+        info.attach_filter(alias.clone());
+        ctx.push_widget(info, widget);
             ctx.children();
         ctx.pop(); // socket
     }

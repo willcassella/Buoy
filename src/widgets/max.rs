@@ -1,8 +1,7 @@
 use std::f32;
-use context::{Context, WidgetInfo};
-use layout::{Area, Region};
-use tree::{Socket, Element};
-use commands::CommandList;
+use crate::{Context, Wrapper, WidgetObj, ElementObj};
+use crate::layout::{Area, Region};
+use crate::commands::CommandList;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -61,35 +60,27 @@ fn align_vertically(align: VAlign, bounds: Area, mut region: Region) -> Region {
 pub struct Max {
     pub h_align: HAlign,
     pub v_align: VAlign,
-    pub max: Area,
+    pub area: Area,
 }
 
-impl Max {
-    pub fn new() -> Box<Self> {
-        Box::new(Self::default())
-    }
-
-    pub fn push(self: Box<Self>, ctx: &mut Context, info: WidgetInfo) {
-        ctx.push_socket(info, self);
-    }
-
-    pub fn h_align(mut self: Box<Self>, v: HAlign) -> Box<Self> {
-        self.h_align = v;
+impl WidgetObj<Max> {
+    pub fn h_align(mut self, v: HAlign) -> Self {
+        self.widget.h_align = v;
         self
     }
 
-    pub fn v_align(mut self: Box<Self>, v: VAlign) -> Box<Self> {
-        self.v_align = v;
+    pub fn v_align(mut self, v: VAlign) -> Self {
+        self.widget.v_align = v;
         self
     }
 
-    pub fn width(mut self: Box<Self>, v: f32) -> Box<Self> {
-        self.max.width = v;
+    pub fn width(mut self, v: f32) -> Self {
+        self.widget.area.width = v;
         self
     }
 
-    pub fn height(mut self: Box<Self>, v: f32) -> Box<Self> {
-        self.max.height = v;
+    pub fn height(mut self, v: f32) -> Self {
+        self.widget.area.height = v;
         self
     }
 }
@@ -99,28 +90,32 @@ impl Default for Max {
         Max {
             h_align: HAlign::Left,
             v_align: VAlign::Top,
-            max: Area::infinite(),
+            area: Area::infinite(),
         }
     }
 }
 
-impl Socket for Max {
-    fn get_child_max(&self, mut self_max: Area) -> Area {
-        self_max.width = self_max.width.min(self.max.width);
-        self_max.height = self_max.height.min(self.max.height);
-        return self_max;
+impl Wrapper for Max {
+    fn child_layout(&self, mut self_bounds: Area) -> Area {
+        self_bounds.width = self_bounds.width.min(self.area.width);
+        self_bounds.height = self_bounds.height.min(self.area.height);
+        return self_bounds;
     }
 
-    fn child(self: Box<Self>, ctx: &mut Context, child_min: Area, child_element: Box<Element>) {
-        ctx.element(child_min, Box::new(move |mut region: Region, cmds: &mut CommandList| {
-            if self.max.width < region.area.width {
-                region = align_horizontally(self.h_align, self.max, region);
+    fn child_element(self: Box<Self>, ctx: &mut Context, child: ElementObj) {
+        ctx.new_element(child.min_area, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+            if self.area.width < region.area.width {
+                region = align_horizontally(self.h_align, self.area, region);
             }
-            if self.max.height < region.area.height {
-                region = align_vertically(self.v_align, self.max, region);
+            if self.area.height < region.area.height {
+                region = align_vertically(self.v_align, self.area, region);
             }
 
-            child_element.render(region, cmds);
+            child.element.render(region, cmds);
         }));
+    }
+
+    fn close(self: Box<Self>, _ctx: &mut Context) {
+        // Do nothing
     }
 }
