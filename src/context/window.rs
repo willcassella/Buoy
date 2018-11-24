@@ -62,13 +62,22 @@ impl Window {
                         // Put the results into the root set
                         roots.append(&mut ctx.roots);
                     } else {
-                        let (child_fill, child_bounds) = widget_node.obj.widget.open(bounds);
-                        self.fill_widget(child_fill, child_bounds, widget_node.obj.filter_stack, &mut widget_node.children);
+                        // Fill the widget with elements
+                        {
+                            let (child_fill, child_bounds) = widget_node.obj.widget.open(bounds);
+                            self.fill_widget(child_fill, child_bounds, widget_node.obj.filter_stack, &mut widget_node.children);
+                        }
 
                         // Create a context for closing the widget
                         let mut ctx = Context::new(self.frame_id, self.next_context_id, widget_node.obj.id, bounds);
                         self.next_context_id.0 += 1;
                         ctx.children = widget_node.children;
+
+                        // Run the widget
+                        widget_node.obj.widget.close(&mut ctx);
+
+                        // Put the results into the root set
+                        roots.append(&mut ctx.roots);
                     }
                 }
             }
