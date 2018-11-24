@@ -5,8 +5,13 @@ pub use context::{
     WidgetId,
     Widget,
     WidgetObj,
+    WidgetUpcast,
+    WidgetType,
+    IntoObj,
     Wrapper,
+    WrapperObj,
     Generator,
+    GeneratorObj,
     Element,
     ElementObj,
     NullElement,
@@ -18,4 +23,4 @@ pub mod commands;
 pub mod layout;
 pub mod color;
 
-pub mod ffi;
+pub mod util;

@@ -6,4 +6,4 @@ authors = ["Will Cassella <wcassella@gmail.com>"]
 [dependencies]
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]

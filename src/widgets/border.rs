@@ -1,4 +1,4 @@
-use crate::{Context, Wrapper, ElementObj, NullElement};
+use crate::{Context, WidgetType, Wrapper, WrapperObj, ElementObj, NullElement};
 use crate::layout::{Area, Region};
 use crate::commands::{CommandList, ColoredQuad, Quad};
 use crate::color::{self, Color};
@@ -21,7 +21,9 @@ impl BlockBorder {
         let right_quad = ColoredQuad::new(Quad::new(region.pos.x + region.area.width - self.right, region.pos.y + self.top, self.right, region.area.height - self.top - self.bottom), self.color);
         cmds.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
     }
+}
 
+impl BlockBorder {
     pub fn uniform(size: f32) -> Self {
         BlockBorder {
             left: size,
@@ -31,25 +33,36 @@ impl BlockBorder {
             color: color::constants::BLACK,
         }
     }
+}
 
-    pub fn top(&mut self, top: f32) {
+impl WidgetType for BlockBorder {
+    type Target = WrapperObj<BlockBorder>;
+}
+
+impl BlockBorder {
+    pub fn top(mut self, top: f32) -> Self {
         self.top = top;
+        self
     }
 
-    pub fn bottom(&mut self, bottom: f32) {
+    pub fn bottom(mut self, bottom: f32) -> Self {
         self.bottom = bottom;
+        self
     }
 
-    pub fn left(&mut self, left: f32) {
+    pub fn left(mut self, left: f32) -> Self {
         self.left = left;
+        self
     }
 
-    pub fn right(&mut self, right: f32) {
+    pub fn right(mut self, right: f32) -> Self {
         self.right = right;
+        self
     }
 
-    pub fn color(&mut self, color: Color) {
+    pub fn color(mut self, color: Color) -> Self {
         self.color = color;
+        self
     }
 }
 
@@ -66,13 +79,13 @@ impl Default for BlockBorder {
 }
 
 impl Wrapper for BlockBorder {
-    fn child_layout(&self, mut self_max: Area) -> Area {
+    fn open(&self, mut self_max: Area) -> Area {
         self_max.width -= self.left + self.right;
         self_max.height -= self.top + self.bottom;
         return self_max;
     }
 
-    fn child_element(self: Box<Self>, ctx: &mut Context, child: ElementObj) {
+    fn close_some(self, ctx: &mut Context, child: ElementObj) {
         let mut bounds = child.min_area;
 
         // Add to width/height to account for border
@@ -96,7 +109,7 @@ impl Wrapper for BlockBorder {
         }))
     }
 
-    fn close(self: Box<Self>, ctx: &mut Context) {
+    fn close_none(self, ctx: &mut Context) {
         // Since we don't have a child, bounds are just size of border
         let bounds = Area{ width: self.left + self.right, height: self.top + self.bottom };
 

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::mem::replace;
 use crate::layout::Area;
-use super::{WidgetId, Widget, WidgetObj, Element, ElementObj, Filter};
+use crate::{WidgetId, WidgetObj, Element, ElementObj, Filter};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]

@@ -1,5 +1,5 @@
 use std::f32;
-use crate::{Context, Wrapper, WidgetObj, ElementObj};
+use crate::{Context, Wrapper, WrapperObj, WidgetType, ElementObj};
 use crate::layout::{Area, Region};
 use crate::commands::CommandList;
 
@@ -63,24 +63,24 @@ pub struct Max {
     pub area: Area,
 }
 
-impl WidgetObj<Max> {
+impl Max {
     pub fn h_align(mut self, v: HAlign) -> Self {
-        self.widget.h_align = v;
+        self.h_align = v;
         self
     }
 
     pub fn v_align(mut self, v: VAlign) -> Self {
-        self.widget.v_align = v;
+        self.v_align = v;
         self
     }
 
     pub fn width(mut self, v: f32) -> Self {
-        self.widget.area.width = v;
+        self.area.width = v;
         self
     }
 
     pub fn height(mut self, v: f32) -> Self {
-        self.widget.area.height = v;
+        self.area.height = v;
         self
     }
 }
@@ -96,13 +96,13 @@ impl Default for Max {
 }
 
 impl Wrapper for Max {
-    fn child_layout(&self, mut self_bounds: Area) -> Area {
+    fn open(&self, mut self_bounds: Area) -> Area {
         self_bounds.width = self_bounds.width.min(self.area.width);
         self_bounds.height = self_bounds.height.min(self.area.height);
         return self_bounds;
     }
 
-    fn child_element(self: Box<Self>, ctx: &mut Context, child: ElementObj) {
+    fn close_some(self, ctx: &mut Context, child: ElementObj) {
         ctx.new_element(child.min_area, Box::new(move |mut region: Region, cmds: &mut CommandList| {
             if self.area.width < region.area.width {
                 region = align_horizontally(self.h_align, self.area, region);
@@ -115,7 +115,11 @@ impl Wrapper for Max {
         }));
     }
 
-    fn close(self: Box<Self>, _ctx: &mut Context) {
+    fn close_none(self, _ctx: &mut Context) {
         // Do nothing
     }
+}
+
+impl WidgetType for Max {
+    type Target = WrapperObj<Max>;
 }

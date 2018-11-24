@@ -9,11 +9,23 @@ pub use self::widget::{
     WidgetId,
     Widget,
     WidgetObj,
-    Element,
-    ElementObj,
-    NullElement,
+    WidgetUpcast,
+    WidgetType,
+    IntoObj,
     Filter
 };
 
 mod widget_ext;
-pub use self::widget_ext::{Wrapper, Generator};
+pub use self::widget_ext::{
+    Wrapper,
+    WrapperObj,
+    Generator,
+    GeneratorObj
+};
+
+mod element;
+pub use self::element::{
+    Element,
+    ElementObj,
+    NullElement,
+};

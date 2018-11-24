@@ -1,9 +1,54 @@
+use std::any::Any;
 use std::rc::Rc;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
-use crate::Context;
-use crate::layout::{Area, Region};
-use crate::commands::CommandList;
+use std::convert::Into;
+use crate::{Context, ElementObj};
+use crate::util::fill::Fill;
+use crate::layout::Area;
+
+pub trait Widget: Any + WidgetUpcast {
+    fn open<'a>(&'a mut self, self_bounds: Area) -> (&'a mut Fill<ElementObj>, Area);
+
+    fn close(self: Box<Self>, ctx: &mut Context);
+}
+
+pub trait WidgetUpcast {
+    fn upcast(self: Box<Self>) -> Box<Widget>;
+}
+
+impl<T: Widget> WidgetUpcast for T {
+    fn upcast(self: Box<Self>) -> Box<Widget> {
+        self
+    }
+}
+
+pub trait Filter {
+    fn filter(&self, alias: &Rc<Filter>, ctx: &mut Context, mut widget_obj: WidgetObj) {
+        widget_obj.attach_filter_post(alias.clone());
+        ctx.push_widget(widget_obj);
+            ctx.children();
+        ctx.pop();
+    }
+}
+
+pub trait WidgetType {
+    type Target: Widget;
+}
+
+impl<T: Widget> WidgetType for T {
+    type Target = Self;
+}
+
+pub trait IntoObj: WidgetType {
+    fn into_obj(self, id: WidgetId) -> WidgetObj<Self::Target>;
+}
+
+impl<T> IntoObj for T where T: WidgetType + Into<<T as WidgetType>::Target> {
+    fn into_obj(self, id: WidgetId) -> WidgetObj<T::Target> {
+        WidgetObj::new(id, Box::new(self.into()))
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Hash)]
@@ -72,14 +117,6 @@ impl<T: Widget> WidgetObj<T> {
             filter_stack: FilterStack::new(),
         }
     }
-
-    pub fn new_str_id(id: &str, widget: Box<T>) -> Self {
-        WidgetObj {
-            id: WidgetId::str(id),
-            widget,
-            filter_stack: FilterStack::new(),
-        }
-    }
 }
 
 impl<T: ?Sized + Widget> WidgetObj<T> {
@@ -90,68 +127,16 @@ impl<T: ?Sized + Widget> WidgetObj<T> {
     pub fn attach_filter_post(&mut self, filter: Rc<Filter>) {
         self.filter_stack.add_filter_post(filter);
     }
-}
 
-pub trait Widget {
-    fn child_layout(&self, self_max: Area) -> (usize, Area);
-
-    fn child_elements(self: Box<Self>, ctx: &mut Context, children: Vec<ElementObj>);
-}
-
-pub trait Wrapper: Widget {
-    fn child_layout(&self, self_max: Area) -> Area {
-        self_max
-    }
-
-    fn child_element(self: Box<Self>, ctx: &mut Context, child: ElementObj);
-
-    fn close(self: Box<Self>, ctx: &mut Context);
-}
-
-impl<T: Wrapper> Widget for T {
-    fn child_layout(&self, self_max: Area) -> (usize, Area) {
-        (1, Wrapper::child_layout(self, self_max))
-    }
-
-    fn child_elements(self: Box<Self>, ctx: &mut Context, children: Vec<ElementObj>) {
-        match children.into_iter().next() {
-            Some(child) => Wrapper::child_element(self, ctx, child),
-            None => Wrapper::close(self, ctx),
+    pub fn erase(self) -> WidgetObj<Widget> {
+        WidgetObj {
+            id: self.id,
+            widget: self.widget.upcast(),
+            filter_stack: self.filter_stack,
         }
     }
-}
 
-pub trait Filter {
-    fn filter(&self, alias: &Rc<Filter>, ctx: &mut Context, mut widget_obj: WidgetObj) {
-        widget_obj.attach_filter_post(alias.clone());
-        ctx.push_widget(widget_obj);
-            ctx.children();
-        ctx.pop();
-    }
-}
-
-pub trait Element {
-    fn render(&self, region: Region, cmds: &mut CommandList);
-}
-
-pub struct ElementObj {
-    pub min_area: Area,
-    pub element: Box<Element>,
-}
-
-impl<T> Element for T where
-    T: Fn(Region, &mut CommandList)
-{
-    fn render(&self, region: Region, cmds: &mut CommandList) {
-        self(region, cmds);
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct NullElement;
-
-impl Element for NullElement {
-    fn render(&self, _region: Region, _cmds: &mut CommandList) {
-        // Null elements only take up space
+    pub fn push(self, ctx: &mut Context) {
+        ctx.push_widget(self.erase());
     }
 }
