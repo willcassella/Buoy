@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 use std::mem::replace;
 use crate::layout::Area;
-use crate::{WidgetId, WidgetObj, Element, ElementObj, Filter};
+use crate::element::{Id, UIElementObj, Filter};
+use crate::render::{UIRender, UIRenderObj};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -9,18 +10,13 @@ pub struct StateId(pub u16);
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
-pub struct FrameId(pub u16);
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
-pub struct ContextId(pub u32);
+pub struct FrameId(pub u32);
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct State<T: Default + Clone + Send> {
     id: StateId,
     frame_id: FrameId,
-    context_id: ContextId,
     _phantom: PhantomData<T>,
 }
 
@@ -30,76 +26,73 @@ pub struct UINode {
 }
 
 impl UINode {
-    pub fn widget(widget_node: WidgetNode) -> Self {
+    pub fn from_element(element_node: UIElementNode) -> Self {
         UINode {
-            kind: UINodeKind::Widget(widget_node),
+            kind: UINodeKind::Element(element_node),
             filter_index: 0,
         }
     }
 
-    pub fn element(element_obj: ElementObj) -> Self {
+    pub fn from_render(render_obj: UIRenderObj) -> Self {
         UINode {
-            kind: UINodeKind::Element(element_obj),
+            kind: UINodeKind::Render(render_obj),
             filter_index: 0,
         }
     }
 }
 
 pub enum UINodeKind {
-    Element(ElementObj),
-    Widget(WidgetNode),
+    Render(UIRenderObj),
+    Element(UIElementNode),
 }
 
-pub struct WidgetNode {
-    pub obj: WidgetObj,
+pub struct UIElementNode {
+    pub obj: UIElementObj,
     pub children: Vec<UINode>,
 }
 
 pub struct Context {
     next_state_id: StateId,
     frame_id: FrameId,
-    context_id: ContextId,
 
-    widget_id: WidgetId,
-    bounds: Area,
+    element_id: Id,
+    max_area: Area,
 
     pub(super) children: Vec<UINode>,
-    pub(super) stack: Vec<WidgetNode>,
+    pub(super) stack: Vec<UIElementNode>,
     pub(super) roots: Vec<UINode>,
 }
 
 impl Context {
     pub(super) fn new(
         frame_id: FrameId,
-        context_id: ContextId,
-        widget_id: WidgetId,
-        bounds: Area,
+        element_id: Id,
+        max_area: Area,
     ) -> Self {
         Context {
             next_state_id: StateId(0_u16),
             frame_id,
-            context_id,
-            widget_id,
-            bounds,
+            element_id,
+            max_area,
             children: Vec::new(),
             stack: Vec::new(),
             roots: Vec::new(),
         }
     }
 
-    pub fn self_id(&self) -> WidgetId {
-        self.widget_id
+    pub fn element_id(&self) -> Id {
+        self.element_id
     }
 
-    pub fn self_max(&self) -> Area {
-        self.bounds
+    pub fn max_area(&self) -> Area {
+        self.max_area
     }
 
     // Moves the context upward to the parent of the current element
     // This will panic if the parent is not in scope for this context!
     pub fn pop(&mut self) {
         let node = self.stack.pop().expect("Bad pop");
-        let node = UINode::widget(node);
+        let node = UINode::from_element(node);
 
         if let Some(parent) = self.stack.last_mut() {
             parent.children.insert(0, node);
@@ -108,8 +101,8 @@ impl Context {
         }
     }
 
-    pub fn push_widget(&mut self, obj: WidgetObj) {
-        let node = WidgetNode {
+    pub fn push(&mut self, obj: UIElementObj) {
+        let node = UIElementNode {
             obj,
             children: Vec::new(),
         };
@@ -117,8 +110,8 @@ impl Context {
         self.stack.push(node);
     }
 
-    pub fn element(&mut self, element_obj: ElementObj) {
-        let node = UINode::element(element_obj);
+    pub fn render(&mut self, render_obj: UIRenderObj) {
+        let node = UINode::from_render(render_obj);
 
         if let Some(parent) = self.stack.last_mut() {
             parent.children.insert(0, node);
@@ -127,8 +120,8 @@ impl Context {
         }
     }
 
-    pub fn new_element(&mut self, min_area: Area, element: Box<Element>) {
-        self.element(ElementObj{ min_area, element });
+    pub fn render_new(&mut self, min_area: Area, render: Box<UIRender>) {
+        self.render(UIRenderObj{ min_area, render });
     }
 
     pub fn children(&mut self) {
@@ -152,7 +145,6 @@ impl Context {
         State {
             id,
             frame_id: self.frame_id,
-            context_id: self.context_id,
             _phantom: PhantomData,
         }
     }
@@ -164,7 +156,6 @@ impl Context {
         State {
             id,
             frame_id: self.frame_id,
-            context_id: self.context_id,
             _phantom: PhantomData,
         }
     }

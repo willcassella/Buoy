@@ -1,17 +1,17 @@
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Color(pub u32);
+pub struct RGBA8(pub u32);
 
-impl Default for Color {
+impl Default for RGBA8 {
     fn default() -> Self {
         constants::WHITE
     }
 }
 
-impl Color {
+impl RGBA8 {
     pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
         let v = (red as u32) << 24 | (green as u32) << 16 | (blue as u32) << 8 | (alpha as u32);
-        return Color(v);
+        return RGBA8(v);
     }
 
     pub fn red(self) -> u8 {
@@ -56,12 +56,12 @@ impl Color {
 }
 
 pub mod constants {
-    use super::Color;
+    use super::RGBA8;
 
-    pub const RED: Color = Color(0xFF0000FF);
-    pub const GREEN: Color = Color(0x00FF00FF);
-    pub const BLUE: Color = Color(0x0000FFFF);
-    pub const BLACK: Color = Color(0x000000FF);
-    pub const WHITE: Color = Color(0xFFFFFFFF);
-    pub const TRANSPARENT: Color = Color(0x00000000);
+    pub const RED: RGBA8 = RGBA8(0xFF0000FF);
+    pub const GREEN: RGBA8 = RGBA8(0x00FF00FF);
+    pub const BLUE: RGBA8 = RGBA8(0x0000FFFF);
+    pub const BLACK: RGBA8 = RGBA8(0x000000FF);
+    pub const WHITE: RGBA8 = RGBA8(0xFFFFFFFF);
+    pub const TRANSPARENT: RGBA8 = RGBA8(0x00000000);
 }

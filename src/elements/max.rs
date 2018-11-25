@@ -1,7 +1,8 @@
 use std::f32;
-use crate::{Context, Wrapper, WrapperObj, WidgetType, ElementObj};
+use crate::Context;
 use crate::layout::{Area, Region};
-use crate::commands::CommandList;
+use crate::element::{IntoUIElement, Widget, WidgetObj};
+use crate::render::{UIRenderObj, CommandList};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -11,18 +12,18 @@ pub enum HAlign {
     Center,
 }
 
-fn align_horizontally(align: HAlign, bounds: Area, mut region: Region) -> Region {
+fn align_horizontally(align: HAlign, area: Area, mut region: Region) -> Region {
     match align {
         HAlign::Left => {
-            region.area.width = bounds.width;
+            region.area.width = area.width;
         },
         HAlign::Right => {
-            region.pos.x = region.pos.x + region.area.width - bounds.width;
-            region.area.width = bounds.width;
+            region.pos.x = region.pos.x + region.area.width - area.width;
+            region.area.width = area.width;
         },
         HAlign::Center => {
-            region.pos.x = (region.pos.x + region.area.width / 2_f32) - bounds.width / 2_f32;
-            region.area.width = bounds.width;
+            region.pos.x = (region.pos.x + region.area.width / 2_f32) - area.width / 2_f32;
+            region.area.width = area.width;
         },
     }
 
@@ -37,18 +38,18 @@ pub enum VAlign {
     Center,
 }
 
-fn align_vertically(align: VAlign, bounds: Area, mut region: Region) -> Region {
+fn align_vertically(align: VAlign, area: Area, mut region: Region) -> Region {
     match align {
         VAlign::Top => {
-            region.area.height = bounds.height;
+            region.area.height = area.height;
         },
         VAlign::Bottom => {
-            region.pos.y = region.pos.y + region.area.height - bounds.height;
-            region.area.height = bounds.height;
+            region.pos.y = region.pos.y + region.area.height - area.height;
+            region.area.height = area.height;
         },
         VAlign::Center => {
-            region.pos.y = (region.pos.y + region.area.height / 2_f32) - bounds.height / 2_f32;
-            region.area.height = bounds.height;
+            region.pos.y = (region.pos.y + region.area.height / 2_f32) - area.height / 2_f32;
+            region.area.height = area.height;
         }
     }
 
@@ -95,15 +96,15 @@ impl Default for Max {
     }
 }
 
-impl Wrapper for Max {
-    fn open(&self, mut self_bounds: Area) -> Area {
-        self_bounds.width = self_bounds.width.min(self.area.width);
-        self_bounds.height = self_bounds.height.min(self.area.height);
-        return self_bounds;
+impl Widget for Max {
+    fn open(&self, mut max_area: Area) -> Area {
+        max_area.width = max_area.width.min(self.area.width);
+        max_area.height = max_area.height.min(self.area.height);
+        return max_area;
     }
 
-    fn close_some(self, ctx: &mut Context, child: ElementObj) {
-        ctx.new_element(child.min_area, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+    fn close_some(self, ctx: &mut Context, child: UIRenderObj) {
+        ctx.render_new(child.min_area, Box::new(move |mut region: Region, cmds: &mut CommandList| {
             if self.area.width < region.area.width {
                 region = align_horizontally(self.h_align, self.area, region);
             }
@@ -111,7 +112,7 @@ impl Wrapper for Max {
                 region = align_vertically(self.v_align, self.area, region);
             }
 
-            child.element.render(region, cmds);
+            child.render.render(region, cmds);
         }));
     }
 
@@ -120,6 +121,6 @@ impl Wrapper for Max {
     }
 }
 
-impl WidgetType for Max {
-    type Target = WrapperObj<Max>;
+impl IntoUIElement for Max {
+    type Target = WidgetObj<Max>;
 }

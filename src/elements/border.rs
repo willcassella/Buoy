@@ -1,7 +1,8 @@
-use crate::{Context, WidgetType, Wrapper, WrapperObj, ElementObj, NullElement};
+use crate::Context;
 use crate::layout::{Area, Region};
-use crate::commands::{CommandList, ColoredQuad, Quad};
-use crate::color::{self, Color};
+use crate::element::{IntoUIElement, Widget, WidgetObj};
+use crate::render::{UIRenderObj, NullUIRender, CommandList, color};
+use crate::render::commands::{Quad, ColoredQuad};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -10,7 +11,7 @@ pub struct BlockBorder {
     pub top: f32,
     pub right: f32,
     pub bottom: f32,
-    pub color: Color,
+    pub color: color::RGBA8,
 }
 
 impl BlockBorder {
@@ -35,8 +36,8 @@ impl BlockBorder {
     }
 }
 
-impl WidgetType for BlockBorder {
-    type Target = WrapperObj<BlockBorder>;
+impl IntoUIElement for BlockBorder {
+    type Target = WidgetObj<BlockBorder>;
 }
 
 impl BlockBorder {
@@ -60,7 +61,7 @@ impl BlockBorder {
         self
     }
 
-    pub fn color(mut self, color: Color) -> Self {
+    pub fn color(mut self, color: color::RGBA8) -> Self {
         self.color = color;
         self
     }
@@ -78,21 +79,21 @@ impl Default for BlockBorder {
     }
 }
 
-impl Wrapper for BlockBorder {
-    fn open(&self, mut self_max: Area) -> Area {
-        self_max.width -= self.left + self.right;
-        self_max.height -= self.top + self.bottom;
-        return self_max;
+impl Widget for BlockBorder {
+    fn open(&self, mut max_area: Area) -> Area {
+        max_area.width -= self.left + self.right;
+        max_area.height -= self.top + self.bottom;
+        return max_area;
     }
 
-    fn close_some(self, ctx: &mut Context, child: ElementObj) {
-        let mut bounds = child.min_area;
+    fn close_some(self, ctx: &mut Context, child: UIRenderObj) {
+        let mut min_area = child.min_area;
 
         // Add to width/height to account for border
-        bounds.width += self.left + self.right;
-        bounds.height += self.top + self.bottom;
+        min_area.width += self.left + self.right;
+        min_area.height += self.top + self.bottom;
 
-        ctx.new_element(bounds, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+        ctx.render_new(min_area, Box::new(move |mut region: Region, cmds: &mut CommandList| {
             // Unless we're fully transparent, render the border
             if self.color != color::constants::TRANSPARENT {
                 self.generate_commands(region, cmds);
@@ -105,18 +106,18 @@ impl Wrapper for BlockBorder {
             region.area.height -= self.top + self.bottom;
 
             // Render the child element
-            child.element.render(region, cmds);
+            child.render.render(region, cmds);
         }))
     }
 
     fn close_none(self, ctx: &mut Context) {
-        // Since we don't have a child, bounds are just size of border
-        let bounds = Area{ width: self.left + self.right, height: self.top + self.bottom };
+        // Since we don't have a child, min area is just size of border
+        let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
 
         if self.color == color::constants::TRANSPARENT {
-            ctx.new_element(bounds, Box::new(NullElement));
+            ctx.render_new(min_area, Box::new(NullUIRender));
         } else {
-            ctx.new_element(bounds, Box::new(move |region: Region, cmds: &mut CommandList| {
+            ctx.render_new(min_area, Box::new(move |region: Region, cmds: &mut CommandList| {
                 self.generate_commands(region, cmds);
             }));
         }

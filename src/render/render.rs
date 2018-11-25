@@ -1,16 +1,16 @@
 use crate::layout::{Area, Region};
-use crate::commands::CommandList;
+use crate::render::CommandList;
 
-pub trait Element {
+pub trait UIRender {
     fn render(&self, region: Region, cmds: &mut CommandList);
 }
 
-pub struct ElementObj {
+pub struct UIRenderObj {
     pub min_area: Area,
-    pub element: Box<Element>,
+    pub render: Box<UIRender>,
 }
 
-impl<T> Element for T where
+impl<T> UIRender for T where
     T: Fn(Region, &mut CommandList)
 {
     fn render(&self, region: Region, cmds: &mut CommandList) {
@@ -19,10 +19,10 @@ impl<T> Element for T where
 }
 
 #[derive(Clone, Copy)]
-pub struct NullElement;
+pub struct NullUIRender;
 
-impl Element for NullElement {
+impl UIRender for NullUIRender {
     fn render(&self, _region: Region, _cmds: &mut CommandList) {
-        // Null elements only take up space
+        // Null renders only take up space
     }
 }

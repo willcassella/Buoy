@@ -1,26 +1,13 @@
 mod context;
-pub use context::{
-    Window,
+pub use self::context::{
     Context,
-    WidgetId,
-    Widget,
-    WidgetObj,
-    WidgetUpcast,
-    WidgetType,
-    IntoObj,
-    Wrapper,
-    WrapperObj,
-    Generator,
-    GeneratorObj,
-    Element,
-    ElementObj,
-    NullElement,
-    Filter
+    Window,
+    State,
 };
 
-pub mod widgets;
-pub mod commands;
+pub mod element;
+pub mod render;
 pub mod layout;
-pub mod color;
-
 pub mod util;
+
+pub mod elements;

@@ -1,4 +1,4 @@
-use crate::color::Color;
+use super::color::RGBA8;
 use crate::layout::Region;
 
 #[repr(C)]
@@ -36,29 +36,14 @@ impl From<Region> for Quad {
 #[derive(Default, Clone, Copy, Debug)]
 pub struct ColoredQuad {
     pub quad: Quad,
-    pub color: Color,
+    pub color: RGBA8,
 }
 
 impl ColoredQuad {
-    pub fn new(quad: Quad, color: Color) -> Self {
+    pub fn new(quad: Quad, color: RGBA8) -> Self {
         ColoredQuad {
             quad,
             color,
         }
-    }
-}
-
-#[derive(Default)]
-pub struct CommandList {
-    pub colored_quads: Vec<ColoredQuad>,
-}
-
-impl CommandList {
-    pub fn add_colored_quads(&mut self, colored_quads: &[ColoredQuad]) {
-        self.colored_quads.extend_from_slice(colored_quads);
-    }
-
-    pub fn get_colored_quads(&self) -> &Vec<ColoredQuad> {
-        &self.colored_quads
     }
 }
