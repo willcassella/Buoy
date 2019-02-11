@@ -6,6 +6,16 @@ pub trait Fill<T> {
     fn push(&mut self, item: T);
 }
 
+impl<'a, T, F: Fill<T> + ?Sized> Fill<T> for &'a mut F {
+    fn remaining_capacity(&self) -> usize {
+        F::remaining_capacity(*self)
+    }
+
+    fn push(&mut self, item: T) {
+        F::push(*self, item)
+    }
+}
+
 impl<T> Fill<T> for Vec<T> {
     fn remaining_capacity(&self) -> usize {
         usize::MAX

@@ -1,7 +1,7 @@
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIElement, Widget, WidgetObj};
-use crate::render::{UIRenderObj, NullUIRender, CommandList, color};
+use crate::element::{IntoUIElement, Widget, WidgetImpl};
+use crate::render::{UIRender, NullUIRender, CommandList, color};
 use crate::render::commands::{Quad, ColoredQuad};
 
 #[repr(C)]
@@ -37,7 +37,7 @@ impl BlockBorder {
 }
 
 impl IntoUIElement for BlockBorder {
-    type Target = WidgetObj<BlockBorder>;
+    type Target = Widget<BlockBorder>;
 }
 
 impl BlockBorder {
@@ -79,14 +79,18 @@ impl Default for BlockBorder {
     }
 }
 
-impl Widget for BlockBorder {
+impl WidgetImpl for BlockBorder {
     fn open(&self, mut max_area: Area) -> Area {
         max_area.width -= self.left + self.right;
         max_area.height -= self.top + self.bottom;
         return max_area;
     }
 
-    fn close_some(self, ctx: &mut Context, child: UIRenderObj) {
+    fn close_some(
+        self,
+        ctx: &mut Context,
+        child: UIRender,
+    ) {
         let mut min_area = child.min_area;
 
         // Add to width/height to account for border
@@ -106,11 +110,14 @@ impl Widget for BlockBorder {
             region.area.height -= self.top + self.bottom;
 
             // Render the child element
-            child.render.render(region, cmds);
+            child.imp.render(region, cmds);
         }))
     }
 
-    fn close_none(self, ctx: &mut Context) {
+    fn close_none(
+        self,
+        ctx: &mut Context
+    ) {
         // Since we don't have a child, min area is just size of border
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
 

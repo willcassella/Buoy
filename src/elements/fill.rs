@@ -1,7 +1,7 @@
 use crate::Context;
 use crate::layout::{Region, Area};
-use crate::element::{IntoUIElement, Widget, WidgetObj};
-use crate::render::{UIRenderObj, CommandList, color};
+use crate::element::{IntoUIElement, Widget, WidgetImpl};
+use crate::render::{UIRender, CommandList, color};
 use crate::render::commands::ColoredQuad;
 
 #[repr(C)]
@@ -22,15 +22,22 @@ impl SolidFill {
     }
 }
 
-impl Widget for SolidFill {
-    fn close_some(self, ctx: &mut Context, child: UIRenderObj) {
+impl WidgetImpl for SolidFill {
+    fn close_some(
+        self,
+        ctx: &mut Context,
+        child: UIRender,
+    ) {
         ctx.render_new(child.min_area, Box::new(move |region: Region, cmds: &mut CommandList| {
             self.generate_quad(region, cmds);
-            child.render.render(region, cmds);
+            child.imp.render(region, cmds);
         }));
     }
 
-    fn close_none(self, ctx: &mut Context) {
+    fn close_none(
+        self,
+        ctx: &mut Context
+    ) {
         ctx.render_new(Area::zero(), Box::new(move |region: Region, cmds: &mut CommandList| {
             self.generate_quad(region, cmds);
         }));
@@ -38,5 +45,5 @@ impl Widget for SolidFill {
 }
 
 impl IntoUIElement for SolidFill {
-    type Target = WidgetObj<SolidFill>;
+    type Target = Widget<SolidFill>;
 }

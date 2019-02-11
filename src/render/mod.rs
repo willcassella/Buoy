@@ -1,7 +1,7 @@
 mod render;
 pub use self::render::{
+    UIRenderImpl,
     UIRender,
-    UIRenderObj,
     NullUIRender,
 };
 

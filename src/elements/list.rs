@@ -1,8 +1,8 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIElement, Panel, PanelObj};
-use crate::render::{UIRender, UIRenderObj, CommandList};
+use crate::element::{IntoUIElement, Panel, PanelImpl};
+use crate::render::{UIRender, UIRenderImpl, CommandList};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -13,36 +13,41 @@ pub enum Dir {
     BottomToTop,
 }
 
-pub struct Stack {
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct List {
     pub dir: Dir,
 }
 
-impl Stack {
+impl List {
     pub fn new(dir: Dir) -> Self {
-        Stack{
+        List{
             dir,
         }
     }
 
     pub fn left_to_right() -> Self {
-        Stack::new(Dir::LeftToRight)
+        List::new(Dir::LeftToRight)
     }
 
     pub fn right_to_left() -> Self {
-        Stack::new(Dir::RightToLeft)
+        List::new(Dir::RightToLeft)
     }
 
     pub fn top_to_bottom() -> Self {
-        Stack::new(Dir::TopToBottom)
+        List::new(Dir::TopToBottom)
     }
 
     pub fn bottom_to_top() -> Self {
-        Stack::new(Dir::BottomToTop)
+        List::new(Dir::BottomToTop)
     }
 }
 
-impl Panel for Stack {
-    fn open(&self, mut max_area: Area) -> Area {
+impl PanelImpl for List {
+    fn open(
+        &self,
+        mut max_area: Area
+    ) -> Area {
         match self.dir {
             Dir::LeftToRight |
             Dir::RightToLeft => max_area.width = f32::INFINITY,
@@ -53,7 +58,11 @@ impl Panel for Stack {
         max_area
     }
 
-    fn close(self, ctx: &mut Context, children: Vec<UIRenderObj>) {
+    fn close(
+        self,
+        ctx: &mut Context,
+        children: Vec<UIRender>
+    ) {
         let mut min_area = Area::zero();
 
         // Figure out height and width for the stack
@@ -74,7 +83,7 @@ impl Panel for Stack {
             }
         }
 
-        let render_func: Box<UIRender> = match self.dir {
+        let render_func: Box<UIRenderImpl> = match self.dir {
             Dir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_left_to_right(children.as_slice(), region, cmds);
             }),
@@ -93,60 +102,60 @@ impl Panel for Stack {
     }
 }
 
-impl IntoUIElement for Stack {
-    type Target = PanelObj<Stack>;
+impl IntoUIElement for List {
+    type Target = Panel<List>;
 }
 
-impl PanelObj<Stack> {
+impl Panel<List> {
     pub fn dir(mut self, dir: Dir) -> Self {
         self.dir = dir;
         self
     }
 }
 
-fn render_left_to_right(children: &[UIRenderObj], mut region: Region, cmds: &mut CommandList) {
+fn render_left_to_right(children: &[UIRender], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.width = child.min_area.width;
 
-        child.render.render(child_region, cmds);
+        child.imp.render(child_region, cmds);
 
         region.pos.x += child.min_area.width;
         region.area.width -= child.min_area.width;
     }
 }
 
-fn render_right_to_left(children: &[UIRenderObj], mut region: Region, out: &mut CommandList) {
+fn render_right_to_left(children: &[UIRender], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.x = child_region.pos.x + child_region.area.width - child.min_area.width;
         child_region.area.width = child.min_area.width;
 
-        child.render.render(child_region, out);
+        child.imp.render(child_region, out);
 
         region.area.width -= child.min_area.width;
     }
 }
 
-fn render_top_to_bottom(children: &[UIRenderObj], mut region: Region, cmds: &mut CommandList) {
+fn render_top_to_bottom(children: &[UIRender], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.height = child.min_area.height;
 
-        child.render.render(child_region, cmds);
+        child.imp.render(child_region, cmds);
 
         region.pos.y += child.min_area.height;
         region.area.height -= child.min_area.height;
     }
 }
 
-fn render_bottom_to_top(children: &[UIRenderObj], mut region: Region, out: &mut CommandList) {
+fn render_bottom_to_top(children: &[UIRender], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.y = region.pos.y + region.area.height - child.min_area.height;
         child_region.area.height = child.min_area.height;
 
-        child.render.render(child_region, out);
+        child.imp.render(child_region, out);
 
         region.area.height -= child.min_area.height;
     }

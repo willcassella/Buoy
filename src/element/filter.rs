@@ -1,29 +1,35 @@
 use std::rc::Rc;
 use crate::Context;
-use crate::element::UIElementObj;
+use crate::element::UIElement;
+
+// pub fn persist(ctx: &mut Context, mut elem: UIElement, filter: Rc<dyn Filter>) {
+//     elem.attach_filter_post(filter.clone());
+//     ctx.push(elem);
+//         ctx.children();
+//     ctx.pop();
+// }
 
 pub trait Filter {
-    fn filter(&self, alias: &Rc<Filter>, ctx: &mut Context, mut element_obj: UIElementObj) {
-        element_obj.attach_filter_post(alias.clone());
-        ctx.push(element_obj);
-            ctx.children();
-        ctx.pop();
+    fn check(&self, _elem: &UIElement) -> bool {
+        true
     }
+
+    fn filter(&self, ctx: &mut Context, elem: UIElement);
 }
 
 #[derive(Clone, Default)]
-pub struct FilterStack(pub Vec<Rc<Filter>>);
+pub struct FilterStack(pub Vec<Rc<dyn Filter>>);
 
 impl FilterStack {
     pub fn new() -> Self {
         FilterStack(Vec::new())
     }
 
-    pub fn add_filter_pre(&mut self, filter: Rc<Filter>) {
+    pub fn add_filter_pre(&mut self, filter: Rc<dyn Filter>) {
         self.0.insert(0, filter);
     }
 
-    pub fn add_filter_post(&mut self, filter: Rc<Filter>) {
+    pub fn add_filter_post(&mut self, filter: Rc<dyn Filter>) {
         self.0.push(filter);
     }
 }

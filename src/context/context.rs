@@ -1,24 +1,10 @@
-use std::marker::PhantomData;
+use std::rc::Rc;
 use std::mem::replace;
+use std::any::Any;
 use crate::layout::Area;
-use crate::element::{Id, UIElementObj, Filter};
-use crate::render::{UIRender, UIRenderObj};
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
-pub struct StateId(pub u16);
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
-pub struct FrameId(pub u32);
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct State<T: Default + Clone + Send> {
-    id: StateId,
-    frame_id: FrameId,
-    _phantom: PhantomData<T>,
-}
+use crate::element::{Id, UIElement, Filter, FilterStack};
+use crate::render::{UIRender, UIRenderImpl};
+use super::state::{State, StateId, StateCache};
 
 pub struct UINode {
     pub kind: UINodeKind,
@@ -33,7 +19,7 @@ impl UINode {
         }
     }
 
-    pub fn from_render(render_obj: UIRenderObj) -> Self {
+    pub fn from_render(render_obj: UIRender) -> Self {
         UINode {
             kind: UINodeKind::Render(render_obj),
             filter_index: 0,
@@ -42,38 +28,43 @@ impl UINode {
 }
 
 pub enum UINodeKind {
-    Render(UIRenderObj),
+    Render(UIRender),
     Element(UIElementNode),
 }
 
 pub struct UIElementNode {
-    pub obj: UIElementObj,
+    pub elem: UIElement,
     pub children: Vec<UINode>,
 }
 
-pub struct Context {
-    next_state_id: StateId,
-    frame_id: FrameId,
-
+pub struct Context<'ui> {
     element_id: Id,
     max_area: Area,
+    next_state_id: StateId,
+    prev_state_cache: &'ui StateCache,
+    new_state_cache: StateCache,
+
+    next_frame_filters: FilterStack,
 
     pub(super) children: Vec<UINode>,
     pub(super) stack: Vec<UIElementNode>,
     pub(super) roots: Vec<UINode>,
 }
 
-impl Context {
+impl<'ui> Context<'ui> {
     pub(super) fn new(
-        frame_id: FrameId,
         element_id: Id,
         max_area: Area,
+        next_state_id: StateId,
+        prev_state_cache: &'ui StateCache,
     ) -> Self {
         Context {
-            next_state_id: StateId(0_u16),
-            frame_id,
             element_id,
             max_area,
+            next_state_id,
+            prev_state_cache,
+            new_state_cache: StateCache::new(),
+            next_frame_filters: FilterStack::new(),
             children: Vec::new(),
             stack: Vec::new(),
             roots: Vec::new(),
@@ -101,17 +92,17 @@ impl Context {
         }
     }
 
-    pub fn push(&mut self, obj: UIElementObj) {
+    pub fn push(&mut self, elem: UIElement) {
         let node = UIElementNode {
-            obj,
+            elem,
             children: Vec::new(),
         };
 
         self.stack.push(node);
     }
 
-    pub fn render(&mut self, render_obj: UIRenderObj) {
-        let node = UINode::from_render(render_obj);
+    pub fn render(&mut self, render: UIRender) {
+        let node = UINode::from_render(render);
 
         if let Some(parent) = self.stack.last_mut() {
             parent.children.insert(0, node);
@@ -120,8 +111,8 @@ impl Context {
         }
     }
 
-    pub fn render_new(&mut self, min_area: Area, render: Box<UIRender>) {
-        self.render(UIRenderObj{ min_area, render });
+    pub fn render_new(&mut self, min_area: Area, imp: Box<UIRenderImpl>) {
+        self.render(UIRender{ min_area, imp });
     }
 
     pub fn children(&mut self) {
@@ -134,37 +125,30 @@ impl Context {
         *dest = replace(&mut self.children, Vec::new());
     }
 
-    pub fn next_frame(&mut self, _filter: Box<Filter>) {
-        unimplemented!()
+    pub fn next_frame(&mut self, filter: Rc<Filter>) {
+        self.next_frame_filters.add_filter_post(filter);
     }
 
-    pub fn new_state<T: Default + Clone + Send>(&mut self) -> State<T> {
-        let id = self.next_state_id;
-        self.next_state_id.0 += 1;
-
-        State {
-            id,
-            frame_id: self.frame_id,
-            _phantom: PhantomData,
-        }
+    pub fn new_state<T: Default + Clone + Send + Any>(&mut self) -> State<T> {
+        let id = self.next_state_id.increment();
+        State::new(id)
     }
 
-    pub fn new_state_default<T: Default + Clone + Send>(&mut self, _default: T) -> State<T> {
-        let id = self.next_state_id;
-        self.next_state_id.0 += 1;
-
-        State {
-            id,
-            frame_id: self.frame_id,
-            _phantom: PhantomData,
-        }
+    pub fn new_state_default<T: Default + Clone + Send + Any>(&mut self, default: T) -> State<T> {
+        let id = self.next_state_id.increment();
+        self.new_state_cache.insert(id, Box::new(default));
+        State::new(id)
     }
 
-    pub fn read_state<T: Default + Clone + Send>(&self, _state: State<T>) -> T {
-        if _state.frame_id == self.frame_id {
-            panic!("Attempt to read state from current frame!");
+    pub fn read_state<T: Default + Clone + Send + Any>(&self, state: State<T>) -> T {
+        if state.id.frame_id != self.next_state_id.frame_id.prev() {
+            panic!("Attempt to read state from wrong frame");
         }
 
-        T::default()
+        if let Some(v) = self.prev_state_cache.get(&state.id) {
+            v.downcast_ref::<T>().expect("Mismatched types").clone()
+        } else {
+            Default::default()
+        }
     }
 }

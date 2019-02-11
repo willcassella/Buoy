@@ -1,11 +1,17 @@
 mod element;
 pub use self::element::{
     UIElement,
-    UIElementObj,
-    UIElementUpcast,
+    UIElementImpl,
+    UIElementUtil,
     IntoUIElement,
     IntoObj,
     Id,
+};
+
+mod socket;
+pub use self::socket::{
+    UISocket,
+    UISocketImpl,
 };
 
 mod filter;
@@ -17,9 +23,9 @@ pub use self::filter::{
 mod element_ext;
 pub use self::element_ext::{
     Panel,
-    PanelObj,
+    PanelImpl,
     Widget,
-    WidgetObj,
+    WidgetImpl,
     Stub,
-    StubObj,
+    StubImpl,
 };

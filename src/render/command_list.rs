@@ -1,8 +1,9 @@
-pub use super::commands::{ColoredQuad};
+pub use super::commands::{ColoredQuad, HoverQuad};
 
 #[derive(Default)]
 pub struct CommandList {
     pub colored_quads: Vec<ColoredQuad>,
+    pub hover_quads: Vec<HoverQuad>,
 }
 
 impl CommandList {
