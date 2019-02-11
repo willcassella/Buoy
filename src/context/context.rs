@@ -44,7 +44,7 @@ pub struct Context<'ui> {
     prev_state_cache: &'ui StateCache,
     new_state_cache: StateCache,
 
-    next_frame_filters: FilterStack,
+    pub(super) next_frame_filters: FilterStack,
 
     pub(super) children: Vec<UINode>,
     pub(super) stack: Vec<UIElementNode>,

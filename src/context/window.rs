@@ -100,6 +100,7 @@ impl Window {
 
                         // Put the results into the root set
                         roots.append(&mut ctx.roots);
+                        self.next_frame_filters.append(&mut ctx.next_frame_filters);
                     } else {
                         // Lay out the children of the element
                         let mut socket = elem.imp.open(max_area);
@@ -124,6 +125,7 @@ impl Window {
 
                         // Put the results into the root set
                         roots.append(&mut ctx.roots);
+                        self.next_frame_filters.append(&mut ctx.next_frame_filters);
                     }
                 }
             }

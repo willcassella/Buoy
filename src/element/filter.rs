@@ -2,13 +2,6 @@ use std::rc::Rc;
 use crate::Context;
 use crate::element::UIElement;
 
-// pub fn persist(ctx: &mut Context, mut elem: UIElement, filter: Rc<dyn Filter>) {
-//     elem.attach_filter_post(filter.clone());
-//     ctx.push(elem);
-//         ctx.children();
-//     ctx.pop();
-// }
-
 pub trait Filter {
     fn check(&self, _elem: &UIElement) -> bool {
         true
@@ -31,5 +24,9 @@ impl FilterStack {
 
     pub fn add_filter_post(&mut self, filter: Rc<dyn Filter>) {
         self.0.push(filter);
+    }
+
+    pub fn append(&mut self, other: &mut FilterStack) {
+        self.0.append(&mut other.0);
     }
 }
