@@ -2,7 +2,7 @@ use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
 use crate::element::{IntoUIElement, Widget, WidgetImpl};
-use crate::render::{UIRender, CommandList};
+use crate::render::{UIRender, NullUIRender, CommandList};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -126,7 +126,7 @@ impl WidgetImpl for MinMax {
         mut max_area: Area
     ) -> Area {
         max_area.width = max_area.width.min(self.max.width).max(self.min.width);
-        max_area.height = max_area.height.min(self.max.height).max(self.min.width);
+        max_area.height = max_area.height.min(self.max.height).max(self.min.height);
         return max_area;
     }
 
@@ -149,9 +149,12 @@ impl WidgetImpl for MinMax {
 
     fn close_none(
         self,
-        _ctx: &mut Context
+        ctx: &mut Context
     ) {
-        // Do nothing
+        // Just take up space
+        if self.min != Area::zero() {
+            ctx.render_new(self.min, Box::new(NullUIRender));
+        }
     }
 }
 

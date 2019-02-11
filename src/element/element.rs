@@ -1,9 +1,9 @@
-use std::any::Any;
 use std::rc::Rc;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use crate::Context;
 use crate::layout::Area;
+use crate::util::cast::{IntoAny, Downcast};
 use super::{Filter, FilterStack, UISocket};
 
 pub struct UIElement<I: ?Sized + UIElementImpl = dyn UIElementImpl> {
@@ -32,7 +32,10 @@ impl<I: ?Sized + UIElementImpl> UIElement<I> {
     }
 
     pub fn downcast<D: Sized + UIElementImpl>(self) -> Result<UIElement<D>, UIElement<I>> {
-        unimplemented!()
+        match Downcast::<D>::downcast(self.imp) {
+            Ok(d) => Ok(UIElement{ id: self.id, filter_stack: self.filter_stack, imp: d }),
+            Err(i) => Err(UIElement{ id: self.id, filter_stack: self.filter_stack, imp: i }),
+        }
     }
 
     pub fn upcast(self) -> UIElement<dyn UIElementImpl> {
@@ -49,7 +52,7 @@ impl<I: ?Sized + UIElementImpl> UIElement<I> {
     }
 }
 
-pub trait UIElementImpl: UIElementUtil + Any {
+pub trait UIElementImpl: UIElementUtil + IntoAny {
     fn open(
         self: Box<Self>,
         max_area: Area
@@ -57,13 +60,13 @@ pub trait UIElementImpl: UIElementUtil + Any {
 }
 
 pub trait UIElementUtil {
-    fn box_cone(&self) -> Box<dyn UIElementImpl>;
+    fn box_clone(&self) -> Box<dyn UIElementImpl>;
 
     fn upcast(self: Box<Self>) -> Box<dyn UIElementImpl>;
 }
 
 impl<T: UIElementImpl + Clone> UIElementUtil for T {
-    fn box_cone(&self) -> Box<dyn UIElementImpl> {
+    fn box_clone(&self) -> Box<dyn UIElementImpl> {
         Box::new(self.clone())
     }
 
@@ -93,7 +96,7 @@ impl<T> IntoObj for T where
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct Id(u64);
 
 impl Id {

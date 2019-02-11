@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::rc::Rc;
 use std::mem::replace;
 use crate::util::fill::Fill;
 use crate::layout::Area;
@@ -19,7 +20,11 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn run(&mut self, max_area: Area, mut root: UIElement) -> Option<UIRender> {
+    pub fn run(
+        &mut self,
+        max_area: Area,
+        root: UIElement,
+    ) -> Option<UIRender> {
         // Increment frame id
         self.frame_id = self.frame_id.next();
         self.next_context_id = Default::default();
@@ -28,8 +33,7 @@ impl Window {
         self.prev_state_cache = replace(&mut self.cur_state_cache, StateCache::new());
 
         // Get filters for the next frame
-        let mut frame_filters = replace(&mut self.next_frame_filters, FilterStack::new());
-        root.filter_stack.0.append(&mut frame_filters.0);
+        let frame_filters = replace(&mut self.next_frame_filters, FilterStack::new());
 
         // Create storage for resulting render
         let mut out: Option<UIRender> = None;
@@ -38,9 +42,23 @@ impl Window {
         let mut roots = vec![UINode::from_element(UIElementNode{ elem: root, children: Vec::new() })];
 
         // Fill the element
-        self.fill_element(&mut out, max_area, FilterStack::new(), None, &mut roots);
+        self.fill_element(&mut out, max_area, frame_filters, None, &mut roots);
 
         return out;
+    }
+
+    pub fn attach_frame_filter_pre(
+        &mut self,
+        filter: Rc<dyn Filter>,
+    ) {
+        self.next_frame_filters.add_filter_pre(filter);
+    }
+
+    pub fn attach_frame_filter_post(
+        &mut self,
+        filter: Rc<dyn Filter>,
+    ) {
+        self.next_frame_filters.add_filter_post(filter);
     }
 
     fn fill_element(
