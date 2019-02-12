@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use super::color::RGBA8;
 use crate::layout::Region;
-use crate::State;
+use crate::{State, Window};
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Debug)]
@@ -50,8 +50,11 @@ impl ColoredQuad {
     }
 }
 
+pub type InputAction = Rc<dyn Fn(&mut Window)>;
+
+#[derive(Clone)]
 pub struct HoverQuad {
     pub quad: Quad,
-    pub action: Rc<Fn()>,
     pub active_state: State<bool>,
+    pub action: Option<InputAction>,
 }

@@ -14,4 +14,12 @@ impl CommandList {
     pub fn get_colored_quads(&self) -> &Vec<ColoredQuad> {
         &self.colored_quads
     }
+
+    pub fn add_hover_quads(&mut self, hover_quads: &[HoverQuad]) {
+        self.hover_quads.extend_from_slice(hover_quads);
+    }
+
+    pub fn get_hover_quads(&self) -> &Vec<HoverQuad> {
+        &self.hover_quads
+    }
 }

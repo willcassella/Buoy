@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::{Display, Formatter, Error};
 use crate::Context;
 use crate::layout::Area;
 use crate::util::cast::{IntoAny, Downcast};
@@ -128,5 +129,11 @@ impl Id {
 
     pub fn append_num(self, id: u64) -> Self {
         self.append(Id::num(id))
+    }
+}
+
+impl Display for Id {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        self.0.fmt(fmt)
     }
 }
