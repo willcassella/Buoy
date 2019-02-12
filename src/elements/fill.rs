@@ -17,7 +17,7 @@ impl SolidFill {
         }
     }
 
-    fn generate_quad(&self, region: Region, cmds: &mut CommandList) {
+    fn generate_quad(self, region: Region, cmds: &mut CommandList) {
         cmds.add_colored_quads(&[ColoredQuad::new(From::from(region), self.color)]);
     }
 }

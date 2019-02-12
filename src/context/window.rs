@@ -44,7 +44,7 @@ impl Window {
         // Fill the element
         self.fill_element(&mut out, max_area, frame_filters, None, &mut roots);
 
-        return out;
+        out
     }
 
     pub fn attach_frame_filter_pre(

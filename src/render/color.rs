@@ -10,8 +10,8 @@ impl Default for RGBA8 {
 
 impl RGBA8 {
     pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
-        let v = (red as u32) << 24 | (green as u32) << 16 | (blue as u32) << 8 | (alpha as u32);
-        return RGBA8(v);
+        let v = u32::from(red) << 24 | u32::from(green) << 16 | u32::from(blue) << 8 | u32::from(alpha);
+        RGBA8(v)
     }
 
     pub fn red(self) -> u8 {
@@ -19,8 +19,8 @@ impl RGBA8 {
     }
 
     pub fn set_red(mut self, red: u8) -> Self {
-        let red = (red as u32) << 24 | 0xFFFFFF;
-        self.0 &= red;
+        let red = u32::from(red) << 24;
+        self.0 &= red | 0x00_FF_FF_FF;
         self
     }
 
@@ -29,8 +29,8 @@ impl RGBA8 {
     }
 
     pub fn set_green(mut self, green: u8) -> Self {
-        let green = (green as u32) << 16 | 0xFF00FFFF;
-        self.0 &= green;
+        let green = u32::from(green) << 16;
+        self.0 &= green | 0xFF_00_FF_FF;
         self
     }
 
@@ -39,8 +39,8 @@ impl RGBA8 {
     }
 
     pub fn set_blue(mut self, blue: u8) -> Self {
-        let blue = (blue as u32) << 8 | 0xFFFF00FF;
-        self.0 &= blue;
+        let blue = u32::from(blue) << 8;
+        self.0 &= blue | 0xFF_FF_00_FF;
         self
     }
 
@@ -49,8 +49,8 @@ impl RGBA8 {
     }
 
     pub fn set_alpha(mut self, alpha: u8) -> Self {
-        let blue = (alpha as u32) | 0xFFFFFF00;
-        self.0 &= blue;
+        let blue = u32::from(alpha);
+        self.0 &= blue | 0xFF_FF_FF_00;
         self
     }
 }
@@ -58,10 +58,10 @@ impl RGBA8 {
 pub mod constants {
     use super::RGBA8;
 
-    pub const RED: RGBA8 = RGBA8(0xFF0000FF);
-    pub const GREEN: RGBA8 = RGBA8(0x00FF00FF);
-    pub const BLUE: RGBA8 = RGBA8(0x0000FFFF);
-    pub const BLACK: RGBA8 = RGBA8(0x000000FF);
-    pub const WHITE: RGBA8 = RGBA8(0xFFFFFFFF);
-    pub const TRANSPARENT: RGBA8 = RGBA8(0x00000000);
+    pub const RED: RGBA8 = RGBA8(0xFF_00_00_FF);
+    pub const GREEN: RGBA8 = RGBA8(0x00_FF_00_FF);
+    pub const BLUE: RGBA8 = RGBA8(0x00_00_FF_FF);
+    pub const BLACK: RGBA8 = RGBA8(0x00_00_00_FF);
+    pub const WHITE: RGBA8 = RGBA8(0xFF_FF_FF_FF);
+    pub const TRANSPARENT: RGBA8 = RGBA8(0x00_00_00_00);
 }

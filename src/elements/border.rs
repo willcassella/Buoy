@@ -83,7 +83,8 @@ impl WidgetImpl for BlockBorder {
     fn open(&self, mut max_area: Area) -> Area {
         max_area.width -= self.left + self.right;
         max_area.height -= self.top + self.bottom;
-        return max_area;
+
+        max_area
     }
 
     fn close_some(

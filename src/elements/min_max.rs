@@ -27,7 +27,7 @@ fn align_horizontally(align: HAlign, area: Area, mut region: Region) -> Region {
         },
     }
 
-    return region;
+    region
 }
 
 #[repr(C)]
@@ -53,7 +53,7 @@ fn align_vertically(align: VAlign, area: Area, mut region: Region) -> Region {
         }
     }
 
-    return region;
+    region
 }
 
 #[repr(C)]
@@ -127,7 +127,7 @@ impl WidgetImpl for MinMax {
     ) -> Area {
         max_area.width = max_area.width.min(self.max.width).max(self.min.width);
         max_area.height = max_area.height.min(self.max.height).max(self.min.height);
-        return max_area;
+        max_area
     }
 
     fn close_some(
