@@ -3,23 +3,25 @@ use crate::element::{IntoUIElement, Widget, WidgetImpl};
 use crate::render::{UIRender, CommandList, commands::{InputAction, Quad, HoverQuad}};
 use crate::layout::Region;
 
+pub type HoverState = State<bool>;
+
 #[derive(Clone)]
 pub struct Hover {
-    pub hovered: State<bool>,
+    pub hovered: HoverState,
     pub action: Option<InputAction>,
 }
 
 impl Hover {
-    pub fn new(ctx: &mut Context, action: InputAction) -> Self {
+    pub fn new(state: HoverState, action: InputAction) -> Self {
         Hover {
-            hovered: ctx.new_state_default(false),
+            hovered: state,
             action: Some(action),
         }
     }
 
-    pub fn new_no_action(ctx: &mut Context) -> Self {
+    pub fn new_no_action(state: HoverState) -> Self {
         Hover {
-            hovered: ctx.new_state_default(false),
+            hovered: state,
             action: None,
         }
     }
