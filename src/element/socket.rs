@@ -1,30 +1,38 @@
-use crate::Context;
-use crate::layout::Area;
-use crate::element::Filter;
-use crate::render::UIRender;
 use crate::util::fill::Fill;
+use crate::render::UIRender;
+use crate::layout::Area;
 
-pub struct UISocket {
-    pub child_max_area: Area,
-    pub imp: Box<dyn UISocketImpl>,
+pub struct UISocket<'ctx> {
+    imp: &'ctx mut UISocketImpl,
+    max_area: Area,
 }
 
-impl UISocket {
-    pub fn new(child_max_area: Area, imp: Box<dyn UISocketImpl>) -> Self {
+impl<'ctx> UISocket<'ctx> {
+    pub fn new(
+        max_area: Area,
+        imp: &'ctx mut UISocketImpl
+    ) -> Self {
         UISocket {
-            child_max_area,
             imp,
+            max_area,
         }
     }
 }
 
 pub trait UISocketImpl {
-    fn init(
-        &mut self
-    ) -> (Option<&dyn Filter>, &mut dyn Fill<UIRender>);
+    fn render(
+        &mut self,
+        render: UIRender,
+    );
+}
 
-    fn close(
-        self: Box<Self>,
-        ctx: &mut Context,
-    ) -> Option<UISocket>;
+impl<T: Fill<UIRender>> UISocketImpl for T {
+    fn render(
+        &mut self,
+        render: UIRender,
+    ) {
+        if self.remaining_capacity() != 0 {
+            self.push(render);
+        }
+    }
 }

@@ -1,5 +1,5 @@
 use crate::context::{State, Context};
-use crate::element::{IntoUIElement, Widget, WidgetImpl};
+use crate::element::{IntoUIElement, Wrap, WrapImpl};
 use crate::render::{UIRender, CommandList, commands::{InputAction, Quad, HoverQuad}};
 use crate::layout::Region;
 
@@ -28,10 +28,10 @@ impl Hover {
 }
 
 impl IntoUIElement for Hover {
-    type Target = Widget<Hover>;
+    type Target = Wrap<Hover>;
 }
 
-impl WidgetImpl for Hover {
+impl WrapImpl for Hover {
     fn close_some(
         self,
         ctx: &mut Context,

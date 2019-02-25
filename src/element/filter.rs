@@ -2,31 +2,35 @@ use std::rc::Rc;
 use crate::Context;
 use crate::element::UIElement;
 
-pub trait Filter {
-    fn check(&self, _elem: &UIElement) -> bool {
-        true
-    }
-
-    fn filter(&self, ctx: &mut Context, elem: UIElement);
+#[derive(Clone, Default)]
+pub struct FilterStack {
+    pub(crate) pre_filters: Vec<UIFilter>,
+    pub(crate) post_filters: Vec<UIFilter>,
 }
 
-#[derive(Clone, Default)]
-pub struct FilterStack(pub Vec<Rc<dyn Filter>>);
-
 impl FilterStack {
-    pub fn new() -> Self {
-        FilterStack(Vec::new())
+    pub fn pre_filter(
+        &mut self,
+        filter: UIFilter,
+    ) {
+        self.pre_filters.push(filter);
     }
 
-    pub fn add_filter_pre(&mut self, filter: Rc<dyn Filter>) {
-        self.0.insert(0, filter);
+    pub fn post_filter(
+        &mut self,
+        filter: UIFilter,
+    ) {
+        self.post_filters.push(filter);
     }
+}
 
-    pub fn add_filter_post(&mut self, filter: Rc<dyn Filter>) {
-        self.0.push(filter);
-    }
+pub type UIFilter = Rc<dyn UIFilterImpl>;
 
-    pub fn append(&mut self, other: &mut FilterStack) {
-        self.0.append(&mut other.0);
-    }
+pub trait UIFilterImpl {
+    fn element<'ui, 'ctx>(
+        &self,
+        ctx: &mut Context<'ui, 'ctx>,
+        element: UIElement,
+        filters: &mut FilterStack,
+    );
 }

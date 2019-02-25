@@ -1,6 +1,6 @@
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIElement, Widget, WidgetImpl};
+use crate::element::{IntoUIElement, Wrap, WrapImpl};
 use crate::render::{UIRender, NullUIRender, CommandList, color};
 use crate::render::commands::{Quad, ColoredQuad};
 
@@ -37,7 +37,7 @@ impl BlockBorder {
 }
 
 impl IntoUIElement for BlockBorder {
-    type Target = Widget<BlockBorder>;
+    type Target = Wrap<BlockBorder>;
 }
 
 impl BlockBorder {
@@ -79,7 +79,7 @@ impl Default for BlockBorder {
     }
 }
 
-impl WidgetImpl for BlockBorder {
+impl WrapImpl for BlockBorder {
     fn open(&self, mut max_area: Area) -> Area {
         max_area.width -= self.left + self.right;
         max_area.height -= self.top + self.bottom;

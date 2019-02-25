@@ -8,6 +8,11 @@ pub use self::element::{
     Id,
 };
 
+mod anchor;
+pub use self::anchor::{
+    Anchor,
+};
+
 mod socket;
 pub use self::socket::{
     UISocket,
@@ -16,16 +21,15 @@ pub use self::socket::{
 
 mod filter;
 pub use self::filter::{
-    Filter,
+    UIFilter,
+    UIFilterImpl,
     FilterStack,
 };
 
-mod element_ext;
-pub use self::element_ext::{
+mod archetype;
+pub use self::archetype::{
+    Wrap,
+    WrapImpl,
     Panel,
     PanelImpl,
-    Widget,
-    WidgetImpl,
-    Stub,
-    StubImpl,
 };

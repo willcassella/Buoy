@@ -10,4 +10,4 @@ pub mod render;
 pub mod layout;
 pub mod util;
 
-pub mod elements;
+pub mod primitives;

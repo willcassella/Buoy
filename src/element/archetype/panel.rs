@@ -2,8 +2,7 @@ use std::any::Any;
 use std::ops::{Deref, DerefMut};
 use crate::Context;
 use crate::layout::Area;
-use crate::util::fill::Fill;
-use crate::element::{UIElementImpl, UISocket, UISocketImpl, Filter};
+use crate::element::{UIElementImpl, UISocket};
 use crate::render::UIRender;
 
 pub trait PanelImpl: Any + Clone {
@@ -43,31 +42,20 @@ impl<T: PanelImpl> DerefMut for Panel<T> {
 }
 
 impl<T: PanelImpl> UIElementImpl for Panel<T> {
-    fn open(
+    fn run<'ui, 'ctx>(
         self: Box<Self>,
-        max_area: Area
-    ) -> UISocket {
-        let child_max_area = self.0.open(max_area);
-        let socket = PanelSocket(self.0, Vec::new());
+        ctx: &mut Context<'ui, 'ctx>,
+    ) {
+        let child_max_area = self.0.open(ctx.max_area());
+        let mut children = Vec::new();
 
-        UISocket::new(child_max_area, Box::new(socket))
-    }
-}
+        let mut local = Context::local(ctx);
+        local.socket_begin(UISocket::new(child_max_area, &mut children));
+            local.children_all();
+        local.end();
 
-struct PanelSocket<T: PanelImpl>(T, Vec<UIRender>);
-
-impl<T: PanelImpl> UISocketImpl for PanelSocket<T> {
-    fn init(
-        &mut self,
-    ) -> (Option<&dyn Filter>, &mut dyn Fill<UIRender>) {
-        (None, &mut self.1)
-    }
-
-    fn close(
-        self: Box<Self>,
-        ctx: &mut Context,
-    ) -> Option<UISocket> {
-        self.0.close(ctx, self.1);
-        None
+        // Wait for socket to fill up
+        local.await_sockets();
+        self.0.close(ctx, children);
     }
 }

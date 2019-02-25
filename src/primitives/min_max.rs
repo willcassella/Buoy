@@ -1,7 +1,7 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIElement, Widget, WidgetImpl};
+use crate::element::{IntoUIElement, Wrap, WrapImpl};
 use crate::render::{UIRender, NullUIRender, CommandList};
 
 #[repr(C)]
@@ -120,7 +120,7 @@ impl Default for MinMax {
     }
 }
 
-impl WidgetImpl for MinMax {
+impl WrapImpl for MinMax {
     fn open(
         &self,
         mut max_area: Area
@@ -159,5 +159,5 @@ impl WidgetImpl for MinMax {
 }
 
 impl IntoUIElement for MinMax {
-    type Target = Widget<MinMax>;
+    type Target = Wrap<MinMax>;
 }

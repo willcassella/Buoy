@@ -1,15 +1,11 @@
-use std::rc::Rc;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Display, Formatter, Error};
 use crate::Context;
-use crate::layout::Area;
 use crate::util::cast::{IntoAny, Downcast};
-use super::{Filter, FilterStack, UISocket};
 
 pub struct UIElement<I: ?Sized + UIElementImpl = dyn UIElementImpl> {
     pub id: Id,
-    pub filter_stack: FilterStack,
     pub imp: Box<I>,
 }
 
@@ -17,47 +13,44 @@ impl<I: UIElementImpl> UIElement<I> {
     pub fn new(id: Id, imp: Box<I>) -> Self {
         UIElement {
             id,
-            filter_stack: FilterStack::new(),
             imp,
         }
     }
 }
 
 impl<I: ?Sized + UIElementImpl> UIElement<I> {
-    pub fn attach_filter_pre(&mut self, filter: Rc<Filter>) {
-        self.filter_stack.add_filter_pre(filter);
-    }
-
-    pub fn attach_filter_post(&mut self, filter: Rc<Filter>) {
-        self.filter_stack.add_filter_post(filter);
-    }
-
-    pub fn downcast<D: Sized + UIElementImpl>(self) -> Result<UIElement<D>, UIElement<I>> {
+    pub fn downcast<D: Sized + UIElementImpl>(
+        self,
+    ) -> Result<UIElement<D>, UIElement<I>> {
         match Downcast::<D>::downcast(self.imp) {
-            Ok(d) => Ok(UIElement{ id: self.id, filter_stack: self.filter_stack, imp: d }),
-            Err(i) => Err(UIElement{ id: self.id, filter_stack: self.filter_stack, imp: i }),
+            Ok(d) => Ok(UIElement{ id: self.id, imp: d }),
+            Err(i) => Err(UIElement{ id: self.id, imp: i }),
         }
     }
 
-    pub fn upcast(self) -> UIElement<dyn UIElementImpl> {
+    pub fn upcast(
+        self
+    ) -> UIElement<dyn UIElementImpl> {
         UIElement {
             id: self.id,
-            filter_stack: self.filter_stack,
             imp: self.imp.upcast(),
         }
     }
 
-    pub fn push<'a, 'ui>(self, ctx: &'a mut Context<'ui>) -> &'a mut Context<'ui> {
-        ctx.push(self.upcast());
+    pub fn begin<'ui, 'ctx, 'a>(
+        self,
+        ctx: &'a mut Context<'ui, 'ctx>
+    ) -> &'a mut Context<'ui, 'ctx> {
+        ctx.element_begin(self.upcast());
         ctx
     }
 }
 
 pub trait UIElementImpl: UIElementUtil + IntoAny {
-    fn open(
+    fn run<'ui, 'ctx>(
         self: Box<Self>,
-        max_area: Area
-    ) -> UISocket;
+        ctx: &mut Context<'ui, 'ctx>, // TODO: Investigate if this can be extended to arbitrary depths
+    );
 }
 
 pub trait UIElementUtil {

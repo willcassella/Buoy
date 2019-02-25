@@ -1,6 +1,6 @@
 use crate::Context;
 use crate::layout::{Region, Area};
-use crate::element::{IntoUIElement, Widget, WidgetImpl};
+use crate::element::{IntoUIElement, Wrap, WrapImpl};
 use crate::render::{UIRender, CommandList, color};
 use crate::render::commands::ColoredQuad;
 
@@ -22,7 +22,7 @@ impl SolidFill {
     }
 }
 
-impl WidgetImpl for SolidFill {
+impl WrapImpl for SolidFill {
     fn close_some(
         self,
         ctx: &mut Context,
@@ -45,5 +45,5 @@ impl WidgetImpl for SolidFill {
 }
 
 impl IntoUIElement for SolidFill {
-    type Target = Widget<SolidFill>;
+    type Target = Wrap<SolidFill>;
 }
