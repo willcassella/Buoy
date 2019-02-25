@@ -1,8 +1,9 @@
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIElement, Wrap, WrapImpl};
-use crate::render::{UIRender, NullUIRender, CommandList, color};
+use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::render::{CommandList, color};
 use crate::render::commands::{Quad, ColoredQuad};
+use crate::primitives::null_render::NullUIRender;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -36,7 +37,7 @@ impl BlockBorder {
     }
 }
 
-impl IntoUIElement for BlockBorder {
+impl IntoUIWidget for BlockBorder {
     type Target = Wrap<BlockBorder>;
 }
 
@@ -110,7 +111,7 @@ impl WrapImpl for BlockBorder {
             region.pos.y += self.top;
             region.area.height -= self.top + self.bottom;
 
-            // Render the child element
+            // Render the child
             child.imp.render(region, cmds);
         }))
     }

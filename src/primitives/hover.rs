@@ -1,6 +1,6 @@
 use crate::context::{State, Context};
-use crate::element::{IntoUIElement, Wrap, WrapImpl};
-use crate::render::{UIRender, CommandList, commands::{InputAction, Quad, HoverQuad}};
+use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::render::{CommandList, commands::{InputAction, Quad, HoverQuad}};
 use crate::layout::Region;
 
 pub type HoverState = State<bool>;
@@ -27,7 +27,7 @@ impl Hover {
     }
 }
 
-impl IntoUIElement for Hover {
+impl IntoUIWidget for Hover {
     type Target = Wrap<Hover>;
 }
 

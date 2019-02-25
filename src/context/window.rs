@@ -2,9 +2,8 @@ use std::any::Any;
 use std::mem::replace;
 use crate::util::fill::Fill;
 use crate::layout::Area;
-use crate::element::{UIElement, UISocket, UIFilter, FilterStack};
-use crate::render::UIRender;
-use super::context::{Context, TreeNode, TreeNodeKind};
+use crate::element::{UIWidget, UIRender, UISocket, UISocketImpl, UIFilter, FilterStack};
+use super::context::{Context, ContextData, TreeNode, TreeNodeKind};
 use super::state::{State, FrameId, ContextId, StateId, StateCache};
 
 #[derive(Default)]
@@ -22,7 +21,7 @@ impl Window {
     pub fn run(
         &mut self,
         max_area: Area,
-        root: UIElement,
+        root: UIWidget,
     ) -> Option<UIRender> {
         // Increment frame id
         self.frame_id = self.frame_id.next();
@@ -39,111 +38,89 @@ impl Window {
 
         // Insert root as the initial root
         let mut roots = vec![TreeNode{
-            kind: TreeNodeKind::Element(root),
+            kind: TreeNodeKind::Widget(root),
             target: Default::default(),
             children: Vec::new(),
         }];
 
-        // Fill the element
-        self.fill_element(&mut out, max_area, frame_filters, &mut roots);
+        // Fill the socket
+        self.fill_socket(&mut out, max_area, frame_filters, &mut roots);
 
         out
     }
 
-    pub fn filter_frame_pre(
+    pub fn filter_pre(
         &mut self,
         filter: UIFilter,
     ) {
-        self.next_frame_filters.pre_filter(filter);
+        self.next_frame_filters.filter_pre(filter);
     }
 
-    pub fn filter_frame_post(
+    pub fn filter_post(
         &mut self,
         filter: UIFilter,
     ) {
-        self.next_frame_filters.post_filter(filter);
+        self.next_frame_filters.filter_post(filter);
     }
 
-    fn fill_element(
+    fn fill_socket(
         &mut self,
-        fill: &mut Fill<UIRender>,
+        socket: &mut dyn UISocketImpl,
         max_area: Area,
         mut filters: FilterStack,
         roots: &mut Vec<TreeNode>,
     ) {
-        // while fill.remaining_capacity() != 0 {
-        //     let root = match roots.pop() {
-        //         Some(x) => x,
-        //         None => return,
-        //     };
+        while socket.remaining_capacity() != 0 {
+            let mut root = match roots.pop() {
+                Some(x) => x,
+                None => return,
+            };
 
-        //     match root.kind {
-        //         TreeNodeKind::Render(render_obj) => fill.push(render_obj),
-        //         TreeNodeKind::Socket(socket) => {
-        //             if !filters.pre_filters.is_empty() {
-        //                 unimplemented!()
-        //             }
-        //             if !filters.post_filters.is_empty() {
-        //                 unimplemented!()
-        //             }
+            match root.kind {
+                TreeNodeKind::Render(render_obj) => socket.push(render_obj),
+                TreeNodeKind::PreFilter(filter) => {
+                    let mut filters = filters.clone();
+                    filters.filter_pre(filter);
+                    self.fill_socket(socket, max_area, filters, &mut root.children);
+                },
+                TreeNodeKind::PostFilter(filter) => {
+                    let mut filters = filters.clone();
+                    filters.filter_post(filter);
+                    self.fill_socket(socket, max_area, filters, &mut root.children);
+                },
+                TreeNodeKind::Socket(socket) => {
+                    if !filters.pre_filters.is_empty() {
+                        unimplemented!()
+                    }
+                    if !filters.post_filters.is_empty() {
+                        unimplemented!()
+                    }
 
-        //             // Open the socket
-        //         },
-        //         TreeNodeKind::Element(UIElementNode{ elem, mut children }) => {
-        //             // If we still have base filters to run on this node
-        //             // TODO: Also handle parent_filter
-        //             if root.filter_index < filters.0.len() {
-        //                 // Create a context for running the filter
-        //                 let mut ctx = Context::new(
-        //                     elem.id,
-        //                     max_area,
-        //                     StateId::new(self.frame_id, self.next_context_id.increment()),
-        //                     &self.prev_state_cache);
-        //                 ctx.children = children;
+                    // Fill the socket
+                    self.fill_socket(socket.imp, socket.max_area, FilterStack::default(), &mut root.children);
+                },
+                TreeNodeKind::Widget(widget) => {
+                    if !filters.pre_filters.is_empty() {
+                        unimplemented!()
+                    }
+                    if !filters.post_filters.is_empty() {
+                        unimplemented!()
+                    }
 
-        //                 // Run the filter
-        //                 let filter = &filters.0[root.filter_index];
-        //                 filter.filter(&mut ctx, elem);
+                    // // Create a context for running the widget
+                    // let mut ctx_data = ContextData::new(
+                    //     widget.id,
+                    //     max_area,
+                    //     StateId::new(self.frame_id, self.next_context_id.increment()),
+                    //     &self.prev_state_cache,
+                    //     );
+                    // let mut ctx = Context::new(&mut ctx_data);
 
-        //                 // Increment the root filter index
-        //                 for new_root in &mut ctx.roots {
-        //                     new_root.filter_index = root.filter_index + 1;
-        //                 }
-
-        //                 // Put the results into the root set
-        //                 roots.append(&mut ctx.roots);
-        //                 self.next_frame_filters.append(&mut ctx.next_frame_filters);
-        //             } else {
-        //                 // Lay out the children of the element
-        //                 let mut socket = elem.imp.open(max_area);
-
-        //                 // Initialize the socket
-        //                 {
-        //                     let (filter, fill) = socket.imp.init();
-
-        //                     self.fill_element(fill, socket.child_max_area, elem.filter_stack, filter, &mut children);
-        //                 }
-
-        //                 // Create a context for closing the socket
-        //                 let mut ctx = Context::new(
-        //                     elem.id,
-        //                     max_area,
-        //                     StateId::new(self.frame_id, self.next_context_id.increment()),
-        //                     &self.prev_state_cache);
-        //                 ctx.children = children;
-
-        //                 // Close the socket
-        //                 socket.imp.close(&mut ctx);
-
-        //                 // Put the results into the root set
-        //                 roots.append(&mut ctx.roots);
-        //                 self.next_frame_filters.append(&mut ctx.next_frame_filters);
-        //             }
-        //         }
-        //     }
-        //}
-
-        unimplemented!()
+                    // // Run the widget
+                    // widget.imp.run(&mut ctx);
+                }
+            }
+        }
     }
 
     pub fn write_state<T: Default + Clone + Send + Any>(&mut self, state: State<T>, value: T) {

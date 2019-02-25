@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::Context;
-use crate::element::UIElement;
+use crate::element::{UIWidget, UISocket};
 
 #[derive(Clone, Default)]
 pub struct FilterStack {
@@ -9,14 +9,14 @@ pub struct FilterStack {
 }
 
 impl FilterStack {
-    pub fn pre_filter(
+    pub fn filter_pre(
         &mut self,
         filter: UIFilter,
     ) {
         self.pre_filters.push(filter);
     }
 
-    pub fn post_filter(
+    pub fn filter_post(
         &mut self,
         filter: UIFilter,
     ) {
@@ -27,10 +27,25 @@ impl FilterStack {
 pub type UIFilter = Rc<dyn UIFilterImpl>;
 
 pub trait UIFilterImpl {
-    fn element<'ui, 'ctx>(
+    fn widget<'ui, 'ctx>(
         &self,
         ctx: &mut Context<'ui, 'ctx>,
-        element: UIElement,
+        widget: UIWidget,
         filters: &mut FilterStack,
-    );
+    ) {
+        ctx.widget_begin(widget);
+            ctx.children_all();
+        ctx.end();
+    }
+
+    fn socket<'ui, 'ctx>(
+        &self,
+        ctx: &mut Context<'ui, 'ctx>,
+        socket: UISocket<'ctx>,
+        filters: &mut FilterStack,
+    ) {
+        ctx.socket_begin(socket);
+            ctx.children_all();
+        ctx.end();
+    }
 }

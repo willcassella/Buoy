@@ -1,30 +1,32 @@
 use std::any::Any;
 use crate::layout::Area;
-use crate::element::{Id, Anchor, UIElement, UIFilter, FilterStack, UISocket};
-use crate::render::{UIRender, UIRenderImpl};
+use crate::element::{Id, Anchor, UIWidget, UIFilter, FilterStack, UISocket, UIRender, UIRenderImpl};
 use super::state::{State, StateId, StateCache};
 
 pub struct ContextData<'ui> {
-    element_id: Id,
+    widget_id: Id,
     max_area: Area,
     next_state_id: StateId,
     prev_state_cache: &'ui StateCache,
     pub next_frame_filters: FilterStack,
+    children: Vec<TreeNode<'static>>,
 }
 
 impl<'ui> ContextData<'ui> {
     pub fn new(
-        element_id: Id,
+        widget_id: Id,
         max_area: Area,
         next_state_id: StateId,
         prev_state_cache: &'ui StateCache,
+        children: Vec<TreeNode<'static>>,
     ) -> Self {
         ContextData {
-            element_id,
+            widget_id,
             max_area,
             next_state_id,
             prev_state_cache,
             next_frame_filters: FilterStack::default(),
+            children,
         }
     }
 }
@@ -40,7 +42,7 @@ pub enum TreeNodeKind<'ctx> {
     Socket(UISocket<'ctx>),
     PreFilter(UIFilter),
     PostFilter(UIFilter),
-    Element(UIElement),
+    Widget(UIWidget),
 }
 
 pub struct Context<'ui, 'ctx> {
@@ -67,29 +69,29 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
         Self::new(super_ctx.data)
     }
 
-    pub fn element_id(&self) -> Id {
-        self.data.element_id
+    pub fn widget_id(&self) -> Id {
+        self.data.widget_id
     }
 
     pub fn max_area(&self) -> Area {
         self.data.max_area
     }
 
-    // Pushes the given element into the default socket ('')
-    pub fn element_begin(
+    // Pushes the given widget into the default socket ('')
+    pub fn widget_begin(
         &mut self,
-        element: UIElement,
+        widget: UIWidget,
     ) {
-        self.element_into_begin(Anchor::default(), element)
+        self.widget_into_begin(Anchor::default(), widget)
     }
 
-    pub fn element_into_begin(
+    pub fn widget_into_begin(
         &mut self,
         target: Anchor,
-        element: UIElement,
+        widget: UIWidget,
     ) {
         let node = TreeNode {
-            kind: TreeNodeKind::Element(element),
+            kind: TreeNodeKind::Widget(widget),
             target,
             children: Vec::new(),
         };
@@ -155,7 +157,10 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
     pub fn children_all(
         &mut self,
     ) {
-        unimplemented!()
+        // This absolutely should not need transmute.
+        // We're converting Vec<TreeNode<'static>> into Vec<TreeNode<'ctx>>, which is perfectly fine...
+        let children: &mut Vec<TreeNode<'ctx>> = unsafe { std::mem::transmute(&mut self.data.children) };
+        self.roots.append(children);
     }
 
     pub fn children_into(
@@ -203,10 +208,10 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
         self.wip.push(node);
     }
 
-    // Moves the context upward to the parent of the current element
+    // Moves the context upward to the parent of the current widget
     // This will panic if the parent is not in scope for this context!
     pub fn end(&mut self) {
-        let mut node = self.wip.pop().expect("Called 'end' after last element in WIP stack");
+        let mut node = self.wip.pop().expect("Called 'end' after last widget in WIP stack");
 
         // While the node was in the WIP stack, it's children field actually held its siblings
         std::mem::swap(&mut self.roots, &mut node.children);
@@ -216,21 +221,23 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
     pub fn await_sockets(
         self,
     ) {
-        unimplemented!()
+        assert!(self.wip.is_empty(), "You cannot await while the WIP stack is not empty");
+
+        // Need to create a new context
     }
 
-    pub fn filter_next_frame_pre(
+    pub fn filter_pre_next_frame(
         &mut self,
         filter: UIFilter
     ) {
-        self.data.next_frame_filters.pre_filter(filter);
+        self.data.next_frame_filters.filter_pre(filter);
     }
 
-    pub fn filter_next_frame_post(
+    pub fn filter_post_next_frame(
         &mut self,
         filter: UIFilter,
     ) {
-        self.data.next_frame_filters.post_filter(filter);
+        self.data.next_frame_filters.filter_post(filter);
     }
 
     pub fn new_state<T: Default + Clone + Send + Any>(&mut self) -> State<T> {

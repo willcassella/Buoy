@@ -1,7 +1,7 @@
 use crate::Context;
 use crate::layout::{Region, Area};
-use crate::element::{IntoUIElement, Wrap, WrapImpl};
-use crate::render::{UIRender, CommandList, color};
+use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::render::{CommandList, color};
 use crate::render::commands::ColoredQuad;
 
 #[repr(C)]
@@ -44,6 +44,6 @@ impl WrapImpl for SolidFill {
     }
 }
 
-impl IntoUIElement for SolidFill {
+impl IntoUIWidget for SolidFill {
     type Target = Wrap<SolidFill>;
 }

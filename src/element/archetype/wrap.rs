@@ -2,8 +2,7 @@ use std::any::Any;
 use std::ops::{Deref, DerefMut};
 use crate::Context;
 use crate::layout::Area;
-use crate::element::{UIElementImpl, UISocket};
-use crate::render::UIRender;
+use crate::element::{UIWidgetImpl, UISocket, UIRender};
 
 pub trait WrapImpl: Any + Clone {
     fn open(&self, max_area: Area) -> Area {
@@ -45,7 +44,7 @@ impl<T: WrapImpl> DerefMut for Wrap<T> {
     }
 }
 
-impl<T: WrapImpl> UIElementImpl for Wrap<T> {
+impl<T: WrapImpl> UIWidgetImpl for Wrap<T> {
     fn run<'ui, 'ctx>(
         self: Box<Self>,
         ctx: &mut Context<'ui, 'ctx>,

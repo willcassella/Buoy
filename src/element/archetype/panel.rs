@@ -2,8 +2,7 @@ use std::any::Any;
 use std::ops::{Deref, DerefMut};
 use crate::Context;
 use crate::layout::Area;
-use crate::element::{UIElementImpl, UISocket};
-use crate::render::UIRender;
+use crate::element::{UIWidgetImpl, UISocket, UIRender};
 
 pub trait PanelImpl: Any + Clone {
     fn open(
@@ -41,7 +40,7 @@ impl<T: PanelImpl> DerefMut for Panel<T> {
     }
 }
 
-impl<T: PanelImpl> UIElementImpl for Panel<T> {
+impl<T: PanelImpl> UIWidgetImpl for Panel<T> {
     fn run<'ui, 'ctx>(
         self: Box<Self>,
         ctx: &mut Context<'ui, 'ctx>,

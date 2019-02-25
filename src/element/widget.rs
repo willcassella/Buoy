@@ -4,34 +4,34 @@ use std::fmt::{Display, Formatter, Error};
 use crate::Context;
 use crate::util::cast::{IntoAny, Downcast};
 
-pub struct UIElement<I: ?Sized + UIElementImpl = dyn UIElementImpl> {
+pub struct UIWidget<I: ?Sized + UIWidgetImpl = dyn UIWidgetImpl> {
     pub id: Id,
     pub imp: Box<I>,
 }
 
-impl<I: UIElementImpl> UIElement<I> {
+impl<I: UIWidgetImpl> UIWidget<I> {
     pub fn new(id: Id, imp: Box<I>) -> Self {
-        UIElement {
+        UIWidget {
             id,
             imp,
         }
     }
 }
 
-impl<I: ?Sized + UIElementImpl> UIElement<I> {
-    pub fn downcast<D: Sized + UIElementImpl>(
+impl<I: ?Sized + UIWidgetImpl> UIWidget<I> {
+    pub fn downcast<D: Sized + UIWidgetImpl>(
         self,
-    ) -> Result<UIElement<D>, UIElement<I>> {
+    ) -> Result<UIWidget<D>, UIWidget<I>> {
         match Downcast::<D>::downcast(self.imp) {
-            Ok(d) => Ok(UIElement{ id: self.id, imp: d }),
-            Err(i) => Err(UIElement{ id: self.id, imp: i }),
+            Ok(d) => Ok(UIWidget{ id: self.id, imp: d }),
+            Err(i) => Err(UIWidget{ id: self.id, imp: i }),
         }
     }
 
     pub fn upcast(
         self
-    ) -> UIElement<dyn UIElementImpl> {
-        UIElement {
+    ) -> UIWidget<dyn UIWidgetImpl> {
+        UIWidget {
             id: self.id,
             imp: self.imp.upcast(),
         }
@@ -41,51 +41,51 @@ impl<I: ?Sized + UIElementImpl> UIElement<I> {
         self,
         ctx: &'a mut Context<'ui, 'ctx>
     ) -> &'a mut Context<'ui, 'ctx> {
-        ctx.element_begin(self.upcast());
+        ctx.widget_begin(self.upcast());
         ctx
     }
 }
 
-pub trait UIElementImpl: UIElementUtil + IntoAny {
+pub trait UIWidgetImpl: UIWidgetUtil + IntoAny {
     fn run<'ui, 'ctx>(
         self: Box<Self>,
         ctx: &mut Context<'ui, 'ctx>, // TODO: Investigate if this can be extended to arbitrary depths
     );
 }
 
-pub trait UIElementUtil {
-    fn box_clone(&self) -> Box<dyn UIElementImpl>;
+pub trait UIWidgetUtil {
+    fn box_clone(&self) -> Box<dyn UIWidgetImpl>;
 
-    fn upcast(self: Box<Self>) -> Box<dyn UIElementImpl>;
+    fn upcast(self: Box<Self>) -> Box<dyn UIWidgetImpl>;
 }
 
-impl<T: UIElementImpl + Clone> UIElementUtil for T {
-    fn box_clone(&self) -> Box<dyn UIElementImpl> {
+impl<T: UIWidgetImpl + Clone> UIWidgetUtil for T {
+    fn box_clone(&self) -> Box<dyn UIWidgetImpl> {
         Box::new(self.clone())
     }
 
-    fn upcast(self: Box<Self>) -> Box<dyn UIElementImpl> {
+    fn upcast(self: Box<Self>) -> Box<dyn UIWidgetImpl> {
         self
     }
 }
 
-pub trait IntoUIElement {
-    type Target: UIElementImpl;
+pub trait IntoUIWidget {
+    type Target: UIWidgetImpl;
 }
 
-impl<T: UIElementImpl> IntoUIElement for T {
+impl<T: UIWidgetImpl> IntoUIWidget for T {
     type Target = Self;
 }
 
-pub trait IntoObj: IntoUIElement {
-    fn into_obj(self, id: Id) -> UIElement<Self::Target>;
+pub trait IntoObj: IntoUIWidget {
+    fn into_obj(self, id: Id) -> UIWidget<Self::Target>;
 }
 
 impl<T> IntoObj for T where
-    T: IntoUIElement + Into<<T as IntoUIElement>::Target>
+    T: IntoUIWidget + Into<<T as IntoUIWidget>::Target>
 {
-    fn into_obj(self, id: Id) -> UIElement<T::Target> {
-        UIElement::new(id, Box::new(self.into()))
+    fn into_obj(self, id: Id) -> UIWidget<T::Target> {
+        UIWidget::new(id, Box::new(self.into()))
     }
 }
 

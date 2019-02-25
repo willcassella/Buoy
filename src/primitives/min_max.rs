@@ -1,8 +1,9 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIElement, Wrap, WrapImpl};
-use crate::render::{UIRender, NullUIRender, CommandList};
+use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::render::CommandList;
+use crate::primitives::null_render::NullUIRender;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -158,6 +159,6 @@ impl WrapImpl for MinMax {
     }
 }
 
-impl IntoUIElement for MinMax {
+impl IntoUIWidget for MinMax {
     type Target = Wrap<MinMax>;
 }

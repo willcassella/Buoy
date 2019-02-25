@@ -1,16 +1,17 @@
-mod element;
-pub use self::element::{
-    UIElement,
-    UIElementImpl,
-    UIElementUtil,
-    IntoUIElement,
+mod widget;
+pub use self::widget::{
+    UIWidget,
+    UIWidgetImpl,
+    UIWidgetUtil,
+    IntoUIWidget,
     IntoObj,
     Id,
 };
 
-mod anchor;
-pub use self::anchor::{
-    Anchor,
+mod render;
+pub use self::render::{
+    UIRender,
+    UIRenderImpl,
 };
 
 mod socket;
@@ -24,6 +25,11 @@ pub use self::filter::{
     UIFilter,
     UIFilterImpl,
     FilterStack,
+};
+
+mod anchor;
+pub use self::anchor::{
+    Anchor,
 };
 
 mod archetype;

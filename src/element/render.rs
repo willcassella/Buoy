@@ -25,16 +25,3 @@ impl<T> UIRenderImpl for T where
         self(region, cmds);
     }
 }
-
-#[derive(Clone, Copy)]
-pub struct NullUIRender;
-
-impl UIRenderImpl for NullUIRender {
-    fn render(
-        &self,
-        _region: Region,
-        _cmds: &mut CommandList
-    ) {
-        // Null renders only take up space
-    }
-}

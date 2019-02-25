@@ -1,10 +1,10 @@
 use crate::util::fill::Fill;
-use crate::render::UIRender;
+use crate::element::UIRender;
 use crate::layout::Area;
 
 pub struct UISocket<'ctx> {
-    imp: &'ctx mut UISocketImpl,
-    max_area: Area,
+    pub(crate) imp: &'ctx mut UISocketImpl,
+    pub(crate) max_area: Area,
 }
 
 impl<'ctx> UISocket<'ctx> {
@@ -17,22 +17,14 @@ impl<'ctx> UISocket<'ctx> {
             max_area,
         }
     }
+
+    pub fn max_area(&self) -> Area {
+        self.max_area
+    }
 }
 
-pub trait UISocketImpl {
-    fn render(
-        &mut self,
-        render: UIRender,
-    );
+pub trait UISocketImpl: Fill<UIRender> {
 }
 
 impl<T: Fill<UIRender>> UISocketImpl for T {
-    fn render(
-        &mut self,
-        render: UIRender,
-    ) {
-        if self.remaining_capacity() != 0 {
-            self.push(render);
-        }
-    }
 }

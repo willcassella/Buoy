@@ -1,8 +1,8 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIElement, Panel, PanelImpl};
-use crate::render::{UIRender, UIRenderImpl, CommandList};
+use crate::element::{IntoUIWidget, UIRender, UIRenderImpl, Panel, PanelImpl};
+use crate::render::CommandList;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -102,7 +102,7 @@ impl PanelImpl for List {
     }
 }
 
-impl IntoUIElement for List {
+impl IntoUIWidget for List {
     type Target = Panel<List>;
 }
 
