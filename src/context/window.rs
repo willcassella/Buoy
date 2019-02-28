@@ -88,7 +88,7 @@ impl Window {
                     filters.filter_post(filter);
                     self.fill_socket(socket, max_area, filters, &mut root.children);
                 },
-                TreeNodeKind::Socket(socket) => {
+                TreeNodeKind::Socket(mut socket) => {
                     if !filters.pre_filters.is_empty() {
                         unimplemented!()
                     }
@@ -97,7 +97,7 @@ impl Window {
                     }
 
                     // Fill the socket
-                    self.fill_socket(socket.imp, socket.max_area, FilterStack::default(), &mut root.children);
+                    self.fill_socket(&mut *socket.imp, socket.max_area, FilterStack::default(), &mut root.children);
                 },
                 TreeNodeKind::Widget(widget) => {
                     if !filters.pre_filters.is_empty() {

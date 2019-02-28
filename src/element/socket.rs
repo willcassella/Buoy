@@ -1,16 +1,17 @@
+use std::marker::PhantomData;
 use crate::util::fill::Fill;
 use crate::element::UIRender;
 use crate::layout::Area;
 
-pub struct UISocket<'ctx> {
-    pub(crate) imp: &'ctx mut UISocketImpl,
+pub struct UISocket {
+    pub(crate) imp: Box<dyn UISocketImpl>,
     pub(crate) max_area: Area,
 }
 
-impl<'ctx> UISocket<'ctx> {
+impl UISocket {
     pub fn new(
         max_area: Area,
-        imp: &'ctx mut UISocketImpl
+        imp: Box<dyn UISocketImpl>,
     ) -> Self {
         UISocket {
             imp,
@@ -26,5 +27,17 @@ impl<'ctx> UISocket<'ctx> {
 pub trait UISocketImpl: Fill<UIRender> {
 }
 
-impl<T: Fill<UIRender>> UISocketImpl for T {
+impl<T: Fill<UIRender> + 'static> UISocketImpl for T {
+}
+
+pub struct SocketRef<'ctx, T> {
+    _phantom: PhantomData<&'ctx mut T>,
+}
+
+impl<'ctx, T> SocketRef<'ctx, T> {
+    pub(crate) fn new() -> Self {
+        SocketRef {
+            _phantom: PhantomData,
+        }
+    }
 }

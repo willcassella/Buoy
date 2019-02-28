@@ -50,19 +50,17 @@ impl<T: WrapImpl> UIWidgetImpl for Wrap<T> {
         ctx: &mut Context<'ui, 'ctx>,
     ) {
         let child_max_area = self.0.open(ctx.max_area());
-        let mut socket = None;
 
-        let mut local = Context::local(ctx);
-        local.socket_begin(UISocket::new(child_max_area, &mut socket));
-            local.children_all();
-        local.end();
+        let socket = ctx.awaitable_socket_begin(child_max_area, None);
+            ctx.children_all();
+        ctx.end();
 
         // Wait for sockets to fill
-        local.await_sockets();
-
-        match socket {
-            Some(child) => self.0.close_some(ctx, child),
-            None => self.0.close_none(ctx),
-        }
+        ctx.await_sockets(move |ctx: &mut Context<'_, 'ctx>| {
+            match ctx.close_socket(socket) {
+                Some(child) => self.0.close_some(ctx, child),
+                None => self.0.close_none(ctx),
+            }
+        });
     }
 }

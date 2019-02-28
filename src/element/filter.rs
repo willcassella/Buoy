@@ -41,7 +41,7 @@ pub trait UIFilterImpl {
     fn socket<'ui, 'ctx>(
         &self,
         ctx: &mut Context<'ui, 'ctx>,
-        socket: UISocket<'ctx>,
+        socket: UISocket,
         filters: &mut FilterStack,
     ) {
         ctx.socket_begin(socket);

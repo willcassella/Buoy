@@ -46,15 +46,15 @@ impl<T: PanelImpl> UIWidgetImpl for Panel<T> {
         ctx: &mut Context<'ui, 'ctx>,
     ) {
         let child_max_area = self.0.open(ctx.max_area());
-        let mut children = Vec::new();
 
-        let mut local = Context::local(ctx);
-        local.socket_begin(UISocket::new(child_max_area, &mut children));
-            local.children_all();
-        local.end();
+        let children = ctx.awaitable_socket_begin(child_max_area, Vec::new());
+            ctx.children_all();
+        ctx.end();
 
         // Wait for socket to fill up
-        local.await_sockets();
-        self.0.close(ctx, children);
+        ctx.await_sockets(move |ctx: &mut Context<'_, 'ctx>| {
+            let children = ctx.close_socket(children);
+            self.0.close(ctx, children);
+        });
     }
 }

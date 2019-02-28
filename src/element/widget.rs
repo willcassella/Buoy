@@ -49,7 +49,7 @@ impl<I: ?Sized + UIWidgetImpl> UIWidget<I> {
 pub trait UIWidgetImpl: UIWidgetUtil + IntoAny {
     fn run<'ui, 'ctx>(
         self: Box<Self>,
-        ctx: &mut Context<'ui, 'ctx>, // TODO: Investigate if this can be extended to arbitrary depths
+        ctx: &mut Context<'ui, 'ctx>,
     );
 }
 

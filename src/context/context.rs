@@ -1,6 +1,18 @@
 use std::any::Any;
+use std::marker::PhantomData;
 use crate::layout::Area;
-use crate::element::{Id, Anchor, UIWidget, UIFilter, FilterStack, UISocket, UIRender, UIRenderImpl};
+use crate::element::{
+    Id,
+    Anchor,
+    UIWidget,
+    UIWidgetImpl,
+    UIFilter,
+    FilterStack,
+    UISocket,
+    UISocketImpl,
+    UIRender,
+    UIRenderImpl
+};
 use super::state::{State, StateId, StateCache};
 
 pub struct ContextData<'ui> {
@@ -9,7 +21,6 @@ pub struct ContextData<'ui> {
     next_state_id: StateId,
     prev_state_cache: &'ui StateCache,
     pub next_frame_filters: FilterStack,
-    children: Vec<TreeNode<'static>>,
 }
 
 impl<'ui> ContextData<'ui> {
@@ -18,7 +29,6 @@ impl<'ui> ContextData<'ui> {
         max_area: Area,
         next_state_id: StateId,
         prev_state_cache: &'ui StateCache,
-        children: Vec<TreeNode<'static>>,
     ) -> Self {
         ContextData {
             widget_id,
@@ -26,20 +36,19 @@ impl<'ui> ContextData<'ui> {
             next_state_id,
             prev_state_cache,
             next_frame_filters: FilterStack::default(),
-            children,
         }
     }
 }
 
-pub struct TreeNode<'ctx> {
-    pub kind: TreeNodeKind<'ctx>,
+pub struct TreeNode {
+    pub kind: TreeNodeKind,
     pub target: Anchor,
-    pub children: Vec<TreeNode<'ctx>>,
+    pub children: Vec<TreeNode>,
 }
 
-pub enum TreeNodeKind<'ctx> {
+pub enum TreeNodeKind {
     Render(UIRender),
-    Socket(UISocket<'ctx>),
+    Socket(UISocket),
     PreFilter(UIFilter),
     PostFilter(UIFilter),
     Widget(UIWidget),
@@ -48,8 +57,8 @@ pub enum TreeNodeKind<'ctx> {
 pub struct Context<'ui, 'ctx> {
     data: &'ctx mut ContextData<'ui>,
 
-    wip: Vec<TreeNode<'ctx>>,
-    roots: Vec<TreeNode<'ctx>>,
+    wip: Vec<TreeNode>,
+    roots: Vec<TreeNode>,
 }
 
 impl<'ui, 'ctx> Context<'ui, 'ctx> {
@@ -61,12 +70,6 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
             wip: Vec::new(),
             roots: Vec::new(),
         }
-    }
-
-    pub fn local<'super_ctx>(
-        super_ctx: &'ctx mut Context<'ui, 'super_ctx>
-    ) -> Self {
-        Self::new(super_ctx.data)
     }
 
     pub fn widget_id(&self) -> Id {
@@ -101,7 +104,7 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
 
     pub fn socket_begin(
         &mut self,
-        socket: UISocket<'ctx>,
+        socket: UISocket,
     ) {
         let node = TreeNode {
             kind: TreeNodeKind::Socket(socket),
@@ -110,6 +113,24 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
         };
 
         self.begin(node);
+    }
+
+    pub fn awaitable_socket_begin<S: UISocketImpl + 'static>(
+        &mut self,
+        max_area: Area,
+        socket: S,
+    ) -> SocketRef<'ctx, S> {
+        let socket = UISocket::new(max_area, Box::new(socket));
+        self.socket_begin(socket);
+
+        SocketRef::new()
+    }
+
+    pub fn close_socket<S: UISocketImpl + 'static>(
+        &mut self,
+        socket: SocketRef<'ctx, S>
+    ) -> S {
+        unimplemented!()
     }
 
     pub fn filter_pre_begin(
@@ -157,10 +178,7 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
     pub fn children_all(
         &mut self,
     ) {
-        // This absolutely should not need transmute.
-        // We're converting Vec<TreeNode<'static>> into Vec<TreeNode<'ctx>>, which is perfectly fine...
-        let children: &mut Vec<TreeNode<'ctx>> = unsafe { std::mem::transmute(&mut self.data.children) };
-        self.roots.append(children);
+        unimplemented!()
     }
 
     pub fn children_into(
@@ -203,7 +221,7 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
         self.roots.push(node);
     }
 
-    fn begin(&mut self, mut node: TreeNode<'ctx>) {
+    fn begin(&mut self, mut node: TreeNode) {
         node.children = std::mem::replace(&mut self.roots, Vec::new());
         self.wip.push(node);
     }
@@ -218,12 +236,14 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
         self.roots.push(node);
     }
 
-    pub fn await_sockets(
-        self,
+    pub fn await_sockets<W: WidgetResume<'ctx>>(
+        &mut self,
+        resume: W,
     ) {
         assert!(self.wip.is_empty(), "You cannot await while the WIP stack is not empty");
 
         // Need to create a new context
+        unimplemented!()
     }
 
     pub fn filter_pre_next_frame(
@@ -240,20 +260,54 @@ impl<'ui, 'ctx> Context<'ui, 'ctx> {
         self.data.next_frame_filters.filter_post(filter);
     }
 
-    pub fn new_state<T: Default + Clone + Send + Any>(&mut self) -> State<T> {
+    pub fn new_state<F: Default + Clone + Send + Any>(&mut self) -> State<F> {
         let id = self.data.next_state_id.increment();
         State::new(id)
     }
 
-    pub fn read_state<T: Default + Clone + Send + Any>(&self, state: State<T>) -> T {
+    pub fn read_state<F: Default + Clone + Send + Any>(&self, state: State<F>) -> F {
         if state.id.frame_id != self.data.next_state_id.frame_id.prev() {
             panic!("Attempt to read state from wrong frame");
         }
 
         if let Some(v) = self.data.prev_state_cache.get(&state.id) {
-            v.downcast_ref::<T>().expect("Mismatched types").clone()
+            v.downcast_ref::<F>().expect("Mismatched types").clone()
         } else {
             Default::default()
         }
+    }
+}
+
+pub struct SocketRef<'ctx, T> {
+    _phantom: PhantomData<&'ctx mut T>,
+}
+
+impl<'ctx, T> SocketRef<'ctx, T> {
+    fn new() -> Self {
+        SocketRef {
+            _phantom: PhantomData,
+        }
+    }
+}
+
+// This is intentionally NOT a subtrait of 'UIWidgetImpl', even though the method is identical.
+// The idea is that you shouldn't pass opaque types (like closures) as widgets,
+// and you shouldn't pass normal widgets as continuations.
+// The reason is that continuations are not passed through the filter stack.
+pub trait WidgetResume<'ctx>: 'ctx {
+    fn resume<'ui>(
+        self: Box<Self>,
+        ctx: &mut Context<'ui, 'ctx>,
+    );
+}
+
+impl<'ctx, T: 'ctx> WidgetResume<'ctx> for T
+where for<'ui> T: FnOnce(&mut Context<'ui, 'ctx>)
+{
+    fn resume<'ui>(
+        self: Box<Self>,
+        ctx: &mut Context<'ui, 'ctx>,
+    ) {
+        self(ctx);
     }
 }
