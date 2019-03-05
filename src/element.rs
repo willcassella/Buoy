@@ -2,9 +2,6 @@ mod widget;
 pub use self::widget::{
     UIWidget,
     UIWidgetImpl,
-    UIWidgetUtil,
-    IntoUIWidget,
-    IntoObj,
     Id,
 };
 
@@ -32,10 +29,4 @@ pub use self::anchor::{
     Anchor,
 };
 
-mod archetype;
-pub use self::archetype::{
-    Wrap,
-    WrapImpl,
-    Panel,
-    PanelImpl,
-};
+pub mod archetype;

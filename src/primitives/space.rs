@@ -1,7 +1,7 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::element::{UIWidgetImpl, UIRender, archetype};
 use crate::render::CommandList;
 use crate::primitives::null_render::NullUIRender;
 
@@ -11,6 +11,12 @@ pub enum HAlign {
     Left,
     Right,
     Center,
+}
+
+impl Default for HAlign {
+    fn default() -> Self {
+        HAlign::Left
+    }
 }
 
 fn align_horizontally(align: HAlign, area: Area, mut region: Region) -> Region {
@@ -39,6 +45,12 @@ pub enum VAlign {
     Center,
 }
 
+impl Default for VAlign {
+    fn default() -> Self {
+        VAlign::Top
+    }
+}
+
 fn align_vertically(align: VAlign, area: Area, mut region: Region) -> Region {
     match align {
         VAlign::Top => {
@@ -59,14 +71,14 @@ fn align_vertically(align: VAlign, area: Area, mut region: Region) -> Region {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
-pub struct MinMax {
+pub struct Space {
     pub h_align: HAlign,
     pub v_align: VAlign,
     pub max: Area,
     pub min: Area,
 }
 
-impl MinMax {
+impl Space {
     pub fn h_align(mut self, h_align: HAlign) -> Self {
         self.h_align = h_align;
         self
@@ -110,9 +122,9 @@ impl MinMax {
     }
 }
 
-impl Default for MinMax {
+impl Default for Space {
     fn default() -> Self {
-        MinMax {
+        Space {
             h_align: HAlign::Left,
             v_align: VAlign::Top,
             min: Area::zero(),
@@ -121,7 +133,16 @@ impl Default for MinMax {
     }
 }
 
-impl WrapImpl for MinMax {
+impl UIWidgetImpl for Space {
+    fn run(
+        self,
+        ctx: &mut Context,
+    ) {
+        archetype::wrap(self, ctx);
+    }
+}
+
+impl archetype::Wrap for Space {
     fn open(
         &self,
         mut max_area: Area
@@ -136,7 +157,7 @@ impl WrapImpl for MinMax {
         ctx: &mut Context,
         child: UIRender
     ) {
-        ctx.render_new(child.min_area, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+        ctx.render_new(child.min_area, move |mut region: Region, cmds: &mut CommandList| {
             if self.max.width < region.area.width {
                 region = align_horizontally(self.h_align, self.max, region);
             }
@@ -145,7 +166,7 @@ impl WrapImpl for MinMax {
             }
 
             child.imp.render(region, cmds);
-        }));
+        });
     }
 
     fn close_none(
@@ -154,11 +175,7 @@ impl WrapImpl for MinMax {
     ) {
         // Just take up space
         if self.min != Area::zero() {
-            ctx.render_new(self.min, Box::new(NullUIRender));
+            ctx.render_new(self.min, NullUIRender);
         }
     }
-}
-
-impl IntoUIWidget for MinMax {
-    type Target = Wrap<MinMax>;
 }

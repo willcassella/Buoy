@@ -4,15 +4,15 @@ use crate::util::fill::Fill;
 use crate::layout::Area;
 use crate::element::{UIWidget, UIRender, UISocket, UISocketImpl, UIFilter, FilterStack};
 use super::context::{Context, ContextData, TreeNode, TreeNodeKind};
-use super::state::{State, FrameId, ContextId, StateId, StateCache};
+use super::input::{Input, InputState, FrameId, ContextId, InputId, InputCache};
 
 #[derive(Default)]
 pub struct Window {
     frame_id: FrameId,
     next_context_id: ContextId,
 
-    prev_state_cache: StateCache,
-    cur_state_cache: StateCache,
+    prev_input: InputCache,
+    cur_input: InputCache,
 
     next_frame_filters: FilterStack,
 }
@@ -27,8 +27,9 @@ impl Window {
         self.frame_id = self.frame_id.next();
         self.next_context_id = Default::default();
 
-        // Swap state cache
-        self.prev_state_cache = replace(&mut self.cur_state_cache, StateCache::new());
+        // Swap input caches
+        std::mem::swap(&mut self.prev_input, &mut self.cur_input);
+        self.cur_input.clear();
 
         // Get filters for the next frame
         let frame_filters = replace(&mut self.next_frame_filters, FilterStack::default());
@@ -39,7 +40,6 @@ impl Window {
         // Insert root as the initial root
         let mut roots = vec![TreeNode{
             kind: TreeNodeKind::Widget(root),
-            target: Default::default(),
             children: Vec::new(),
         }];
 
@@ -49,18 +49,18 @@ impl Window {
         out
     }
 
-    pub fn filter_pre(
+    pub fn filter(
         &mut self,
         filter: UIFilter,
     ) {
-        self.next_frame_filters.filter_pre(filter);
+        self.next_frame_filters.add_filter(filter);
     }
 
-    pub fn filter_post(
+    pub fn filter_late(
         &mut self,
         filter: UIFilter,
     ) {
-        self.next_frame_filters.filter_post(filter);
+        self.next_frame_filters.add_filter_late(filter);
     }
 
     fn fill_socket(
@@ -78,21 +78,21 @@ impl Window {
 
             match root.kind {
                 TreeNodeKind::Render(render_obj) => socket.push(render_obj),
-                TreeNodeKind::PreFilter(filter) => {
+                TreeNodeKind::Filter(filter) => {
                     let mut filters = filters.clone();
-                    filters.filter_pre(filter);
+                    filters.add_filter(filter);
                     self.fill_socket(socket, max_area, filters, &mut root.children);
                 },
-                TreeNodeKind::PostFilter(filter) => {
+                TreeNodeKind::FilterLate(filter) => {
                     let mut filters = filters.clone();
-                    filters.filter_post(filter);
+                    filters.add_filter_late(filter);
                     self.fill_socket(socket, max_area, filters, &mut root.children);
                 },
                 TreeNodeKind::Socket(mut socket) => {
-                    if !filters.pre_filters.is_empty() {
+                    if !filters.filters.is_empty() {
                         unimplemented!()
                     }
-                    if !filters.post_filters.is_empty() {
+                    if !filters.late_filters.is_empty() {
                         unimplemented!()
                     }
 
@@ -100,10 +100,10 @@ impl Window {
                     self.fill_socket(&mut *socket.imp, socket.max_area, FilterStack::default(), &mut root.children);
                 },
                 TreeNodeKind::Widget(widget) => {
-                    if !filters.pre_filters.is_empty() {
+                    if !filters.filters.is_empty() {
                         unimplemented!()
                     }
-                    if !filters.post_filters.is_empty() {
+                    if !filters.late_filters.is_empty() {
                         unimplemented!()
                     }
 
@@ -118,16 +118,20 @@ impl Window {
 
                     // // Run the widget
                     // widget.imp.run(&mut ctx);
-                }
+                },
+                TreeNodeKind::Resume(resume) => {
+                    // Create a context for running the widget
+                    //let mut ctx_data = ContextData::new()
+                },
             }
         }
     }
 
-    pub fn write_state<T: Default + Clone + Send + Any>(&mut self, state: State<T>, value: T) {
-        if state.id.frame_id != self.frame_id {
+    pub fn send_input<T: InputState>(&mut self, input: Input<T>, value: T) {
+        if input.id.frame_id != self.frame_id {
             panic!("Writing to state for wrong frame");
         }
 
-        self.cur_state_cache.insert(state.id, Box::new(value));
+        self.cur_input.insert(input.id, Box::new(value));
     }
 }

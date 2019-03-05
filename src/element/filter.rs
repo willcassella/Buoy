@@ -1,40 +1,49 @@
 use std::rc::Rc;
 use crate::Context;
 use crate::element::{UIWidget, UISocket};
+use crate::element::widget;
 
 #[derive(Clone, Default)]
 pub struct FilterStack {
-    pub(crate) pre_filters: Vec<UIFilter>,
-    pub(crate) post_filters: Vec<UIFilter>,
+    pub(crate) filters: Vec<UIFilter>,
+    pub(crate) late_filters: Vec<UIFilter>,
 }
 
 impl FilterStack {
-    pub fn filter_pre(
+    pub fn add_filter(
         &mut self,
         filter: UIFilter,
     ) {
-        self.pre_filters.push(filter);
+        self.filters.push(filter);
     }
 
-    pub fn filter_post(
+    pub fn add_filter_late(
         &mut self,
         filter: UIFilter,
     ) {
-        self.post_filters.push(filter);
+        self.late_filters.push(filter);
     }
 }
 
 pub type UIFilter = Rc<dyn UIFilterImpl>;
 
 pub trait UIFilterImpl {
+    fn target_id(&self) -> Option<widget::Id> {
+        None
+    }
+
+    fn recurse(&self) -> bool {
+        false
+    }
+
     fn widget<'ui, 'ctx>(
         &self,
         ctx: &mut Context<'ui, 'ctx>,
         widget: UIWidget,
-        filters: &mut FilterStack,
+        _filters: &mut FilterStack,
     ) {
-        ctx.widget_begin(widget);
-            ctx.children_all();
+        ctx.begin_widget(widget);
+            ctx.anchor_default();
         ctx.end();
     }
 
@@ -42,10 +51,10 @@ pub trait UIFilterImpl {
         &self,
         ctx: &mut Context<'ui, 'ctx>,
         socket: UISocket,
-        filters: &mut FilterStack,
+        _filters: &mut FilterStack,
     ) {
-        ctx.socket_begin(socket);
-            ctx.children_all();
+        ctx.begin_socket(socket);
+            ctx.anchor_default();
         ctx.end();
     }
 }

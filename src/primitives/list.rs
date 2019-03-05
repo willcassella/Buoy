@@ -1,7 +1,7 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIWidget, UIRender, UIRenderImpl, Panel, PanelImpl};
+use crate::element::{UIRender, UIRenderImpl, UIWidgetImpl, archetype};
 use crate::render::CommandList;
 
 #[repr(C)]
@@ -43,7 +43,16 @@ impl List {
     }
 }
 
-impl PanelImpl for List {
+impl UIWidgetImpl for List {
+    fn run(
+        self,
+        ctx: &mut Context,
+    ) {
+        archetype::panel(self, ctx);
+    }
+}
+
+impl archetype::Panel for List {
     fn open(
         &self,
         mut max_area: Area
@@ -83,7 +92,7 @@ impl PanelImpl for List {
             }
         }
 
-        let render_func: Box<UIRenderImpl> = match self.dir {
+        let render_func: Box<dyn UIRenderImpl> = match self.dir {
             Dir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_left_to_right(children.as_slice(), region, cmds);
             }),
@@ -98,18 +107,7 @@ impl PanelImpl for List {
             }),
         };
 
-        ctx.render_new(min_area, render_func);
-    }
-}
-
-impl IntoUIWidget for List {
-    type Target = Panel<List>;
-}
-
-impl Panel<List> {
-    pub fn dir(mut self, dir: Dir) -> Self {
-        self.dir = dir;
-        self
+        ctx.render(UIRender{ min_area, imp: render_func });
     }
 }
 

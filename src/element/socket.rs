@@ -29,15 +29,3 @@ pub trait UISocketImpl: Fill<UIRender> {
 
 impl<T: Fill<UIRender> + 'static> UISocketImpl for T {
 }
-
-pub struct SocketRef<'ctx, T> {
-    _phantom: PhantomData<&'ctx mut T>,
-}
-
-impl<'ctx, T> SocketRef<'ctx, T> {
-    pub(crate) fn new() -> Self {
-        SocketRef {
-            _phantom: PhantomData,
-        }
-    }
-}

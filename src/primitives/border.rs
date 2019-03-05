@@ -1,6 +1,7 @@
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::element::archetype;
+use crate::element::{UIWidgetImpl, UIRender};
 use crate::render::{CommandList, color};
 use crate::render::commands::{Quad, ColoredQuad};
 use crate::primitives::null_render::NullUIRender;
@@ -35,10 +36,6 @@ impl BlockBorder {
             color: color::constants::BLACK,
         }
     }
-}
-
-impl IntoUIWidget for BlockBorder {
-    type Target = Wrap<BlockBorder>;
 }
 
 impl BlockBorder {
@@ -80,7 +77,13 @@ impl Default for BlockBorder {
     }
 }
 
-impl WrapImpl for BlockBorder {
+impl UIWidgetImpl for BlockBorder {
+    fn run(self, ctx: &mut Context) {
+        archetype::wrap(self, ctx);
+    }
+}
+
+impl archetype::Wrap for BlockBorder {
     fn open(&self, mut max_area: Area) -> Area {
         max_area.width -= self.left + self.right;
         max_area.height -= self.top + self.bottom;
@@ -99,7 +102,7 @@ impl WrapImpl for BlockBorder {
         min_area.width += self.left + self.right;
         min_area.height += self.top + self.bottom;
 
-        ctx.render_new(min_area, Box::new(move |mut region: Region, cmds: &mut CommandList| {
+        ctx.render_new(min_area, move |mut region: Region, cmds: &mut CommandList| {
             // Unless we're fully transparent, render the border
             if self.color != color::constants::TRANSPARENT {
                 self.generate_commands(region, cmds);
@@ -113,7 +116,7 @@ impl WrapImpl for BlockBorder {
 
             // Render the child
             child.imp.render(region, cmds);
-        }))
+        })
     }
 
     fn close_none(
@@ -124,11 +127,11 @@ impl WrapImpl for BlockBorder {
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
 
         if self.color == color::constants::TRANSPARENT {
-            ctx.render_new(min_area, Box::new(NullUIRender));
+            ctx.render_new(min_area, NullUIRender);
         } else {
-            ctx.render_new(min_area, Box::new(move |region: Region, cmds: &mut CommandList| {
+            ctx.render_new(min_area, move |region: Region, cmds: &mut CommandList| {
                 self.generate_commands(region, cmds);
-            }));
+            });
         }
     }
 }

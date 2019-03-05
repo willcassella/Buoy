@@ -1,10 +1,8 @@
-use std::any::Any;
-use std::ops::{Deref, DerefMut};
 use crate::Context;
 use crate::layout::Area;
-use crate::element::{UIWidgetImpl, UISocket, UIRender};
+use crate::element::UIRender;
 
-pub trait WrapImpl: Any + Clone {
+pub trait Wrap {
     fn open(&self, max_area: Area) -> Area {
         max_area
     }
@@ -21,46 +19,21 @@ pub trait WrapImpl: Any + Clone {
     );
 }
 
-#[derive(Clone)]
-pub struct Wrap<T: WrapImpl>(pub T);
+pub fn wrap<T: Wrap>(
+    wrap: T,
+    ctx: &mut Context,
+) {
+    let child_max_area = wrap.open(ctx.max_area());
 
-impl<T: WrapImpl> From<T> for Wrap<T> {
-    fn from(imp: T) -> Self {
-        Wrap(imp)
-    }
-}
+    let socket_ref = ctx.begin_awaitable_socket(child_max_area, None);
+        ctx.anchor_default();
+    ctx.end();
 
-impl<T: WrapImpl> Deref for Wrap<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        &self.0
-    }
-}
-
-impl<T: WrapImpl> DerefMut for Wrap<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.0
-    }
-}
-
-impl<T: WrapImpl> UIWidgetImpl for Wrap<T> {
-    fn run<'ui, 'ctx>(
-        self: Box<Self>,
-        ctx: &mut Context<'ui, 'ctx>,
-    ) {
-        let child_max_area = self.0.open(ctx.max_area());
-
-        let socket = ctx.awaitable_socket_begin(child_max_area, None);
-            ctx.children_all();
-        ctx.end();
-
-        // Wait for sockets to fill
-        ctx.await_sockets(move |ctx: &mut Context<'_, 'ctx>| {
-            match ctx.close_socket(socket) {
-                Some(child) => self.0.close_some(ctx, child),
-                None => self.0.close_none(ctx),
-            }
-        });
-    }
+    // Wait for sockets to fill
+    ctx.await_sockets(move |ctx: &mut Context| {
+        match ctx.take_socket(socket_ref) {
+            Some(child) => wrap.close_some(ctx, child),
+            None => wrap.close_none(ctx),
+        }
+    });
 }

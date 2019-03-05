@@ -1,9 +1,9 @@
-use crate::context::{State, Context};
-use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::{Context, input::Input};
+use crate::element::{UIWidgetImpl, UIRender, archetype};
 use crate::render::{CommandList, commands::{InputAction, Quad, HoverQuad}};
 use crate::layout::Region;
 
-pub type HoverState = State<bool>;
+pub type HoverState = Input<bool>;
 
 #[derive(Clone)]
 pub struct Hover {
@@ -27,17 +27,19 @@ impl Hover {
     }
 }
 
-impl IntoUIWidget for Hover {
-    type Target = Wrap<Hover>;
+impl UIWidgetImpl for Hover {
+    fn run(self, ctx: &mut Context) {
+        archetype::wrap(self, ctx);
+    }
 }
 
-impl WrapImpl for Hover {
+impl archetype::Wrap for Hover {
     fn close_some(
         self,
         ctx: &mut Context,
         child: UIRender,
     ) {
-        ctx.render_new(child.min_area, Box::new(move |region: Region, cmds: &mut CommandList| {
+        ctx.render_new(child.min_area, move |region: Region, cmds: &mut CommandList| {
             // Render the child
             child.imp.render(region, cmds);
 
@@ -48,7 +50,7 @@ impl WrapImpl for Hover {
                 action: self.action.clone(),
             };
             cmds.add_hover_quads(&[quad]);
-        }));
+        });
     }
 
     fn close_none(

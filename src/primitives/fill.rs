@@ -1,6 +1,6 @@
 use crate::Context;
 use crate::layout::{Region, Area};
-use crate::element::{IntoUIWidget, UIRender, Wrap, WrapImpl};
+use crate::element::{UIRender, UIWidgetImpl, archetype};
 use crate::render::{CommandList, color};
 use crate::render::commands::ColoredQuad;
 
@@ -22,28 +22,30 @@ impl SolidFill {
     }
 }
 
-impl WrapImpl for SolidFill {
+impl archetype::Wrap for SolidFill {
     fn close_some(
         self,
         ctx: &mut Context,
         child: UIRender,
     ) {
-        ctx.render_new(child.min_area, Box::new(move |region: Region, cmds: &mut CommandList| {
+        ctx.render_new(child.min_area, move |region: Region, cmds: &mut CommandList| {
             self.generate_quad(region, cmds);
             child.imp.render(region, cmds);
-        }));
+        });
     }
 
     fn close_none(
         self,
         ctx: &mut Context
     ) {
-        ctx.render_new(Area::zero(), Box::new(move |region: Region, cmds: &mut CommandList| {
+        ctx.render_new(Area::zero(), move |region: Region, cmds: &mut CommandList| {
             self.generate_quad(region, cmds);
-        }));
+        });
     }
 }
 
-impl IntoUIWidget for SolidFill {
-    type Target = Wrap<SolidFill>;
+impl UIWidgetImpl for SolidFill {
+    fn run(self, ctx: &mut Context) {
+        archetype::wrap(self, ctx);
+    }
 }

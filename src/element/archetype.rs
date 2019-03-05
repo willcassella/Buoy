@@ -1,11 +1,5 @@
 mod wrap;
-pub use self::wrap::{
-    Wrap,
-    WrapImpl
-};
+pub use wrap::{Wrap, wrap};
 
 mod panel;
-pub use self::panel::{
-    Panel,
-    PanelImpl
-};
+pub use panel::{Panel, panel};

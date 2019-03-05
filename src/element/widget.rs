@@ -1,91 +1,135 @@
+use std::any::Any;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Display, Formatter, Error};
 use crate::Context;
-use crate::util::cast::{IntoAny, Downcast};
 
-pub struct UIWidget<I: ?Sized + UIWidgetImpl = dyn UIWidgetImpl> {
+pub struct UIWidget<I: UIWidgetImpl = Box<dyn DynUIWidgetImpl>> {
     pub id: Id,
-    pub imp: Box<I>,
+    pub imp: I,
 }
 
 impl<I: UIWidgetImpl> UIWidget<I> {
-    pub fn new(id: Id, imp: Box<I>) -> Self {
+    pub fn new(id: Id, imp: I) -> Self {
         UIWidget {
             id,
             imp,
         }
     }
-}
-
-impl<I: ?Sized + UIWidgetImpl> UIWidget<I> {
-    pub fn downcast<D: Sized + UIWidgetImpl>(
-        self,
-    ) -> Result<UIWidget<D>, UIWidget<I>> {
-        match Downcast::<D>::downcast(self.imp) {
-            Ok(d) => Ok(UIWidget{ id: self.id, imp: d }),
-            Err(i) => Err(UIWidget{ id: self.id, imp: i }),
-        }
-    }
 
     pub fn upcast(
-        self
-    ) -> UIWidget<dyn UIWidgetImpl> {
+        self,
+    ) -> UIWidget<Box<dyn DynUIWidgetImpl>> {
         UIWidget {
             id: self.id,
             imp: self.imp.upcast(),
         }
     }
 
-    pub fn begin<'ui, 'ctx, 'a>(
+    pub fn downcast<D: UIWidgetImpl>(
         self,
-        ctx: &'a mut Context<'ui, 'ctx>
+    ) -> Result<UIWidget<D>, UIWidget<I>> {
+        match self.imp.downcast::<D>() {
+            Ok(d) => Ok(UIWidget{ id: self.id, imp: d }),
+            Err(i) => Err(UIWidget{ id: self.id, imp: i }),
+        }
+    }
+
+    pub fn begin<'a, 'ui, 'ctx>(
+        self,
+        ctx: &'a mut Context<'ui, 'ctx>,
     ) -> &'a mut Context<'ui, 'ctx> {
-        ctx.widget_begin(self.upcast());
+        ctx.begin_widget(self.upcast());
         ctx
     }
 }
 
-pub trait UIWidgetImpl: UIWidgetUtil + IntoAny {
+pub trait UIWidgetImpl: Sized + Clone + Any {
     fn run<'ui, 'ctx>(
+        self,
+        ctx: &mut Context<'ui, 'ctx>,
+    );
+
+    fn upcast(
+        self,
+    ) -> Box<dyn DynUIWidgetImpl> {
+        Box::new(self)
+    }
+
+    fn downcast<D: UIWidgetImpl>(
+        self,
+    ) -> Result<D, Self> {
+        Err(self) // TODO: This should handle when Self == D
+    }
+}
+
+pub trait DynUIWidgetImpl {
+    fn box_clone(
+        &self
+    ) -> Box<dyn DynUIWidgetImpl>;
+
+    fn box_run<'ui, 'ctx>(
         self: Box<Self>,
         ctx: &mut Context<'ui, 'ctx>,
     );
+
+    fn into_any_mut(
+        &mut self,
+    ) -> &mut Any;
 }
 
-pub trait UIWidgetUtil {
-    fn box_clone(&self) -> Box<dyn UIWidgetImpl>;
-
-    fn upcast(self: Box<Self>) -> Box<dyn UIWidgetImpl>;
-}
-
-impl<T: UIWidgetImpl + Clone> UIWidgetUtil for T {
-    fn box_clone(&self) -> Box<dyn UIWidgetImpl> {
+impl<T: UIWidgetImpl> DynUIWidgetImpl for T {
+    fn box_clone(
+        &self
+    ) -> Box<dyn DynUIWidgetImpl> {
         Box::new(self.clone())
     }
 
-    fn upcast(self: Box<Self>) -> Box<dyn UIWidgetImpl> {
+    fn box_run<'ui, 'ctx>(
+        self: Box<Self>,
+        ctx: &mut Context<'ui, 'ctx>,
+    ) {
+        self.run(ctx)
+    }
+
+    fn into_any_mut(
+        &mut self,
+    ) -> &mut Any {
         self
     }
 }
 
-pub trait IntoUIWidget {
-    type Target: UIWidgetImpl;
+impl Clone for Box<dyn DynUIWidgetImpl> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
 }
 
-impl<T: UIWidgetImpl> IntoUIWidget for T {
-    type Target = Self;
-}
+impl UIWidgetImpl for Box<dyn DynUIWidgetImpl> {
+    fn run<'ui, 'ctx>(
+        self,
+        ctx: &mut Context<'ui, 'ctx>,
+    ) {
+        self.box_run(ctx);
+    }
 
-pub trait IntoObj: IntoUIWidget {
-    fn into_obj(self, id: Id) -> UIWidget<Self::Target>;
-}
+    fn upcast(
+        self,
+    ) -> Box<dyn DynUIWidgetImpl> {
+        self
+    }
 
-impl<T> IntoObj for T where
-    T: IntoUIWidget + Into<<T as IntoUIWidget>::Target>
-{
-    fn into_obj(self, id: Id) -> UIWidget<T::Target> {
-        UIWidget::new(id, Box::new(self.into()))
+    fn downcast<D: UIWidgetImpl>(
+        self,
+    ) -> Result<D, Self> {
+        let raw = Box::into_raw(self);
+
+        unsafe {
+            match (*raw).into_any_mut().downcast_mut::<D>() {
+                Some(v) => Ok(*Box::from_raw(v)),
+                None => Err(Box::from_raw(raw))
+            }
+        }
     }
 }
 
