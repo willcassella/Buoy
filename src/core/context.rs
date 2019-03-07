@@ -1,44 +1,35 @@
+use std::rc::Rc;
+use crate::core::*;
 use crate::layout::Area;
-use crate::element::{
-    Id,
-    UIWidget,
-    UIWidgetImpl,
-    UIFilter,
-    FilterStack,
-    socket,
-    UISocket,
-    UIRender,
-    UIRenderImpl,
-};
 use crate::input::{Input, InputId, InputState, InputCache};
 
 pub trait TreeProvider {
-    fn take_widget(
+    fn take_element(
         &mut self,
         socket: socket::Id,
-    ) -> Option<UIWidget>;
+    ) -> Option<(Box<dyn DynElement>, element::Id)>;
 }
 
 pub struct NullTree;
 
 impl TreeProvider for NullTree {
-    fn take_widget(
+    fn take_element(
         &mut self,
         _socket: socket::Id,
-    ) -> Option<UIWidget> {
+    ) -> Option<(Box<dyn DynElement>, element::Id)> {
         None
     }
 }
 
 pub(crate) struct GlobalData {
     pub next_input_id: InputId,
-    pub next_frame_filters: FilterStack,
+    pub next_frame_filters: filter::FilterStack,
 }
 
 pub struct Context<'a> {
     tree_provider: &'a mut dyn TreeProvider,
 
-    widget_id: Id,
+    element_id: element::Id,
     max_area: Area,
 
     prev_input: &'a InputCache,
@@ -48,14 +39,14 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
     pub(crate) fn new(
         tree_provider: &'a mut dyn TreeProvider,
-        widget_id: Id,
+        element_id: element::Id,
         max_area: Area,
         prev_input: &'a InputCache,
         global_data: &'a mut GlobalData,
     ) -> Self {
         Context {
             tree_provider,
-            widget_id,
+            element_id,
             max_area,
             prev_input,
             global_data,
@@ -69,7 +60,7 @@ impl<'a> Context<'a> {
         Context {
             tree_provider,
 
-            widget_id: parent.widget_id,
+            element_id: parent.element_id,
             max_area: parent.max_area,
 
             prev_input: parent.prev_input,
@@ -77,8 +68,8 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn widget_id(&self) -> Id {
-        self.widget_id
+    pub fn element_id(&self) -> element::Id {
+        self.element_id
     }
 
     pub fn max_area(&self) -> Area {
@@ -87,43 +78,43 @@ impl<'a> Context<'a> {
 
     pub fn render(
         &self,
-        socket: &mut dyn UISocket,
-        render: UIRender,
+        socket: &mut dyn Socket,
+        render: Render,
     ) {
         socket.push(render);
     }
 
-    pub fn render_new<R: UIRenderImpl + 'static>(
+    pub fn render_new<R: render::RenderImpl + 'static>(
         &self,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
         min_area: Area,
         render: R,
     ) {
-        let render = UIRender{ min_area, imp: Box::new(render) };
+        let render = Render{ min_area, imp: Box::new(render) };
         self.render(socket, render);
     }
 
     pub fn socket(
         &mut self,
         id: socket::Id,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
         child_max_area: Area,
     ) -> bool {
-        let widget = match self.tree_provider.take_widget(id) {
-            Some(widget) => widget,
+        let (element, element_id) = match self.tree_provider.take_element(id) {
+            Some((element, element_id)) => (element, element_id),
             None => return false,
         };
 
-        let backup_id = self.widget_id;
-        self.widget_id = widget.id;
+        let backup_id = self.element_id;
+        self.element_id = element_id;
 
         let backup_area = self.max_area;
         self.max_area = child_max_area;
 
-        let next = widget.imp.run(self, socket);
+        let next = element.run(self, socket);
 
         self.max_area = backup_area;
-        self.widget_id = backup_id;
+        self.element_id = backup_id;
 
         // match next {
         //     Some(next) => {
@@ -137,14 +128,14 @@ impl<'a> Context<'a> {
 
     pub fn filter_next_frame(
         &mut self,
-        filter: UIFilter
+        filter: Rc<dyn Filter>,
     ) {
         self.global_data.next_frame_filters.add_filter(filter);
     }
 
     pub fn filter_late_next_frame(
         &mut self,
-        filter: UIFilter,
+        filter: Rc<dyn Filter>,
     ) {
         self.global_data.next_frame_filters.add_filter_late(filter);
     }

@@ -1,34 +1,30 @@
 use std::rc::Rc;
-use crate::Context;
-use crate::element::{UIWidget, UISocket};
-use crate::element::widget;
+use crate::core::{Context, element, socket};
 
 #[derive(Clone, Default)]
 pub struct FilterStack {
-    pub(crate) filters: Vec<UIFilter>,
-    pub(crate) late_filters: Vec<UIFilter>,
+    pub(crate) filters: Vec<Rc<dyn Filter>>,
+    pub(crate) late_filters: Vec<Rc<dyn Filter>>,
 }
 
 impl FilterStack {
     pub fn add_filter(
         &mut self,
-        filter: UIFilter,
+        filter: Rc<dyn Filter>,
     ) {
         self.filters.push(filter);
     }
 
     pub fn add_filter_late(
         &mut self,
-        filter: UIFilter,
+        filter: Rc<dyn Filter>,
     ) {
         self.late_filters.push(filter);
     }
 }
 
-pub type UIFilter = Rc<dyn UIFilterImpl>;
-
-pub trait UIFilterImpl {
-    fn target_id(&self) -> Option<widget::Id> {
+pub trait Filter {
+    fn target_id(&self) -> Option<element::Id> {
         None
     }
 
@@ -36,10 +32,10 @@ pub trait UIFilterImpl {
         false
     }
 
-    fn widget(
+    fn element(
         &self,
         ctx: &mut Context,
-        widget: UIWidget,
+        element: Box<dyn element::DynElement>,
         _filters: &mut FilterStack,
     ) {
         // ctx.begin_widget(widget);

@@ -1,7 +1,7 @@
 use crate::layout::{Area, Region};
 use crate::render::CommandList;
 
-pub trait UIRenderImpl {
+pub trait RenderImpl {
     fn render(
         &self,
         region: Region,
@@ -9,12 +9,12 @@ pub trait UIRenderImpl {
     );
 }
 
-pub struct UIRender {
+pub struct Render {
     pub min_area: Area,
-    pub imp: Box<dyn UIRenderImpl>,
+    pub imp: Box<dyn RenderImpl>,
 }
 
-impl<T> UIRenderImpl for T where
+impl<T> RenderImpl for T where
     T: Fn(Region, &mut CommandList)
 {
     fn render(

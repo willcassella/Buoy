@@ -1,6 +1,5 @@
-use crate::Context;
 use crate::layout::Area;
-use crate::element::{UIRender, UISocket, socket};
+use crate::core::*;
 
 pub trait Panel {
     fn open(
@@ -11,15 +10,15 @@ pub trait Panel {
     fn close(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
-        children: Vec<UIRender>
+        socket: &mut dyn Socket,
+        children: Vec<Render>
     );
 }
 
 pub fn panel<T: Panel>(
     panel: T,
     ctx: &mut Context,
-    socket: &mut dyn UISocket,
+    socket: &mut dyn Socket,
 ) {
     let mut children = Vec::new();
 

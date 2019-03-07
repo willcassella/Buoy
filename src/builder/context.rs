@@ -1,14 +1,14 @@
 use std::rc::Rc;
 use std::collections::VecDeque;
+
+use crate::core::*;
 use crate::layout::Area;
 use crate::input::{Input, InputState};
-use crate::context::{Context, TreeProvider};
-use crate::element::{Id, UIWidget, UIWidgetImpl, UIFilter, UIFilterImpl, socket};
 
 enum NodeKind {
-    Widget(UIWidget),
-    Filter(UIFilter),
-    Socket(),
+    Element(Box<dyn element::DynElement>, element::Id),
+    Filter(Rc<dyn Filter>),
+    Socket(socket::Id),
 }
 
 struct Node {
@@ -33,29 +33,30 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
         }
     }
 
-    pub fn widget_id(&self) -> Id {
-        self.ctx.widget_id()
+    pub fn element_id(&self) -> element::Id {
+        self.ctx.element_id()
     }
 
     pub fn max_area(&self) -> Area {
         self.ctx.max_area()
     }
 
-    pub fn element_begin<W: UIWidgetImpl>(
+    pub fn element_begin<E: Element>(
         &mut self,
-        widget: UIWidget<W>,
+        element: E,
+        id: element::Id,
     ) {
         // Create a new node for this element
         // Back the current root set up as its children
         let node = Node {
-            kind: NodeKind::Widget(widget.upcast()),
+            kind: NodeKind::Element(element.upcast(), id),
             children: std::mem::replace(&mut self.roots, VecDeque::new()),
         };
 
         self.stack.push(node);
     }
 
-    pub fn filter_begin<F: UIFilterImpl + 'static>(
+    pub fn filter_begin<F: Filter + 'static>(
         &mut self,
         filter: F,
     ) {
@@ -83,14 +84,14 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
 
     pub fn filter_next_frame(
         &mut self,
-        filter: UIFilter
+        filter: Rc<dyn Filter>,
     ) {
         self.ctx.filter_next_frame(filter)
     }
 
     pub fn filter_late_next_frame(
         &mut self,
-        filter: UIFilter,
+        filter: Rc<dyn Filter>,
     ) {
         self.ctx.filter_late_next_frame(filter)
     }
@@ -104,11 +105,11 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
     }
 }
 
-impl<'a, 'ctx> TreeProvider for BuilderContext<'a, 'ctx> {
-    fn take_widget(
+impl<'a, 'ctx> context::TreeProvider for BuilderContext<'a, 'ctx> {
+    fn take_element(
         &mut self,
         socket: socket::Id,
-    ) -> Option<UIWidget> {
+    ) -> Option<(Box<dyn element::DynElement>, element::Id)> {
         unimplemented!()
     }
 }

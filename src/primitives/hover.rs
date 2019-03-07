@@ -1,7 +1,7 @@
-use crate::{Context, input::Input};
-use crate::element::{UIWidgetImpl, UISocket, UIRender};
 use crate::render::{CommandList, commands::{InputAction, Quad, HoverQuad}};
 use crate::layout::Region;
+use crate::core::*;
+use crate::input::Input;
 use super::archetype;
 
 pub type HoverState = Input<bool>;
@@ -28,13 +28,13 @@ impl Hover {
     }
 }
 
-impl UIWidgetImpl for Hover {
+impl Element for Hover {
     type Next = ();
 
     fn run(
         mut self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket
+        socket: &mut dyn Socket
     ) -> Option<Self::Next> {
         archetype::wrap(self, ctx, socket);
         None
@@ -45,8 +45,8 @@ impl archetype::Wrap for Hover {
     fn close_some(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
-        child: UIRender,
+        socket: &mut dyn Socket,
+        child: Render,
     ) {
         ctx.render_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
             // Render the child
@@ -65,7 +65,7 @@ impl archetype::Wrap for Hover {
     fn close_none(
         self,
         _ctx: &mut Context,
-        _socket: &mut UISocket,
+        _socket: &mut Socket,
     ) {
         // Do nothing
     }

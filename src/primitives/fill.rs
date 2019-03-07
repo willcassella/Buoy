@@ -1,8 +1,7 @@
-use crate::Context;
 use crate::layout::{Region, Area};
 use crate::render::{CommandList, color};
 use crate::render::commands::ColoredQuad;
-use crate::element::{UIWidgetImpl, UISocket, UIRender};
+use crate::core::*;
 use super::archetype;
 
 #[repr(C)]
@@ -27,8 +26,8 @@ impl archetype::Wrap for SolidFill {
     fn close_some(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
-        child: UIRender,
+        socket: &mut dyn Socket,
+        child: Render,
     ) {
         let color = self.color;
         ctx.render_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
@@ -40,7 +39,7 @@ impl archetype::Wrap for SolidFill {
     fn close_none(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
     ) {
         let color = self.color;
         ctx.render_new(socket, Area::zero(), move |region: Region, cmds: &mut CommandList| {
@@ -49,13 +48,13 @@ impl archetype::Wrap for SolidFill {
     }
 }
 
-impl UIWidgetImpl for SolidFill {
+impl Element for SolidFill {
     type Next = ();
 
     fn run(
         mut self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
     ) -> Option<Self::Next> {
         archetype::wrap(self, ctx, socket);
         None

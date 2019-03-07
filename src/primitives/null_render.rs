@@ -1,11 +1,11 @@
+use crate::core::*;
 use crate::layout::Region;
 use crate::render::CommandList;
-use crate::element::UIRenderImpl;
 
 #[derive(Clone, Copy)]
 pub struct NullUIRender;
 
-impl UIRenderImpl for NullUIRender {
+impl render::RenderImpl for NullUIRender {
     fn render(
         &self,
         _region: Region,

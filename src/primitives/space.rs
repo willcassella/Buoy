@@ -1,7 +1,6 @@
 use std::f32;
-use crate::Context;
+use crate::core::*;
 use crate::layout::{Area, Region};
-use crate::element::{UIWidgetImpl, UISocket, UIRender};
 use crate::render::CommandList;
 use crate::primitives::{archetype, null_render::NullUIRender};
 
@@ -133,13 +132,13 @@ impl Default for Space {
     }
 }
 
-impl UIWidgetImpl for Space {
+impl Element for Space {
     type Next = ();
 
     fn run(
         mut self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
     ) -> Option<Self::Next> {
         archetype::wrap(self, ctx, socket);
         None
@@ -159,8 +158,8 @@ impl archetype::Wrap for Space {
     fn close_some(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
-        child: UIRender
+        socket: &mut dyn Socket,
+        child: Render
     ) {
         ctx.render_new(socket, child.min_area, move |mut region: Region, cmds: &mut CommandList| {
             if self.max.width < region.area.width {
@@ -177,7 +176,7 @@ impl archetype::Wrap for Space {
     fn close_none(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
     ) {
         // Just take up space
         if self.min != Area::zero() {

@@ -1,8 +1,7 @@
-use crate::Context;
 use crate::layout::{Area, Region};
 use crate::render::{CommandList, color};
 use crate::render::commands::{Quad, ColoredQuad};
-use crate::element::{UIWidgetImpl, UIRender, UISocket};
+use crate::core::*;
 
 use super::{archetype, null_render::NullUIRender};
 
@@ -77,13 +76,13 @@ impl Default for BlockBorder {
     }
 }
 
-impl UIWidgetImpl for BlockBorder {
+impl Element for BlockBorder {
     type Next = ();
 
     fn run(
         mut self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket
+        socket: &mut dyn Socket
     ) -> Option<Self::Next> {
         archetype::wrap(self, ctx, socket);
         None
@@ -101,8 +100,8 @@ impl archetype::Wrap for BlockBorder {
     fn close_some(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
-        child: UIRender,
+        socket: &mut dyn Socket,
+        child: Render,
     ) {
         let mut min_area = child.min_area;
 
@@ -130,7 +129,7 @@ impl archetype::Wrap for BlockBorder {
     fn close_none(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
     ) {
         // Since we don't have a child, min area is just size of border
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };

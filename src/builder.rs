@@ -1,6 +1,5 @@
 use std::any::Any;
-use crate::Context;
-use crate::element::{UIWidgetImpl, UISocket};
+use crate::core::*;
 
 mod context;
 pub use self::context::BuilderContext;
@@ -12,13 +11,13 @@ pub trait Builder: Sized + Clone + Any {
     );
 }
 
-impl<T: Builder> UIWidgetImpl for T {
+impl<T: Builder> Element for T {
     type Next = ();
 
     fn run(
         self,
         ctx: &mut Context,
-        _socket: &mut dyn UISocket,
+        _socket: &mut dyn Socket,
     ) -> Option<Self::Next> {
         // Run the builder
         let mut builder_ctx = BuilderContext::new(ctx);

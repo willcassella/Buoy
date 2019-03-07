@@ -2,12 +2,12 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use crate::util::fill::Fill;
-use crate::element::UIRender;
+use crate::core::*;
 
-pub trait UISocket: Fill<UIRender> {
+pub trait Socket: Fill<render::Render> {
 }
 
-impl<T: Fill<UIRender>> UISocket for T {
+impl<T: Fill<Render>> Socket for T {
 }
 
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]

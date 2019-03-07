@@ -1,8 +1,7 @@
 use std::f32;
-use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{UIRender, UIRenderImpl, UIWidgetImpl, UISocket};
 use crate::render::CommandList;
+use crate::core::*;
 
 use super::archetype;
 
@@ -45,13 +44,13 @@ impl List {
     }
 }
 
-impl UIWidgetImpl for List {
+impl Element for List {
     type Next = ();
 
     fn run(
         mut self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
     ) -> Option<Self::Next> {
         archetype::panel(self, ctx, socket);
         None
@@ -76,8 +75,8 @@ impl archetype::Panel for List {
     fn close(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
-        children: Vec<UIRender>
+        socket: &mut dyn Socket,
+        children: Vec<Render>
     ) {
         let mut min_area = Area::zero();
 
@@ -99,7 +98,7 @@ impl archetype::Panel for List {
             }
         }
 
-        let render_func: Box<dyn UIRenderImpl> = match self.dir {
+        let render_func: Box<dyn render::RenderImpl> = match self.dir {
             Dir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_left_to_right(children.as_slice(), region, cmds);
             }),
@@ -114,11 +113,11 @@ impl archetype::Panel for List {
             }),
         };
 
-        ctx.render(socket, UIRender{ min_area, imp: render_func });
+        ctx.render(socket, Render{ min_area, imp: render_func });
     }
 }
 
-fn render_left_to_right(children: &[UIRender], mut region: Region, cmds: &mut CommandList) {
+fn render_left_to_right(children: &[Render], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.width = child.min_area.width;
@@ -130,7 +129,7 @@ fn render_left_to_right(children: &[UIRender], mut region: Region, cmds: &mut Co
     }
 }
 
-fn render_right_to_left(children: &[UIRender], mut region: Region, out: &mut CommandList) {
+fn render_right_to_left(children: &[Render], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.x = child_region.pos.x + child_region.area.width - child.min_area.width;
@@ -142,7 +141,7 @@ fn render_right_to_left(children: &[UIRender], mut region: Region, out: &mut Com
     }
 }
 
-fn render_top_to_bottom(children: &[UIRender], mut region: Region, cmds: &mut CommandList) {
+fn render_top_to_bottom(children: &[Render], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.height = child.min_area.height;
@@ -154,7 +153,7 @@ fn render_top_to_bottom(children: &[UIRender], mut region: Region, cmds: &mut Co
     }
 }
 
-fn render_bottom_to_top(children: &[UIRender], mut region: Region, out: &mut CommandList) {
+fn render_bottom_to_top(children: &[Render], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.y = region.pos.y + region.area.height - child.min_area.height;

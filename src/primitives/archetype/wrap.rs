@@ -1,6 +1,5 @@
-use crate::Context;
 use crate::layout::Area;
-use crate::element::{UIRender, UISocket, socket};
+use crate::core::*;
 
 pub trait Wrap {
     fn open(&self, max_area: Area) -> Area {
@@ -10,21 +9,21 @@ pub trait Wrap {
     fn close_some(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
-        child: UIRender,
+        socket: &mut dyn Socket,
+        child: Render,
     );
 
     fn close_none(
         self,
         ctx: &mut Context,
-        socket: &mut dyn UISocket,
+        socket: &mut dyn Socket,
     );
 }
 
 pub fn wrap<T: Wrap>(
     wrap: T,
     ctx: &mut Context,
-    socket: &mut dyn UISocket,
+    socket: &mut dyn Socket,
 ) {
     let mut child_socket = None;
 
