@@ -1,8 +1,10 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{UIRender, UIRenderImpl, UIWidgetImpl, archetype};
+use crate::element::{UIRender, UIRenderImpl, UIWidgetImpl, UISocket};
 use crate::render::CommandList;
+
+use super::archetype;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -14,7 +16,7 @@ pub enum Dir {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct List {
     pub dir: Dir,
 }
@@ -44,11 +46,15 @@ impl List {
 }
 
 impl UIWidgetImpl for List {
+    type Next = ();
+
     fn run(
-        self,
+        mut self,
         ctx: &mut Context,
-    ) {
-        archetype::panel(self, ctx);
+        socket: &mut dyn UISocket,
+    ) -> Option<Self::Next> {
+        archetype::panel(self, ctx, socket);
+        None
     }
 }
 
@@ -70,6 +76,7 @@ impl archetype::Panel for List {
     fn close(
         self,
         ctx: &mut Context,
+        socket: &mut dyn UISocket,
         children: Vec<UIRender>
     ) {
         let mut min_area = Area::zero();
@@ -107,7 +114,7 @@ impl archetype::Panel for List {
             }),
         };
 
-        ctx.render(UIRender{ min_area, imp: render_func });
+        ctx.render(socket, UIRender{ min_area, imp: render_func });
     }
 }
 

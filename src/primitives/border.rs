@@ -1,13 +1,13 @@
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::archetype;
-use crate::element::{UIWidgetImpl, UIRender};
 use crate::render::{CommandList, color};
 use crate::render::commands::{Quad, ColoredQuad};
-use crate::primitives::null_render::NullUIRender;
+use crate::element::{UIWidgetImpl, UIRender, UISocket};
+
+use super::{archetype, null_render::NullUIRender};
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct BlockBorder {
     pub left: f32,
     pub top: f32,
@@ -78,8 +78,15 @@ impl Default for BlockBorder {
 }
 
 impl UIWidgetImpl for BlockBorder {
-    fn run(self, ctx: &mut Context) {
-        archetype::wrap(self, ctx);
+    type Next = ();
+
+    fn run(
+        mut self,
+        ctx: &mut Context,
+        socket: &mut dyn UISocket
+    ) -> Option<Self::Next> {
+        archetype::wrap(self, ctx, socket);
+        None
     }
 }
 
@@ -94,6 +101,7 @@ impl archetype::Wrap for BlockBorder {
     fn close_some(
         self,
         ctx: &mut Context,
+        socket: &mut dyn UISocket,
         child: UIRender,
     ) {
         let mut min_area = child.min_area;
@@ -102,7 +110,7 @@ impl archetype::Wrap for BlockBorder {
         min_area.width += self.left + self.right;
         min_area.height += self.top + self.bottom;
 
-        ctx.render_new(min_area, move |mut region: Region, cmds: &mut CommandList| {
+        ctx.render_new(socket, min_area, move |mut region: Region, cmds: &mut CommandList| {
             // Unless we're fully transparent, render the border
             if self.color != color::constants::TRANSPARENT {
                 self.generate_commands(region, cmds);
@@ -121,15 +129,16 @@ impl archetype::Wrap for BlockBorder {
 
     fn close_none(
         self,
-        ctx: &mut Context
+        ctx: &mut Context,
+        socket: &mut dyn UISocket,
     ) {
         // Since we don't have a child, min area is just size of border
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
 
         if self.color == color::constants::TRANSPARENT {
-            ctx.render_new(min_area, NullUIRender);
+            ctx.render_new(socket, min_area, NullUIRender);
         } else {
-            ctx.render_new(min_area, move |region: Region, cmds: &mut CommandList| {
+            ctx.render_new(socket, min_area, move |region: Region, cmds: &mut CommandList| {
                 self.generate_commands(region, cmds);
             });
         }

@@ -1,9 +1,9 @@
 use std::f32;
 use crate::Context;
 use crate::layout::{Area, Region};
-use crate::element::{UIWidgetImpl, UIRender, archetype};
+use crate::element::{UIWidgetImpl, UISocket, UIRender};
 use crate::render::CommandList;
-use crate::primitives::null_render::NullUIRender;
+use crate::primitives::{archetype, null_render::NullUIRender};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -70,7 +70,7 @@ fn align_vertically(align: VAlign, area: Area, mut region: Region) -> Region {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Space {
     pub h_align: HAlign,
     pub v_align: VAlign,
@@ -134,11 +134,15 @@ impl Default for Space {
 }
 
 impl UIWidgetImpl for Space {
+    type Next = ();
+
     fn run(
-        self,
+        mut self,
         ctx: &mut Context,
-    ) {
-        archetype::wrap(self, ctx);
+        socket: &mut dyn UISocket,
+    ) -> Option<Self::Next> {
+        archetype::wrap(self, ctx, socket);
+        None
     }
 }
 
@@ -155,9 +159,10 @@ impl archetype::Wrap for Space {
     fn close_some(
         self,
         ctx: &mut Context,
+        socket: &mut dyn UISocket,
         child: UIRender
     ) {
-        ctx.render_new(child.min_area, move |mut region: Region, cmds: &mut CommandList| {
+        ctx.render_new(socket, child.min_area, move |mut region: Region, cmds: &mut CommandList| {
             if self.max.width < region.area.width {
                 region = align_horizontally(self.h_align, self.max, region);
             }
@@ -171,11 +176,12 @@ impl archetype::Wrap for Space {
 
     fn close_none(
         self,
-        ctx: &mut Context
+        ctx: &mut Context,
+        socket: &mut dyn UISocket,
     ) {
         // Just take up space
         if self.min != Area::zero() {
-            ctx.render_new(self.min, NullUIRender);
+            ctx.render_new(socket, self.min, NullUIRender);
         }
     }
 }

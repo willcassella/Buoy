@@ -1,6 +1,6 @@
 use crate::Context;
 use crate::layout::Area;
-use crate::element::UIRender;
+use crate::element::{UIRender, UISocket, socket};
 
 pub trait Panel {
     fn open(
@@ -11,6 +11,7 @@ pub trait Panel {
     fn close(
         self,
         ctx: &mut Context,
+        socket: &mut dyn UISocket,
         children: Vec<UIRender>
     );
 }
@@ -18,16 +19,12 @@ pub trait Panel {
 pub fn panel<T: Panel>(
     panel: T,
     ctx: &mut Context,
+    socket: &mut dyn UISocket,
 ) {
+    let mut children = Vec::new();
+
     let child_max_area = panel.open(ctx.max_area());
+    while ctx.socket(socket::Id::default(), &mut children, child_max_area) { }
 
-    let children = ctx.begin_awaitable_socket(child_max_area, Vec::new());
-        ctx.anchor_default();
-    ctx.end();
-
-    // Wait for socket to fill up
-    ctx.await_sockets(move |ctx: &mut Context| {
-        let children = ctx.take_socket(children);
-        panel.close(ctx, children);
-    });
+    panel.close(ctx, socket, children);
 }

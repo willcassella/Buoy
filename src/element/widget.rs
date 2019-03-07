@@ -1,9 +1,12 @@
 use std::any::Any;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::{Display, Formatter, Error};
+use std::fmt::{self, Display, Debug, Formatter};
 use crate::Context;
+use crate::element::UISocket;
+use crate::builder::BuilderContext;
 
+#[derive(Clone)]
 pub struct UIWidget<I: UIWidgetImpl = Box<dyn DynUIWidgetImpl>> {
     pub id: Id,
     pub imp: I,
@@ -35,20 +38,23 @@ impl<I: UIWidgetImpl> UIWidget<I> {
         }
     }
 
-    pub fn begin<'a, 'ui, 'ctx>(
+    pub fn begin<'a, 'b, 'ctx>(
         self,
-        ctx: &'a mut Context<'ui, 'ctx>,
-    ) -> &'a mut Context<'ui, 'ctx> {
-        ctx.begin_widget(self.upcast());
-        ctx
+        builder: &'a mut BuilderContext<'b, 'ctx>,
+    ) -> &'a mut BuilderContext<'b, 'ctx> {
+        builder.element_begin(self);
+        builder
     }
 }
 
 pub trait UIWidgetImpl: Sized + Clone + Any {
-    fn run<'ui, 'ctx>(
+    type Next: UIWidgetImpl;
+
+    fn run(
         self,
-        ctx: &mut Context<'ui, 'ctx>,
-    );
+        ctx: &mut Context,
+        socket: &mut dyn UISocket,
+    ) -> Option<Self::Next>;
 
     fn upcast(
         self,
@@ -61,6 +67,26 @@ pub trait UIWidgetImpl: Sized + Clone + Any {
     ) -> Result<D, Self> {
         Err(self) // TODO: This should handle when Self == D
     }
+
+    // TODO: This doesn't belong here (should be an extension trait or something)
+    fn into_obj(
+        self,
+        id: Id,
+    ) -> UIWidget<Self> {
+        UIWidget::new(id, self)
+    }
+}
+
+impl UIWidgetImpl for () {
+    type Next = ();
+
+    fn run(
+        self,
+        _ctx: &mut Context,
+        _socket: &mut dyn UISocket,
+    ) -> Option<Self::Next> {
+        None
+    }
 }
 
 pub trait DynUIWidgetImpl {
@@ -68,10 +94,11 @@ pub trait DynUIWidgetImpl {
         &self
     ) -> Box<dyn DynUIWidgetImpl>;
 
-    fn box_run<'ui, 'ctx>(
+    fn box_run(
         self: Box<Self>,
-        ctx: &mut Context<'ui, 'ctx>,
-    );
+        ctx: &mut Context,
+        socket: &mut dyn UISocket,
+    ) -> Option<Box<dyn DynUIWidgetImpl>>;
 
     fn into_any_mut(
         &mut self,
@@ -85,11 +112,13 @@ impl<T: UIWidgetImpl> DynUIWidgetImpl for T {
         Box::new(self.clone())
     }
 
-    fn box_run<'ui, 'ctx>(
+    fn box_run(
         self: Box<Self>,
-        ctx: &mut Context<'ui, 'ctx>,
-    ) {
-        self.run(ctx)
+        ctx: &mut Context,
+        socket: &mut dyn UISocket,
+    ) -> Option<Box<dyn DynUIWidgetImpl>> {
+        let next = self.run(ctx, socket);
+        next.map(|x| Box::new(x) as Box<dyn DynUIWidgetImpl>)
     }
 
     fn into_any_mut(
@@ -105,12 +134,21 @@ impl Clone for Box<dyn DynUIWidgetImpl> {
     }
 }
 
+impl Debug for Box<dyn DynUIWidgetImpl> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        Debug::fmt(&*self, fmt)
+    }
+}
+
 impl UIWidgetImpl for Box<dyn DynUIWidgetImpl> {
-    fn run<'ui, 'ctx>(
+    type Next = Self;
+
+    fn run(
         self,
-        ctx: &mut Context<'ui, 'ctx>,
-    ) {
-        self.box_run(ctx);
+        ctx: &mut Context,
+        socket: &mut dyn UISocket,
+    ) -> Option<Self> {
+        self.box_run(ctx, socket)
     }
 
     fn upcast(
@@ -170,7 +208,7 @@ impl Id {
 }
 
 impl Display for Id {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        self.0.fmt(fmt)
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.0, fmt)
     }
 }

@@ -1,3 +1,4 @@
+pub mod archetype;
 pub mod border;
 pub mod fill;
 pub mod space;

@@ -1,31 +1,22 @@
-use std::marker::PhantomData;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
 use crate::util::fill::Fill;
 use crate::element::UIRender;
-use crate::layout::Area;
 
-pub struct UISocket {
-    pub(crate) imp: Box<dyn UISocketImpl>,
-    pub(crate) max_area: Area,
+pub trait UISocket: Fill<UIRender> {
 }
 
-impl UISocket {
-    pub fn new(
-        max_area: Area,
-        imp: Box<dyn UISocketImpl>,
-    ) -> Self {
-        UISocket {
-            imp,
-            max_area,
-        }
+impl<T: Fill<UIRender>> UISocket for T {
+}
+
+#[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
+pub struct Id(pub u64);
+
+impl<'a> From<&'a str> for Id {
+    fn from(s: &'a str) -> Self {
+        let mut hasher = DefaultHasher::new();
+        s.hash(&mut hasher);
+        Id(hasher.finish())
     }
-
-    pub fn max_area(&self) -> Area {
-        self.max_area
-    }
-}
-
-pub trait UISocketImpl: Fill<UIRender> {
-}
-
-impl<T: Fill<UIRender> + 'static> UISocketImpl for T {
 }

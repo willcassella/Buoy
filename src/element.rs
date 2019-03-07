@@ -11,10 +11,9 @@ pub use self::render::{
     UIRenderImpl,
 };
 
-mod socket;
+pub mod socket;
 pub use self::socket::{
     UISocket,
-    UISocketImpl,
 };
 
 mod filter;
@@ -23,10 +22,3 @@ pub use self::filter::{
     UIFilterImpl,
     FilterStack,
 };
-
-mod anchor;
-pub use self::anchor::{
-    Anchor,
-};
-
-pub mod archetype;

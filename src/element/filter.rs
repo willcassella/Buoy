@@ -36,25 +36,25 @@ pub trait UIFilterImpl {
         false
     }
 
-    fn widget<'ui, 'ctx>(
+    fn widget(
         &self,
-        ctx: &mut Context<'ui, 'ctx>,
+        ctx: &mut Context,
         widget: UIWidget,
         _filters: &mut FilterStack,
     ) {
-        ctx.begin_widget(widget);
-            ctx.anchor_default();
-        ctx.end();
+        // ctx.begin_widget(widget);
+        //     ctx.anchor_default();
+        // ctx.end();
     }
 
-    fn socket<'ui, 'ctx>(
+    fn socket(
         &self,
-        ctx: &mut Context<'ui, 'ctx>,
-        socket: UISocket,
+        ctx: &mut Context,
+        //socket: UISocket,
         _filters: &mut FilterStack,
     ) {
-        ctx.begin_socket(socket);
-            ctx.anchor_default();
-        ctx.end();
+        // ctx.begin_socket(socket);
+        //     ctx.anchor_default();
+        // ctx.end();
     }
 }
