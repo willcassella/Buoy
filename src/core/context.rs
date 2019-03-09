@@ -3,21 +3,48 @@ use crate::core::*;
 use crate::layout::Area;
 use crate::input::{Input, InputId, InputState, InputCache};
 
-pub trait TreeProvider {
-    fn take_element(
-        &mut self,
-        socket: socket::Id,
-    ) -> Option<(Box<dyn DynElement>, element::Id)>;
+pub struct TreeNode<E: Element> {
+    pub element: E,
+    pub id: element::Id,
 }
 
-pub struct NullTree;
+pub trait TreeProvider {
+    fn pop(
+        &mut self,
+        socket: socket::Id,
+    ) -> Option<TreeNode<Box<dyn DynElement>>>;
 
-impl TreeProvider for NullTree {
-    fn take_element(
+    fn push_some(
+        &mut self,
+        socket: socket::Id,
+        node: TreeNode<Box<dyn DynElement>>,
+    );
+
+    fn push_none(
+        &mut self,
+    );
+}
+
+impl TreeProvider for () {
+    fn pop(
         &mut self,
         _socket: socket::Id,
-    ) -> Option<(Box<dyn DynElement>, element::Id)> {
+    ) -> Option<TreeNode<Box<dyn DynElement>>> {
         None
+    }
+
+    fn push_some(
+        &mut self,
+        _socket: socket::Id,
+        _node: TreeNode<Box<dyn DynElement>>,
+    ) {
+        unreachable!()
+    }
+
+    fn push_none(
+        &mut self,
+    ) {
+        unreachable!()
     }
 }
 
@@ -100,30 +127,35 @@ impl<'a> Context<'a> {
         socket: &mut dyn Socket,
         child_max_area: Area,
     ) -> bool {
-        let (element, element_id) = match self.tree_provider.take_element(id) {
-            Some((element, element_id)) => (element, element_id),
+        // Get the next node out of the tree
+        let node = match self.tree_provider.pop(id) {
+            Some(node) => node,
             None => return false,
         };
 
+        // Backup the Id and area for the current element onto the stack
         let backup_id = self.element_id;
-        self.element_id = element_id;
-
+        self.element_id = node.id;
         let backup_area = self.max_area;
         self.max_area = child_max_area;
 
-        let next = element.run(self, socket);
+        // Run the element, and capture its output
+        let next = node.element.run(self, socket);
 
+        // Restore Id and area for the current element
         self.max_area = backup_area;
         self.element_id = backup_id;
 
-        // match next {
-        //     Some(next) => {
-        //         self.tree_provider.place_widget(id, UIWidget::new(widget.id, next)); // TODO: This should be different
-        //         true
-        //     },
-        //     None => false,
-        // }
-        false
+        match next {
+            Some(next) => {
+                self.tree_provider.push_some(id, TreeNode{ element: next, id: node.id });
+                true
+            },
+            None => {
+                self.tree_provider.push_none();
+                true // TODO: This might not always be the case
+            }
+        }
     }
 
     pub fn filter_next_frame(

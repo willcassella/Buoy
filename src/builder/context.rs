@@ -5,15 +5,17 @@ use crate::core::*;
 use crate::layout::Area;
 use crate::input::{Input, InputState};
 
-enum NodeKind {
+use super::tree;
+
+pub enum NodeKind {
     Element(Box<dyn element::DynElement>, element::Id),
     Filter(Rc<dyn Filter>),
     Socket(socket::Id),
 }
 
-struct Node {
-    kind: NodeKind,
-    children: VecDeque<Node>,
+pub struct Node {
+    pub kind: NodeKind,
+    pub children: VecDeque<Node>,
 }
 
 pub struct BuilderContext<'a, 'ctx> {
@@ -31,6 +33,17 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
             roots: VecDeque::new(),
             stack: Vec::new(),
         }
+    }
+
+    pub(crate) fn into_tree(
+        mut self,
+    ) -> tree::BuilderTree {
+        // Empty the stack
+        while !self.stack.is_empty() {
+            self.end();
+        }
+
+        tree::BuilderTree::new(self.roots)
     }
 
     pub fn element_id(&self) -> element::Id {
@@ -102,14 +115,5 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
 
     pub fn read_input<F: InputState>(&self, input: Input<F>) -> F {
         self.ctx.read_input(input)
-    }
-}
-
-impl<'a, 'ctx> context::TreeProvider for BuilderContext<'a, 'ctx> {
-    fn take_element(
-        &mut self,
-        socket: socket::Id,
-    ) -> Option<(Box<dyn element::DynElement>, element::Id)> {
-        unimplemented!()
     }
 }

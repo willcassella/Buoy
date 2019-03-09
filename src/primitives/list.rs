@@ -48,7 +48,7 @@ impl Element for List {
     type Next = ();
 
     fn run(
-        mut self,
+        self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
     ) -> Option<Self::Next> {

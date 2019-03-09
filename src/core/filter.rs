@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::core::{Context, element, socket};
+
+use crate::core::*;
 
 #[derive(Clone, Default)]
 pub struct FilterStack {
@@ -34,8 +35,8 @@ pub trait Filter {
 
     fn element(
         &self,
-        ctx: &mut Context,
-        element: Box<dyn element::DynElement>,
+        _ctx: &mut Context,
+        _element: Box<dyn element::DynElement>,
         _filters: &mut FilterStack,
     ) {
         // ctx.begin_widget(widget);
@@ -45,7 +46,7 @@ pub trait Filter {
 
     fn socket(
         &self,
-        ctx: &mut Context,
+        _ctx: &mut Context,
         //socket: UISocket,
         _filters: &mut FilterStack,
     ) {

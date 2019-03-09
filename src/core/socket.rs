@@ -10,7 +10,7 @@ pub trait Socket: Fill<render::Render> {
 impl<T: Fill<Render>> Socket for T {
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
 pub struct Id(pub u64);
 
 impl<'a> From<&'a str> for Id {

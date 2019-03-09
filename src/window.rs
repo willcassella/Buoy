@@ -41,7 +41,7 @@ impl Window {
            next_frame_filters: filter::FilterStack::default(),
         };
 
-        let mut tree_provider = context::NullTree;
+        let mut tree_provider = ();
         let mut ctx = Context::new(
             &mut tree_provider,
             element::Id::from(""),
