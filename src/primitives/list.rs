@@ -45,13 +45,13 @@ impl List {
 }
 
 impl Element for List {
-    type Next = ();
+    type Resume = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-    ) -> Option<Self::Next> {
+    ) -> Option<Self::Resume> {
         archetype::panel(self, ctx, socket);
         None
     }

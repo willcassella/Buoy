@@ -8,43 +8,54 @@ pub struct TreeNode<E: Element> {
     pub id: element::Id,
 }
 
+pub struct TreeListener<'a> {
+    socket: &'a mut dyn Socket,
+    max_area: Area,
+
+    prev_input: &'a InputCache,
+    global_data: &'a mut GlobalData,
+}
+
+impl<'a> TreeListener<'a> {
+    pub fn remaining_capacity(&self) -> usize {
+        self.socket.remaining_capacity()
+    }
+
+    pub fn element<E: Element, T: TreeProvider>(
+        &mut self,
+        id: element::Id,
+        element: E,
+        sub_provider: &mut T,
+    ) -> Option<E::Resume> {
+        // Create a new context
+        let mut ctx = Context::new(
+            sub_provider,
+            id,
+            self.max_area,
+            self.prev_input,
+            self.global_data
+        );
+
+        element.run(&mut ctx, self.socket)
+    }
+}
+
 pub trait TreeProvider {
-    fn pop(
+    fn socket(
         &mut self,
-        socket: socket::Id,
-    ) -> Option<TreeNode<Box<dyn DynElement>>>;
-
-    fn push_some(
-        &mut self,
-        socket: socket::Id,
-        node: TreeNode<Box<dyn DynElement>>,
-    );
-
-    fn push_none(
-        &mut self,
-    );
+        id: socket::Id,
+        listener: &mut TreeListener,
+    ) -> bool;
 }
 
 impl TreeProvider for () {
-    fn pop(
+    fn socket(
         &mut self,
-        _socket: socket::Id,
-    ) -> Option<TreeNode<Box<dyn DynElement>>> {
-        None
-    }
-
-    fn push_some(
-        &mut self,
-        _socket: socket::Id,
-        _node: TreeNode<Box<dyn DynElement>>,
-    ) {
-        unreachable!()
-    }
-
-    fn push_none(
-        &mut self,
-    ) {
-        unreachable!()
+        _id: socket::Id,
+        _listener: &mut TreeListener,
+    ) -> bool {
+        // Do nothing
+        false
     }
 }
 
@@ -127,35 +138,13 @@ impl<'a> Context<'a> {
         socket: &mut dyn Socket,
         child_max_area: Area,
     ) -> bool {
-        // Get the next node out of the tree
-        let node = match self.tree_provider.pop(id) {
-            Some(node) => node,
-            None => return false,
+        let mut listener = TreeListener{
+            socket: socket,
+            max_area: child_max_area,
+            prev_input: self.prev_input,
+            global_data: self.global_data,
         };
-
-        // Backup the Id and area for the current element onto the stack
-        let backup_id = self.element_id;
-        self.element_id = node.id;
-        let backup_area = self.max_area;
-        self.max_area = child_max_area;
-
-        // Run the element, and capture its output
-        let next = node.element.run(self, socket);
-
-        // Restore Id and area for the current element
-        self.max_area = backup_area;
-        self.element_id = backup_id;
-
-        match next {
-            Some(next) => {
-                self.tree_provider.push_some(id, TreeNode{ element: next, id: node.id });
-                true
-            },
-            None => {
-                self.tree_provider.push_none();
-                true // TODO: This might not always be the case
-            }
-        }
+        self.tree_provider.socket(id, &mut listener)
     }
 
     pub fn filter_next_frame(

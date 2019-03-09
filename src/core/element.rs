@@ -10,13 +10,13 @@ mod dyn_element;
 pub use dyn_element::DynElement;
 
 pub trait Element: Sized + Clone + Any {
-    type Next: DynElement;
+    type Resume: DynElement;
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn socket::Socket,
-    ) -> Option<Self::Next>;
+    ) -> Option<Self::Resume>;
 
     fn upcast(
         self,
@@ -41,13 +41,13 @@ pub trait Element: Sized + Clone + Any {
 }
 
 impl Element for () {
-    type Next = ();
+    type Resume = ();
 
     fn run(
         self,
         _ctx: &mut Context,
         _socket: &mut dyn socket::Socket,
-    ) -> Option<Self::Next> {
+    ) -> Option<Self::Resume> {
         None
     }
 }

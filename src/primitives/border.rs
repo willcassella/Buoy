@@ -77,13 +77,13 @@ impl Default for BlockBorder {
 }
 
 impl Element for BlockBorder {
-    type Next = ();
+    type Resume = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket
-    ) -> Option<Self::Next> {
+    ) -> Option<Self::Resume> {
         archetype::wrap(self, ctx, socket);
         None
     }

@@ -49,13 +49,13 @@ impl archetype::Wrap for SolidFill {
 }
 
 impl Element for SolidFill {
-    type Next = ();
+    type Resume = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-    ) -> Option<Self::Next> {
+    ) -> Option<Self::Resume> {
         archetype::wrap(self, ctx, socket);
         None
     }

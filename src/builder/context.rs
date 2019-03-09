@@ -37,13 +37,13 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
 
     pub(crate) fn into_tree(
         mut self,
-    ) -> tree::BuilderTree {
+    ) -> VecDeque<Node> {
         // Empty the stack
         while !self.stack.is_empty() {
             self.end();
         }
 
-        tree::BuilderTree::new(self.roots)
+        self.roots
     }
 
     pub fn element_id(&self) -> element::Id {

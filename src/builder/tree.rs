@@ -3,58 +3,44 @@ use std::collections::VecDeque;
 use crate::core::*;
 use super::context::{Node, NodeKind};
 
-pub struct BuilderTree {
-    next: VecDeque<Node>,
-    previous: Vec<VecDeque<Node>>,
-}
-
-impl BuilderTree {
-    pub fn new(roots: VecDeque<Node>) -> Self {
-        BuilderTree {
-            next: roots,
-            previous: Vec::new(),
-        }
-    }
-}
-
-impl context::TreeProvider for BuilderTree {
-    fn pop(
+impl context::TreeProvider for VecDeque<Node> {
+    fn socket(
         &mut self,
         socket: socket::Id,
-    ) -> Option<context::TreeNode<Box<dyn DynElement>>> {
+        listener: &mut context::TreeListener,
+    ) -> bool {
         assert_eq!(socket, socket::Id::default(), "Only default sockets are supported at the moment");
 
-        self.next.pop_front().map(|node| {
-            let prev = std::mem::replace(&mut self.next, node.children);
-            self.previous.push(prev);
+        loop {
+            // Get the first element
+            let mut node = match self.pop_front() {
+                Some(node) => node,
+                None => return false,
+            };
 
-            match node.kind {
-                NodeKind::Element(element, id) => context::TreeNode{ element, id },
+            let (element, id) = match node.kind {
+                NodeKind::Element(element, id) => (element, id),
                 NodeKind::Filter(_) => unimplemented!(),
                 NodeKind::Socket(_) => unimplemented!(),
+            };
+
+            // Run it
+            let resume = listener.element(id, element, &mut node.children);
+
+            // If it needs to resume, push that and quit
+            // TODO: I think ultimately the context should handle this
+            match resume {
+                Some(resume) => {
+                    self.push_front(Node {
+                        kind: NodeKind::Element(resume, id),
+                        children: node.children,
+                    });
+                    return true
+                },
+                None => (),
             }
-        })
-    }
+        }
 
-    fn push_some(
-        &mut self,
-        socket: socket::Id,
-        node: context::TreeNode<Box<dyn DynElement>>,
-    ) {
-        assert_eq!(socket, socket::Id::default(), "Only default sockets are supported at the moment");
-
-        let prev = self.previous.pop().expect("Bad call to push");
-        let node = Node {
-            kind: NodeKind::Element(node.element, node.id),
-            children: std::mem::replace(&mut self.next, prev),
-        };
-        self.next.push_front(node);
-    }
-
-    fn push_none(
-        &mut self,
-    ) {
-        let prev = self.previous.pop().expect("Bad call to push");
-        std::mem::replace(&mut self.next, prev);
+        false
     }
 }

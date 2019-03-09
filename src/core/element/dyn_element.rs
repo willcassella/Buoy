@@ -48,7 +48,7 @@ impl Clone for Box<dyn DynElement> {
 }
 
 impl Element for Box<dyn DynElement> {
-    type Next = Self;
+    type Resume = Self;
 
     fn run(
         self,

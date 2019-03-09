@@ -14,13 +14,13 @@ pub trait Builder: Sized + Clone + Any {
 }
 
 impl<T: Builder> Element for T {
-    type Next = ();
+    type Resume = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-    ) -> Option<Self::Next> {
+    ) -> Option<Self::Resume> {
         let max_area = ctx.max_area();
 
         // Run the builder
