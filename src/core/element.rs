@@ -1,22 +1,28 @@
 use std::any::Any;
 
-use crate::core::{Context, socket};
-use crate::builder::BuilderContext;
+mod context;
+pub use self::context::Context;
 
 mod id;
-pub use id::Id;
+pub use self::id::Id;
 
 mod dyn_element;
-pub use dyn_element::DynElement;
+pub use self::dyn_element::DynElement;
+
+mod socket;
+pub use self::socket::{Socket, SocketName};
+
+mod layout;
+pub use self::layout::{Layout, LayoutObj, NullLayout};
 
 pub trait Element: Sized + Clone + Any {
-    type Resume: DynElement;
+    type Suspended: Element;
 
     fn run(
         self,
         ctx: &mut Context,
-        socket: &mut dyn socket::Socket,
-    ) -> Option<Self::Resume>;
+        socket: &mut dyn Socket,
+    ) -> Option<Self::Suspended>;
 
     fn upcast(
         self,
@@ -29,25 +35,17 @@ pub trait Element: Sized + Clone + Any {
     ) -> Result<D, Self> {
         Err(self) // TODO: This should handle when Self == D
     }
-
-    fn begin<'a, 'b, 'ctx>(
-        self,
-        ctx: &'a mut BuilderContext<'b, 'ctx>,
-        id: Id,
-    ) -> &'a mut BuilderContext<'b, 'ctx> {
-        ctx.element_begin(self, id);
-        ctx
-    }
 }
 
 impl Element for () {
-    type Resume = ();
+    type Suspended = ();
 
     fn run(
         self,
         _ctx: &mut Context,
-        _socket: &mut dyn socket::Socket,
-    ) -> Option<Self::Resume> {
+        _socket: &mut dyn Socket,
+    ) -> Option<Self::Suspended> {
+        // Do nothing
         None
     }
 }

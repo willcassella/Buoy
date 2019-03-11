@@ -1,6 +1,7 @@
 use std::rc::Rc;
+
 use super::color::RGBA8;
-use crate::layout::Region;
+use crate::space::Region;
 use crate::{input::Input, Window};
 
 #[repr(C)]

@@ -1,7 +1,6 @@
 use crate::render::{CommandList, commands::{InputAction, Quad, HoverQuad}};
-use crate::layout::Region;
-use crate::core::*;
-use crate::input::Input;
+use crate::prelude::*;
+
 use super::archetype;
 
 pub type HoverState = Input<bool>;
@@ -29,13 +28,13 @@ impl Hover {
 }
 
 impl Element for Hover {
-    type Resume = ();
+    type Suspended = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket
-    ) -> Option<Self::Resume> {
+    ) -> Option<Self::Suspended> {
         archetype::wrap(self, ctx, socket);
         None
     }
@@ -46,9 +45,9 @@ impl archetype::Wrap for Hover {
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-        child: Render,
+        child: LayoutObj,
     ) {
-        ctx.render_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
             // Render the child
             child.imp.render(region, cmds);
 

@@ -1,10 +1,14 @@
 use std::any::Any;
-use crate::core::*;
+
+use crate::prelude::*;
 
 mod context;
 pub use self::context::BuilderContext;
 
 mod tree;
+
+mod element_ext;
+pub use self::element_ext::ElementExt;
 
 pub trait Builder: Sized + Clone + Any {
     fn run(
@@ -14,13 +18,13 @@ pub trait Builder: Sized + Clone + Any {
 }
 
 impl<T: Builder> Element for T {
-    type Resume = ();
+    type Suspended = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-    ) -> Option<Self::Resume> {
+    ) -> Option<Self::Suspended> {
         let max_area = ctx.max_area();
 
         // Run the builder
@@ -32,7 +36,7 @@ impl<T: Builder> Element for T {
         let mut sub_ctx = Context::new_sub(ctx, &mut tree);
 
         // TODO: Should this require opening a new socket?
-        sub_ctx.socket(socket::Id::default(), socket, max_area);
+        sub_ctx.socket(SocketName::default(), socket, max_area);
 
         None
     }

@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use crate::core::*;
+use crate::core::element::*;
 
 pub trait DynElement: Any {
     fn box_clone(
@@ -10,7 +10,7 @@ pub trait DynElement: Any {
     fn box_run(
         self: Box<Self>,
         ctx: &mut Context,
-        socket: &mut dyn socket::Socket,
+        socket: &mut dyn Socket,
     ) -> Option<Box<dyn DynElement>>;
 
     fn into_any_mut(
@@ -28,7 +28,7 @@ impl<T: Element> DynElement for T {
     fn box_run(
         self: Box<Self>,
         ctx: &mut Context,
-        socket: &mut dyn socket::Socket,
+        socket: &mut dyn Socket,
     ) -> Option<Box<dyn DynElement>> {
         let next = self.run(ctx, socket);
         next.map(|x| Box::new(x) as Box<dyn DynElement>)
@@ -48,7 +48,7 @@ impl Clone for Box<dyn DynElement> {
 }
 
 impl Element for Box<dyn DynElement> {
-    type Resume = Self;
+    type Suspended = Self;
 
     fn run(
         self,

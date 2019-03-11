@@ -2,21 +2,22 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use crate::util::fill::Fill;
-use crate::core::*;
+use crate::core::element::*;
 
-pub trait Socket: Fill<render::Render> {
+pub trait Socket: Fill<LayoutObj> {
 }
 
-impl<T: Fill<Render>> Socket for T {
+impl<T: Fill<LayoutObj>> Socket for T {
 }
 
+// TODO: Should this be an arrayvec::ArrayString instead?
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
-pub struct Id(pub u64);
+pub struct SocketName(pub u64);
 
-impl<'a> From<&'a str> for Id {
+impl<'a> From<&'a str> for SocketName {
     fn from(s: &'a str) -> Self {
         let mut hasher = DefaultHasher::new();
         s.hash(&mut hasher);
-        Id(hasher.finish())
+        SocketName(hasher.finish())
     }
 }

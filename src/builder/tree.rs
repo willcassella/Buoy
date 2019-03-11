@@ -1,19 +1,19 @@
 use std::collections::VecDeque;
 
-use crate::core::*;
+use crate::prelude::*;
 use super::context::{Node, NodeKind};
 
-impl context::TreeProvider for VecDeque<Node> {
+impl TreeProvider for VecDeque<Node> {
     fn socket(
         &mut self,
-        socket: socket::Id,
-        listener: &mut context::TreeListener,
+        ctx: &mut TreeContext,
+        name: SocketName,
     ) -> bool {
-        assert_eq!(socket, socket::Id::default(), "Only default sockets are supported at the moment");
+        assert_eq!(name, SocketName::default(), "Only default sockets are supported at the moment");
 
-        loop {
+        while ctx.remaining_capacity() != 0 {
             // Get the first element
-            let mut node = match self.pop_front() {
+            let node = match self.pop_front() {
                 Some(node) => node,
                 None => return false,
             };
@@ -25,22 +25,9 @@ impl context::TreeProvider for VecDeque<Node> {
             };
 
             // Run it
-            let resume = listener.element(id, element, &mut node.children);
-
-            // If it needs to resume, push that and quit
-            // TODO: I think ultimately the context should handle this
-            match resume {
-                Some(resume) => {
-                    self.push_front(Node {
-                        kind: NodeKind::Element(resume, id),
-                        children: node.children,
-                    });
-                    return true
-                },
-                None => (),
-            }
+            ctx.element(id, element, node.children);
         }
 
-        false
+        !self.is_empty()
     }
 }

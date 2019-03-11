@@ -1,19 +1,15 @@
 use std::rc::Rc;
 use std::collections::VecDeque;
 
-use crate::core::*;
-use crate::layout::Area;
-use crate::input::{Input, InputState};
+use crate::prelude::*;
 
-use super::tree;
-
-pub enum NodeKind {
-    Element(Box<dyn element::DynElement>, element::Id),
-    Filter(Rc<dyn Filter>),
-    Socket(socket::Id),
+pub(crate) enum NodeKind {
+    Element(Box<dyn DynElement>, Id),
+    Filter(Rc<dyn DynFilter>),
+    Socket(SocketName),
 }
 
-pub struct Node {
+pub(crate) struct Node {
     pub kind: NodeKind,
     pub children: VecDeque<Node>,
 }
@@ -46,7 +42,7 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
         self.roots
     }
 
-    pub fn element_id(&self) -> element::Id {
+    pub fn element_id(&self) -> Id {
         self.ctx.element_id()
     }
 
@@ -57,7 +53,7 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
     pub fn element_begin<E: Element>(
         &mut self,
         element: E,
-        id: element::Id,
+        id: Id,
     ) {
         // Create a new node for this element
         // Back the current root set up as its children
@@ -97,14 +93,14 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
 
     pub fn filter_next_frame(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.ctx.filter_next_frame(filter)
     }
 
     pub fn filter_late_next_frame(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.ctx.filter_late_next_frame(filter)
     }

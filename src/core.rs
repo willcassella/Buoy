@@ -1,14 +1,7 @@
 pub mod element;
-pub use self::element::{Element, DynElement};
-
-pub mod render;
-pub use self::render::{Render};
-
-pub mod socket;
-pub use socket::Socket;
-
+pub mod tree;
 pub mod filter;
-pub use filter::Filter;
+pub(crate) mod common;
 
-pub mod context;
-pub use context::Context;
+mod window;
+pub use window::Window;

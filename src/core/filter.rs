@@ -1,57 +1,63 @@
 use std::rc::Rc;
 
-use crate::core::*;
+use crate::core::element::*;
+use crate::core::tree::*;
 
 #[derive(Clone, Default)]
 pub struct FilterStack {
-    pub(crate) filters: Vec<Rc<dyn Filter>>,
-    pub(crate) late_filters: Vec<Rc<dyn Filter>>,
+    pub(crate) filters: Vec<Rc<dyn DynFilter>>,
+    pub(crate) late_filters: Vec<Rc<dyn DynFilter>>,
 }
 
 impl FilterStack {
     pub fn add_filter(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.filters.push(filter);
     }
 
     pub fn add_filter_late(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.late_filters.push(filter);
     }
 }
 
-pub trait Filter {
-    fn target_id(&self) -> Option<element::Id> {
-        None
+pub trait Filter: Sized {
+    fn element<E: Element, T: TreeProvider>(
+        &self,
+        ctx: &mut TreeContext,
+        id: Id,
+        element: E,
+        children: T,
+        _filters: &mut FilterStack,
+    ) {
+        ctx.element(id, element, children);
     }
+}
 
-    fn recurse(&self) -> bool {
-        false
-    }
-
+pub trait DynFilter {
     fn element(
         &self,
-        _ctx: &mut Context,
-        _element: Box<dyn element::DynElement>,
-        _filters: &mut FilterStack,
-    ) {
-        // ctx.begin_widget(widget);
-        //     ctx.anchor_default();
-        // ctx.end();
-    }
+        ctx: &mut TreeContext,
+        id: Id,
+        element: Box<dyn DynElement>,
+        children: Box<dyn TreeProvider>,
+        filters: &mut FilterStack,
+    );
+}
 
-    fn socket(
+impl<T: Filter> DynFilter for T {
+    fn element(
         &self,
-        _ctx: &mut Context,
-        //socket: UISocket,
-        _filters: &mut FilterStack,
+        ctx: &mut TreeContext,
+        id: Id,
+        element: Box<dyn DynElement>,
+        children: Box<dyn TreeProvider>,
+        filters: &mut FilterStack,
     ) {
-        // ctx.begin_socket(socket);
-        //     ctx.anchor_default();
-        // ctx.end();
+        T::element(self, ctx, id, element, children, filters);
     }
 }

@@ -1,8 +1,8 @@
 pub mod archetype;
 pub mod border;
 pub mod fill;
-pub mod space;
+pub mod min;
+pub mod max;
 pub mod list;
 pub mod grid;
 pub mod hover;
-pub mod null_render;

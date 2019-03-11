@@ -1,7 +1,7 @@
-use crate::layout::{Region, Area};
+use crate::prelude::*;
 use crate::render::{CommandList, color};
 use crate::render::commands::ColoredQuad;
-use crate::core::*;
+
 use super::archetype;
 
 #[repr(C)]
@@ -27,10 +27,10 @@ impl archetype::Wrap for SolidFill {
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-        child: Render,
+        child: LayoutObj,
     ) {
         let color = self.color;
-        ctx.render_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
             Self::generate_quad(color, region, cmds);
             child.imp.render(region, cmds);
         });
@@ -42,20 +42,20 @@ impl archetype::Wrap for SolidFill {
         socket: &mut dyn Socket,
     ) {
         let color = self.color;
-        ctx.render_new(socket, Area::zero(), move |region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(socket, Area::zero(), move |region: Region, cmds: &mut CommandList| {
             Self::generate_quad(color, region, cmds);
         });
     }
 }
 
 impl Element for SolidFill {
-    type Resume = ();
+    type Suspended = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-    ) -> Option<Self::Resume> {
+    ) -> Option<Self::Suspended> {
         archetype::wrap(self, ctx, socket);
         None
     }

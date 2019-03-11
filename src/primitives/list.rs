@@ -1,7 +1,7 @@
 use std::f32;
-use crate::layout::{Area, Region};
+
+use crate::prelude::*;
 use crate::render::CommandList;
-use crate::core::*;
 
 use super::archetype;
 
@@ -45,13 +45,13 @@ impl List {
 }
 
 impl Element for List {
-    type Resume = ();
+    type Suspended = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-    ) -> Option<Self::Resume> {
+    ) -> Option<Self::Suspended> {
         archetype::panel(self, ctx, socket);
         None
     }
@@ -76,7 +76,7 @@ impl archetype::Panel for List {
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-        children: Vec<Render>
+        children: Vec<LayoutObj>
     ) {
         let mut min_area = Area::zero();
 
@@ -98,7 +98,7 @@ impl archetype::Panel for List {
             }
         }
 
-        let render_func: Box<dyn render::RenderImpl> = match self.dir {
+        let layout_func: Box<dyn Layout> = match self.dir {
             Dir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_left_to_right(children.as_slice(), region, cmds);
             }),
@@ -113,11 +113,11 @@ impl archetype::Panel for List {
             }),
         };
 
-        ctx.render(socket, Render{ min_area, imp: render_func });
+        ctx.layout(socket, LayoutObj{ min_area, imp: layout_func });
     }
 }
 
-fn render_left_to_right(children: &[Render], mut region: Region, cmds: &mut CommandList) {
+fn render_left_to_right(children: &[LayoutObj], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.width = child.min_area.width;
@@ -129,7 +129,7 @@ fn render_left_to_right(children: &[Render], mut region: Region, cmds: &mut Comm
     }
 }
 
-fn render_right_to_left(children: &[Render], mut region: Region, out: &mut CommandList) {
+fn render_right_to_left(children: &[LayoutObj], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.x = child_region.pos.x + child_region.area.width - child.min_area.width;
@@ -141,7 +141,7 @@ fn render_right_to_left(children: &[Render], mut region: Region, out: &mut Comma
     }
 }
 
-fn render_top_to_bottom(children: &[Render], mut region: Region, cmds: &mut CommandList) {
+fn render_top_to_bottom(children: &[LayoutObj], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.height = child.min_area.height;
@@ -153,7 +153,7 @@ fn render_top_to_bottom(children: &[Render], mut region: Region, cmds: &mut Comm
     }
 }
 
-fn render_bottom_to_top(children: &[Render], mut region: Region, out: &mut CommandList) {
+fn render_bottom_to_top(children: &[LayoutObj], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.y = region.pos.y + region.area.height - child.min_area.height;

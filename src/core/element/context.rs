@@ -1,73 +1,16 @@
 use std::rc::Rc;
-use crate::core::*;
-use crate::layout::Area;
-use crate::input::{Input, InputId, InputState, InputCache};
 
-pub struct TreeNode<E: Element> {
-    pub element: E,
-    pub id: element::Id,
-}
-
-pub struct TreeListener<'a> {
-    socket: &'a mut dyn Socket,
-    max_area: Area,
-
-    prev_input: &'a InputCache,
-    global_data: &'a mut GlobalData,
-}
-
-impl<'a> TreeListener<'a> {
-    pub fn remaining_capacity(&self) -> usize {
-        self.socket.remaining_capacity()
-    }
-
-    pub fn element<E: Element, T: TreeProvider>(
-        &mut self,
-        id: element::Id,
-        element: E,
-        sub_provider: &mut T,
-    ) -> Option<E::Resume> {
-        // Create a new context
-        let mut ctx = Context::new(
-            sub_provider,
-            id,
-            self.max_area,
-            self.prev_input,
-            self.global_data
-        );
-
-        element.run(&mut ctx, self.socket)
-    }
-}
-
-pub trait TreeProvider {
-    fn socket(
-        &mut self,
-        id: socket::Id,
-        listener: &mut TreeListener,
-    ) -> bool;
-}
-
-impl TreeProvider for () {
-    fn socket(
-        &mut self,
-        _id: socket::Id,
-        _listener: &mut TreeListener,
-    ) -> bool {
-        // Do nothing
-        false
-    }
-}
-
-pub(crate) struct GlobalData {
-    pub next_input_id: InputId,
-    pub next_frame_filters: filter::FilterStack,
-}
+use crate::space::*;
+use crate::input::*;
+use crate::core::element::*;
+use crate::core::tree::*;
+use crate::core::filter::*;
+use crate::core::common::*;
 
 pub struct Context<'a> {
     tree_provider: &'a mut dyn TreeProvider,
 
-    element_id: element::Id,
+    element_id: Id,
     max_area: Area,
 
     prev_input: &'a InputCache,
@@ -77,7 +20,7 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
     pub(crate) fn new(
         tree_provider: &'a mut dyn TreeProvider,
-        element_id: element::Id,
+        element_id: Id,
         max_area: Area,
         prev_input: &'a InputCache,
         global_data: &'a mut GlobalData,
@@ -106,7 +49,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn element_id(&self) -> element::Id {
+    pub fn element_id(&self) -> Id {
         self.element_id
     }
 
@@ -114,49 +57,49 @@ impl<'a> Context<'a> {
         self.max_area
     }
 
-    pub fn render(
+    pub fn layout(
         &self,
         socket: &mut dyn Socket,
-        render: Render,
+        layout: LayoutObj,
     ) {
-        socket.push(render);
+        socket.push(layout);
     }
 
-    pub fn render_new<R: render::RenderImpl + 'static>(
+    pub fn layout_new<L: Layout + 'static>(
         &self,
         socket: &mut dyn Socket,
         min_area: Area,
-        render: R,
+        layout: L,
     ) {
-        let render = Render{ min_area, imp: Box::new(render) };
-        self.render(socket, render);
+        let layout = LayoutObj{ min_area, imp: Box::new(layout) };
+        self.layout(socket, layout);
     }
 
     pub fn socket(
         &mut self,
-        id: socket::Id,
+        name: SocketName,
         socket: &mut dyn Socket,
         child_max_area: Area,
     ) -> bool {
-        let mut listener = TreeListener{
+        let mut tree_ctx = TreeContext{
             socket: socket,
             max_area: child_max_area,
             prev_input: self.prev_input,
             global_data: self.global_data,
         };
-        self.tree_provider.socket(id, &mut listener)
+        self.tree_provider.socket(&mut tree_ctx, name)
     }
 
     pub fn filter_next_frame(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.global_data.next_frame_filters.add_filter(filter);
     }
 
     pub fn filter_late_next_frame(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.global_data.next_frame_filters.add_filter_late(filter);
     }

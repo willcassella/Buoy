@@ -1,72 +1,9 @@
 use std::f32;
-use crate::core::*;
-use crate::layout::{Area, Region};
+
+use crate::prelude::*;
 use crate::render::CommandList;
-use crate::primitives::{archetype, null_render::NullUIRender};
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub enum HAlign {
-    Left,
-    Right,
-    Center,
-}
-
-impl Default for HAlign {
-    fn default() -> Self {
-        HAlign::Left
-    }
-}
-
-fn align_horizontally(align: HAlign, area: Area, mut region: Region) -> Region {
-    match align {
-        HAlign::Left => {
-            region.area.width = area.width;
-        },
-        HAlign::Right => {
-            region.pos.x = region.pos.x + region.area.width - area.width;
-            region.area.width = area.width;
-        },
-        HAlign::Center => {
-            region.pos.x = (region.pos.x + region.area.width / 2_f32) - area.width / 2_f32;
-            region.area.width = area.width;
-        },
-    }
-
-    region
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub enum VAlign {
-    Top,
-    Bottom,
-    Center,
-}
-
-impl Default for VAlign {
-    fn default() -> Self {
-        VAlign::Top
-    }
-}
-
-fn align_vertically(align: VAlign, area: Area, mut region: Region) -> Region {
-    match align {
-        VAlign::Top => {
-            region.area.height = area.height;
-        },
-        VAlign::Bottom => {
-            region.pos.y = region.pos.y + region.area.height - area.height;
-            region.area.height = area.height;
-        },
-        VAlign::Center => {
-            region.pos.y = (region.pos.y + region.area.height / 2_f32) - area.height / 2_f32;
-            region.area.height = area.height;
-        }
-    }
-
-    region
-}
+use super::archetype;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -133,13 +70,13 @@ impl Default for Space {
 }
 
 impl Element for Space {
-    type Resume = ();
+    type Suspended = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-    ) -> Option<Self::Resume> {
+    ) -> Option<Self::Suspended> {
         archetype::wrap(self, ctx, socket);
         None
     }
@@ -159,14 +96,14 @@ impl archetype::Wrap for Space {
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-        child: Render
+        child: LayoutObj,
     ) {
-        ctx.render_new(socket, child.min_area, move |mut region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(socket, child.min_area, move |mut region: Region, cmds: &mut CommandList| {
             if self.max.width < region.area.width {
-                region = align_horizontally(self.h_align, self.max, region);
+                region = self.h_align.align(self.max, region);
             }
             if self.max.height < region.area.height {
-                region = align_vertically(self.v_align, self.max, region);
+                region = self.v_align.align(self.max, region);
             }
 
             child.imp.render(region, cmds);
@@ -180,7 +117,7 @@ impl archetype::Wrap for Space {
     ) {
         // Just take up space
         if self.min != Area::zero() {
-            ctx.render_new(socket, self.min, NullUIRender);
+            ctx.layout_new(socket, self.min, NullLayout);
         }
     }
 }

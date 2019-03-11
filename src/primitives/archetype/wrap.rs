@@ -1,5 +1,4 @@
-use crate::layout::Area;
-use crate::core::*;
+use crate::prelude::*;
 
 pub trait Wrap {
     fn open(&self, max_area: Area) -> Area {
@@ -10,7 +9,7 @@ pub trait Wrap {
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-        child: Render,
+        child: LayoutObj,
     );
 
     fn close_none(
@@ -28,7 +27,7 @@ pub fn wrap<T: Wrap>(
     let mut child_socket = None;
 
     let child_max_area = wrap.open(ctx.max_area());
-    ctx.socket(socket::Id::default(), &mut child_socket, child_max_area);
+    ctx.socket(SocketName::default(), &mut child_socket, child_max_area);
 
     match child_socket {
         Some(child) => wrap.close_some(ctx, socket, child),

@@ -1,8 +1,11 @@
 use std::rc::Rc;
 use std::mem::replace;
-use crate::core::*;
-use crate::layout::Area;
-use super::input::{Input, InputState, FrameId, ContextId, InputId, InputCache};
+
+use crate::space::*;
+use crate::input::*;
+use crate::core::element::*;
+use crate::core::filter::*;
+use crate::core::common::*;
 
 #[derive(Default)]
 pub struct Window {
@@ -12,7 +15,7 @@ pub struct Window {
     prev_input: InputCache,
     cur_input: InputCache,
 
-    next_frame_filters: filter::FilterStack,
+    next_frame_filters: FilterStack,
 }
 
 impl Window {
@@ -20,7 +23,7 @@ impl Window {
         &mut self,
         max_area: Area,
         root: E,
-    ) -> Option<Render> {
+    ) -> Option<LayoutObj> {
         // Increment frame id
         self.frame_id = self.frame_id.next();
         self.next_context_id = Default::default();
@@ -30,21 +33,21 @@ impl Window {
         self.cur_input.clear();
 
         // Get filters for the next frame
-        let frame_filters = replace(&mut self.next_frame_filters, filter::FilterStack::default());
+        let frame_filters = replace(&mut self.next_frame_filters, FilterStack::default());
 
         // Create root socket
-        let mut out: Option<Render> = None;
+        let mut out: Option<LayoutObj> = None;
 
         // Create a context for running
-        let mut global_data = context::GlobalData {
+        let mut global_data = GlobalData {
            next_input_id: InputId::new(self.frame_id, ContextId(0)),
-           next_frame_filters: filter::FilterStack::default(),
+           next_frame_filters: FilterStack::default(),
         };
 
         let mut tree_provider = ();
         let mut ctx = Context::new(
             &mut tree_provider,
-            element::Id::from(""),
+            Id::from(""),
             max_area,
             &self.prev_input,
             &mut global_data,
@@ -58,14 +61,14 @@ impl Window {
 
     pub fn filter(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.next_frame_filters.add_filter(filter);
     }
 
     pub fn filter_late(
         &mut self,
-        filter: Rc<dyn Filter>,
+        filter: Rc<dyn DynFilter>,
     ) {
         self.next_frame_filters.add_filter_late(filter);
     }

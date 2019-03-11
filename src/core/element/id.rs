@@ -6,7 +6,6 @@ use std::collections::hash_map::DefaultHasher;
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct Id(u64);
 
-
 impl Id {
     pub fn append(self, id: Id) -> Self {
         let mut hasher = DefaultHasher::new();

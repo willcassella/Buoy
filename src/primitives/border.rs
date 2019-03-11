@@ -1,9 +1,8 @@
-use crate::layout::{Area, Region};
+use crate::prelude::*;
 use crate::render::{CommandList, color};
 use crate::render::commands::{Quad, ColoredQuad};
-use crate::core::*;
 
-use super::{archetype, null_render::NullUIRender};
+use super::archetype;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -77,13 +76,13 @@ impl Default for BlockBorder {
 }
 
 impl Element for BlockBorder {
-    type Resume = ();
+    type Suspended = ();
 
     fn run(
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket
-    ) -> Option<Self::Resume> {
+    ) -> Option<Self::Suspended> {
         archetype::wrap(self, ctx, socket);
         None
     }
@@ -101,7 +100,7 @@ impl archetype::Wrap for BlockBorder {
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-        child: Render,
+        child: LayoutObj,
     ) {
         let mut min_area = child.min_area;
 
@@ -109,7 +108,7 @@ impl archetype::Wrap for BlockBorder {
         min_area.width += self.left + self.right;
         min_area.height += self.top + self.bottom;
 
-        ctx.render_new(socket, min_area, move |mut region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(socket, min_area, move |mut region: Region, cmds: &mut CommandList| {
             // Unless we're fully transparent, render the border
             if self.color != color::constants::TRANSPARENT {
                 self.generate_commands(region, cmds);
@@ -135,9 +134,9 @@ impl archetype::Wrap for BlockBorder {
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
 
         if self.color == color::constants::TRANSPARENT {
-            ctx.render_new(socket, min_area, NullUIRender);
+            ctx.layout_new(socket, min_area, NullLayout);
         } else {
-            ctx.render_new(socket, min_area, move |region: Region, cmds: &mut CommandList| {
+            ctx.layout_new(socket, min_area, move |region: Region, cmds: &mut CommandList| {
                 self.generate_commands(region, cmds);
             });
         }

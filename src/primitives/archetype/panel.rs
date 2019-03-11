@@ -1,5 +1,4 @@
-use crate::layout::Area;
-use crate::core::*;
+use crate::prelude::*;
 
 pub trait Panel {
     fn open(
@@ -11,7 +10,7 @@ pub trait Panel {
         self,
         ctx: &mut Context,
         socket: &mut dyn Socket,
-        children: Vec<Render>
+        children: Vec<LayoutObj>
     );
 }
 
@@ -23,7 +22,7 @@ pub fn panel<T: Panel>(
     let mut children = Vec::new();
 
     let child_max_area = panel.open(ctx.max_area());
-    while ctx.socket(socket::Id::default(), &mut children, child_max_area) { }
+    while ctx.socket(SocketName::default(), &mut children, child_max_area) { }
 
     panel.close(ctx, socket, children);
 }
