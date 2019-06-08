@@ -70,15 +70,11 @@ impl Default for Space {
 }
 
 impl Element for Space {
-    type Suspended = ();
-
-    fn run(
+    fn run<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-    ) -> Option<Self::Suspended> {
-        archetype::wrap(self, ctx, socket);
-        None
+        ctx: C,
+    ) {
+        archetype::wrap(self, ctx)
     }
 }
 
@@ -92,13 +88,12 @@ impl archetype::Wrap for Space {
         max_area
     }
 
-    fn close_some(
+    fn close_some<'a, C: Context<'a>, L: Layout>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-        child: LayoutObj,
+        ctx: C,
+        child: LayoutObj<L>,
     ) {
-        ctx.layout_new(socket, child.min_area, move |mut region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(child.min_area, move |mut region: Region, cmds: &mut CommandList| {
             if self.max.width < region.area.width {
                 region = self.h_align.align(self.max, region);
             }
@@ -110,14 +105,13 @@ impl archetype::Wrap for Space {
         });
     }
 
-    fn close_none(
+    fn close_none<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
+        ctx: C,
     ) {
         // Just take up space
         if self.min != Area::zero() {
-            ctx.layout_new(socket, self.min, NullLayout);
+            ctx.layout_new(self.min, ());
         }
     }
 }

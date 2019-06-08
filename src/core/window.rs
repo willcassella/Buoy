@@ -45,16 +45,16 @@ impl Window {
         };
 
         let mut tree_provider = ();
-        let mut ctx = Context::new(
-            &mut tree_provider,
-            Id::from(""),
+        let mut ctx = ContextImpl {
+            tree_provider: &mut tree_provider,
+            element_id: Id::from(""),
             max_area,
-            &self.prev_input,
-            &mut global_data,
-        );
+            prev_input: &self.prev_input,
+            global_data: &mut global_data,
+        };
 
         // Run the element
-        root.run(&mut ctx, &mut out);
+        root.run(ctx);
 
         out
     }

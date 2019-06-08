@@ -76,15 +76,11 @@ impl Default for BlockBorder {
 }
 
 impl Element for BlockBorder {
-    type Suspended = ();
-
-    fn run(
+    fn run<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket
-    ) -> Option<Self::Suspended> {
-        archetype::wrap(self, ctx, socket);
-        None
+        ctx: C,
+    ) {
+        archetype::wrap(self, ctx)
     }
 }
 
@@ -96,11 +92,10 @@ impl archetype::Wrap for BlockBorder {
         max_area
     }
 
-    fn close_some(
+    fn close_some<'a, C: Context<'a>, L: Layout>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-        child: LayoutObj,
+        ctx: C,
+        child: LayoutObj<L>,
     ) {
         let mut min_area = child.min_area;
 
@@ -108,7 +103,7 @@ impl archetype::Wrap for BlockBorder {
         min_area.width += self.left + self.right;
         min_area.height += self.top + self.bottom;
 
-        ctx.layout_new(socket, min_area, move |mut region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(min_area, move |mut region: Region, cmds: &mut CommandList| {
             // Unless we're fully transparent, render the border
             if self.color != color::constants::TRANSPARENT {
                 self.generate_commands(region, cmds);
@@ -125,18 +120,17 @@ impl archetype::Wrap for BlockBorder {
         })
     }
 
-    fn close_none(
+    fn close_none<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
+        ctx: C,
     ) {
         // Since we don't have a child, min area is just size of border
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
 
         if self.color == color::constants::TRANSPARENT {
-            ctx.layout_new(socket, min_area, NullLayout);
+            ctx.layout_new(min_area, ());
         } else {
-            ctx.layout_new(socket, min_area, move |region: Region, cmds: &mut CommandList| {
+            ctx.layout_new(min_area, move |region: Region, cmds: &mut CommandList| {
                 self.generate_commands(region, cmds);
             });
         }

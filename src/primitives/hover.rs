@@ -28,26 +28,21 @@ impl Hover {
 }
 
 impl Element for Hover {
-    type Suspended = ();
-
-    fn run(
+    fn run<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket
-    ) -> Option<Self::Suspended> {
-        archetype::wrap(self, ctx, socket);
-        None
+        ctx: C,
+    ) {
+        archetype::wrap(self, ctx)
     }
 }
 
 impl archetype::Wrap for Hover {
-    fn close_some(
+    fn close_some<'a, C: Context<'a>, L: Layout>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-        child: LayoutObj,
+        ctx: C,
+        child: LayoutObj<L>,
     ) {
-        ctx.layout_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(child.min_area, move |region: Region, cmds: &mut CommandList| {
             // Render the child
             child.imp.render(region, cmds);
 
@@ -61,10 +56,9 @@ impl archetype::Wrap for Hover {
         });
     }
 
-    fn close_none(
+    fn close_none<'a, C: Context<'a>>(
         self,
-        _ctx: &mut Context,
-        _socket: &mut Socket,
+        _ctx: C,
     ) {
         // Do nothing
     }

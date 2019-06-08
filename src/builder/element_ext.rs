@@ -1,12 +1,11 @@
-use crate::prelude::*;
 use crate::builder::*;
 
 pub trait ElementExt: Element {
-    fn begin<'a, 'b, 'ctx>(
+    fn begin<C: BuilderContext>(
         self,
-        ctx: &'a mut BuilderContext<'b, 'ctx>,
+        ctx: &mut C,
         id: Id,
-    ) -> &'a mut BuilderContext<'b, 'ctx> {
+    ) -> &mut C {
         ctx.element_begin(self, id);
         ctx
     }

@@ -23,40 +23,34 @@ impl SolidFill {
 }
 
 impl archetype::Wrap for SolidFill {
-    fn close_some(
+    fn close_some<'a, C: Context<'a>, L: Layout>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-        child: LayoutObj,
+        ctx: C,
+        child: LayoutObj<L>,
     ) {
         let color = self.color;
-        ctx.layout_new(socket, child.min_area, move |region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(child.min_area, move |region: Region, cmds: &mut CommandList| {
             Self::generate_quad(color, region, cmds);
             child.imp.render(region, cmds);
         });
     }
 
-    fn close_none(
+    fn close_none<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
+        ctx: C,
     ) {
         let color = self.color;
-        ctx.layout_new(socket, Area::zero(), move |region: Region, cmds: &mut CommandList| {
+        ctx.layout_new(Area::zero(), move |region: Region, cmds: &mut CommandList| {
             Self::generate_quad(color, region, cmds);
         });
     }
 }
 
 impl Element for SolidFill {
-    type Suspended = ();
-
-    fn run(
+    fn run<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-    ) -> Option<Self::Suspended> {
-        archetype::wrap(self, ctx, socket);
-        None
+        ctx: C,
+    ) {
+        archetype::wrap(self, ctx)
     }
 }

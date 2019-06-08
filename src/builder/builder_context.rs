@@ -14,17 +14,61 @@ pub(crate) struct Node {
     pub children: VecDeque<Node>,
 }
 
-pub struct BuilderContext<'a, 'ctx> {
-    ctx: &'a mut Context<'ctx>,
-    roots: VecDeque<Node>,
-    stack: Vec<Node>,
+pub trait BuilderContext: Sized {
+    fn element_id(
+        &self,
+    ) -> Id;
+
+    fn max_area(
+        &self,
+    ) -> Area;
+
+    fn element_begin<E: Element>(
+        &mut self,
+        element: E,
+        id: Id,
+    );
+
+    fn filter_begin<F: Filter + 'static>(
+        &mut self,
+        filter: F,
+    );
+
+    fn end(
+        &mut self,
+    );
+
+    fn filter_next_frame(
+        &mut self,
+        filter: Rc<dyn DynFilter>,
+    );
+
+    fn filter_late_next_frame(
+        &mut self,
+        filter: Rc<dyn DynFilter>,
+    );
+
+    fn new_input<F: InputState>(
+        &mut self
+    ) -> Input<F>;
+
+    fn read_input<F: InputState>(
+        &self,
+        input: Input<F>
+    ) -> F;
 }
 
-impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
+pub struct BuilderContextImpl<'a, C> {
+    pub(crate) ctx: &'a mut C,
+    pub(crate) roots: VecDeque<Node>,
+    pub(crate) stack: Vec<Node>,
+}
+
+impl<'a, 'b, C: Context<'b>> BuilderContextImpl<'a, C> {
     pub(crate) fn new(
-        ctx: &'a mut Context<'ctx>,
+        ctx: &'a mut C
     ) -> Self {
-        BuilderContext{
+        BuilderContextImpl{
             ctx,
             roots: VecDeque::new(),
             stack: Vec::new(),
@@ -41,16 +85,18 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
 
         self.roots
     }
+}
 
-    pub fn element_id(&self) -> Id {
+impl<'a, 'b, C: Context<'b>> BuilderContext for BuilderContextImpl<'a, C> {
+    fn element_id(&self) -> Id {
         self.ctx.element_id()
     }
 
-    pub fn max_area(&self) -> Area {
+    fn max_area(&self) -> Area {
         self.ctx.max_area()
     }
 
-    pub fn element_begin<E: Element>(
+    fn element_begin<E: Element>(
         &mut self,
         element: E,
         id: Id,
@@ -58,14 +104,14 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
         // Create a new node for this element
         // Back the current root set up as its children
         let node = Node {
-            kind: NodeKind::Element(element.upcast(), id),
+            kind: NodeKind::Element(element.upcast_box(), id),
             children: std::mem::replace(&mut self.roots, VecDeque::new()),
         };
 
         self.stack.push(node);
     }
 
-    pub fn filter_begin<F: Filter + 'static>(
+    fn filter_begin<F: Filter + 'static>(
         &mut self,
         filter: F,
     ) {
@@ -79,7 +125,7 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
         self.stack.push(node);
     }
 
-    pub fn end(
+    fn end(
         &mut self,
     ) {
         let mut node = self.stack.pop().expect("Call to 'end' beyond last element");
@@ -91,25 +137,25 @@ impl<'a, 'ctx> BuilderContext<'a, 'ctx> {
         self.roots.push_back(node);
     }
 
-    pub fn filter_next_frame(
+    fn filter_next_frame(
         &mut self,
         filter: Rc<dyn DynFilter>,
     ) {
         self.ctx.filter_next_frame(filter)
     }
 
-    pub fn filter_late_next_frame(
+    fn filter_late_next_frame(
         &mut self,
         filter: Rc<dyn DynFilter>,
     ) {
         self.ctx.filter_late_next_frame(filter)
     }
 
-    pub fn new_input<F: InputState>(&mut self) -> Input<F> {
+    fn new_input<F: InputState>(&mut self) -> Input<F> {
         self.ctx.new_input()
     }
 
-    pub fn read_input<F: InputState>(&self, input: Input<F>) -> F {
+    fn read_input<F: InputState>(&self, input: Input<F>) -> F {
         self.ctx.read_input(input)
     }
 }

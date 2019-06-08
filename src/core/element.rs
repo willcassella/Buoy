@@ -1,30 +1,27 @@
 use std::any::Any;
 
+use crate::core::tree::*;
+use crate::core::common::*;
+
 mod context;
-pub use self::context::Context;
+pub use self::context::{Context, DynContext, ContextImpl};
 
 mod id;
 pub use self::id::Id;
-
-mod dyn_element;
-pub use self::dyn_element::DynElement;
 
 mod socket;
 pub use self::socket::{Socket, SocketName};
 
 mod layout;
-pub use self::layout::{Layout, LayoutObj, NullLayout};
+pub use self::layout::{Layout, LayoutObj};
 
 pub trait Element: Sized + Clone + Any {
-    type Suspended: Element;
-
-    fn run(
+    fn run<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-    ) -> Option<Self::Suspended>;
+        ctx: C,
+    );
 
-    fn upcast(
+    fn upcast_box(
         self,
     ) -> Box<dyn DynElement> {
         Box::new(self)
@@ -38,14 +35,80 @@ pub trait Element: Sized + Clone + Any {
 }
 
 impl Element for () {
-    type Suspended = ();
-
-    fn run(
+    fn run<'a, C: Context<'a>>(
         self,
-        _ctx: &mut Context,
-        _socket: &mut dyn Socket,
-    ) -> Option<Self::Suspended> {
+        _ctx: C,
+    ) {
         // Do nothing
-        None
+    }
+}
+
+pub trait DynElement: Any {
+    fn box_clone(
+        &self
+    ) -> Box<dyn DynElement>;
+
+    fn box_run<'a>(
+        self: Box<Self>,
+        ctx: DynContext<'a>,
+    );
+
+    fn into_any_mut(
+        &mut self,
+    ) -> &mut Any;
+}
+
+impl<T: Element> DynElement for T {
+    fn box_clone(
+        &self
+    ) -> Box<dyn DynElement> {
+        Box::new(self.clone())
+    }
+
+    fn box_run<'a>(
+        self: Box<Self>,
+        ctx: DynContext<'a>,
+    ) {
+        unimplemented!()
+    }
+
+    fn into_any_mut(
+        &mut self,
+    ) -> &mut Any {
+        self
+    }
+}
+
+impl Clone for Box<dyn DynElement> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
+
+impl Element for Box<dyn DynElement> {
+    fn run<'a, C: Context<'a>>(
+        self,
+        ctx: C,
+    ) {
+        self.box_run(ctx.upcast())
+    }
+
+    fn upcast_box(
+        self,
+    ) -> Box<dyn DynElement> {
+        self
+    }
+
+    fn downcast<D: Element>(
+        self,
+    ) -> Result<D, Self> {
+        let raw = Box::into_raw(self);
+
+        unsafe {
+            match (*raw).into_any_mut().downcast_mut::<D>() {
+                Some(v) => Ok(*Box::from_raw(v)),
+                None => Err(Box::from_raw(raw))
+            }
+        }
     }
 }

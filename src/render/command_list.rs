@@ -7,6 +7,11 @@ pub struct CommandList {
 }
 
 impl CommandList {
+    pub fn clear(&mut self) {
+        self.colored_quads.clear();
+        self.hover_quads.clear();
+    }
+
     pub fn add_colored_quads(&mut self, colored_quads: &[ColoredQuad]) {
         self.colored_quads.extend_from_slice(colored_quads);
     }

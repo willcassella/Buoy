@@ -5,24 +5,21 @@ pub trait Wrap {
         max_area
     }
 
-    fn close_some(
+    fn close_some<'a, C: Context<'a>, L: Layout>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-        child: LayoutObj,
+        ctx: C,
+        child: LayoutObj<L>,
     );
 
-    fn close_none(
+    fn close_none<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
+        ctx: C,
     );
 }
 
-pub fn wrap<T: Wrap>(
-    wrap: T,
-    ctx: &mut Context,
-    socket: &mut dyn Socket,
+pub fn wrap<'a, W: Wrap, C: Context<'a>>(
+    wrap: W,
+    mut ctx: C,
 ) {
     let mut child_socket = None;
 
@@ -30,7 +27,7 @@ pub fn wrap<T: Wrap>(
     ctx.socket(SocketName::default(), &mut child_socket, child_max_area);
 
     match child_socket {
-        Some(child) => wrap.close_some(ctx, socket, child),
-        None => wrap.close_none(ctx, socket),
+        Some(child) => wrap.close_some(ctx, child),
+        None => wrap.close_none(ctx),
     }
 }

@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::core::common::*;
 use crate::core::element::*;
 use crate::core::tree::*;
 
@@ -26,36 +27,37 @@ impl FilterStack {
 }
 
 pub trait Filter: Sized {
-    fn element<E: Element, T: TreeProvider>(
+    fn element<'a, C: TreeContext<'a>, E: Element, T: ?Sized + TreeProvider>(
         &self,
-        ctx: &mut TreeContext,
+        ctx: C,
         id: Id,
         element: E,
-        children: T,
+        children: &mut T,
         _filters: &mut FilterStack,
     ) {
-        ctx.element(id, element, children);
+        //ctx.element(id, element, children);
+        unimplemented!()
     }
 }
 
 pub trait DynFilter {
-    fn element(
+    fn element<'a>(
         &self,
-        ctx: &mut TreeContext,
+        ctx: DynTreeContext<'a>,
         id: Id,
         element: Box<dyn DynElement>,
-        children: Box<dyn TreeProvider>,
+        children: &'a mut dyn DynTreeProvider,
         filters: &mut FilterStack,
     );
 }
 
 impl<T: Filter> DynFilter for T {
-    fn element(
+    fn element<'a>(
         &self,
-        ctx: &mut TreeContext,
+        ctx: DynTreeContext<'a>,
         id: Id,
         element: Box<dyn DynElement>,
-        children: Box<dyn TreeProvider>,
+        children: &'a mut dyn DynTreeProvider,
         filters: &mut FilterStack,
     ) {
         T::element(self, ctx, id, element, children, filters);

@@ -5,9 +5,19 @@ use crate::util::fill::Fill;
 use crate::core::element::*;
 
 pub trait Socket: Fill<LayoutObj> {
+    fn upcast(&self) -> &dyn Socket;
+
+    fn upcast_mut(&mut self) -> &mut dyn Socket;
 }
 
 impl<T: Fill<LayoutObj>> Socket for T {
+    fn upcast(&self) -> &dyn Socket {
+        self
+    }
+
+    fn upcast_mut(&mut self) -> &mut dyn Socket {
+        self
+    }
 }
 
 // TODO: Should this be an arrayvec::ArrayString instead?

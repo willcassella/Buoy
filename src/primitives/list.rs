@@ -45,15 +45,11 @@ impl List {
 }
 
 impl Element for List {
-    type Suspended = ();
-
-    fn run(
+    fn run<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
-    ) -> Option<Self::Suspended> {
-        archetype::panel(self, ctx, socket);
-        None
+        ctx: C,
+    ) {
+        archetype::panel(self, ctx)
     }
 }
 
@@ -72,10 +68,9 @@ impl archetype::Panel for List {
         max_area
     }
 
-    fn close(
+    fn close<'a, C: Context<'a>>(
         self,
-        ctx: &mut Context,
-        socket: &mut dyn Socket,
+        ctx: C,
         children: Vec<LayoutObj>
     ) {
         let mut min_area = Area::zero();
@@ -113,7 +108,7 @@ impl archetype::Panel for List {
             }),
         };
 
-        ctx.layout(socket, LayoutObj{ min_area, imp: layout_func });
+        ctx.layout_new(min_area, layout_func);
     }
 }
 

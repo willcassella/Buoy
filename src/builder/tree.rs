@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
 
 use crate::prelude::*;
-use super::context::{Node, NodeKind};
+use super::builder_context::{Node, NodeKind};
 
 impl TreeProvider for VecDeque<Node> {
-    fn socket(
+    fn socket<'a, C: TreeContext<'a>>(
         &mut self,
-        ctx: &mut TreeContext,
+        mut ctx: C,
         name: SocketName,
     ) -> bool {
         assert_eq!(name, SocketName::default(), "Only default sockets are supported at the moment");
