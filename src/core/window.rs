@@ -35,18 +35,19 @@ impl Window {
         // Get filters for the next frame
         let frame_filters = replace(&mut self.next_frame_filters, FilterStack::default());
 
-        // Create root socket
-        let mut out: Option<LayoutObj> = None;
-
         // Create a context for running
         let mut global_data = GlobalData {
            next_input_id: InputId::new(self.frame_id, ContextId(0)),
            next_frame_filters: FilterStack::default(),
         };
 
+        // Create root socket and tree provider
+        let mut out: Option<LayoutObj> = None;
         let mut tree_provider = ();
-        let mut ctx = ContextImpl {
+
+        let mut ctx = Context {
             tree_provider: &mut tree_provider,
+            out_layout: &mut out,
             element_id: Id::from(""),
             max_area,
             prev_input: &self.prev_input,
@@ -61,14 +62,14 @@ impl Window {
 
     pub fn filter(
         &mut self,
-        filter: Rc<dyn DynFilter>,
+        filter: Rc<dyn Filter>,
     ) {
         self.next_frame_filters.add_filter(filter);
     }
 
     pub fn filter_late(
         &mut self,
-        filter: Rc<dyn DynFilter>,
+        filter: Rc<dyn Filter>,
     ) {
         self.next_frame_filters.add_filter_late(filter);
     }

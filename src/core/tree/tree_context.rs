@@ -8,59 +8,36 @@ use crate::core::tree::*;
 use crate::core::filter::*;
 use crate::core::common::*;
 
-pub trait TreeContext<'a>: Sized {
-    fn upcast(
-        self,
-    ) -> DynTreeContext<'a>;
-
-    fn remaining_capacity(
-        &self
-    ) -> usize;
-
-    fn element<E: Element, S: TreeProvider>(
-        &mut self,
-        id: Id,
-        element: E,
-        sub_provider: S,
-    );
-}
-
-pub type DynTreeContext<'a> = TreeContextImpl<'a, dyn Socket>;
-
-pub struct TreeContextImpl<'a, S: ?Sized + Socket> {
-    pub(crate) socket: &'a mut S,
+pub struct TreeContext<'window, 'ctx> {
+    pub(crate) socket: &'ctx mut dyn Socket,
     pub(crate) max_area: Area,
 
-    pub(crate) prev_input: &'a InputCache,
-    pub(crate) global_data: &'a mut GlobalData,
+    pub(crate) outer: &'ctx mut TreeContext<'window, 'ctx>,
+
+    pub(crate) prev_input: &'window InputCache,
+    pub(crate) global_data: &'window mut GlobalData,
 }
 
-impl<'a, S: ?Sized + Socket> TreeContext<'a> for TreeContextImpl<'a, S> {
-    fn upcast(
-        self,
-    ) -> DynTreeContext<'a> {
-        TreeContextImpl {
-            socket: unimplemented!(),
-            max_area: self.max_area,
-
-            prev_input: self.prev_input,
-            global_data: self.global_data,
-        }
-    }
-
-    fn remaining_capacity(&self) -> usize {
+impl<'window, 'ctx> TreeContext<'window, 'ctx> {
+    // Returns the remaining number of spaces in the current socket
+    pub fn remaining_capacity(&self) -> usize {
         self.socket.remaining_capacity()
     }
 
-    fn element<E: Element, T: TreeProvider>(
+    // Evaluates an element at this point in the tree
+    // id: Id of the element
+    pub fn element(
         &mut self,
         id: Id,
-        element: E,
-        mut sub_provider: T,
+        element: &dyn Element,
+        sub_provider: &mut dyn TreeProvider,
     ) {
+        let mut layout = None;
+
         // Create a new element context
-        let ctx = ContextImpl {
-            tree_provider: &mut sub_provider,
+        let ctx = Context {
+            tree_provider: sub_provider,
+            out_layout: &mut layout,
             element_id: id,
             max_area: self.max_area,
             prev_input: self.prev_input,
@@ -68,5 +45,23 @@ impl<'a, S: ?Sized + Socket> TreeContext<'a> for TreeContextImpl<'a, S> {
         };
 
         element.run(ctx);
+
+        if let Some(layout) = layout {
+            self.socket.push(layout);
+        }
+    }
+
+    // Allows this TreeProvider to delegate to the parent TreeProvider
+    // Opens a socket for the external element
+    // Problem: What if you don't want to open a super socket here?
+    // Is that a possibility?
+    // Otherwise, can you say you trust the evaluation of subcontexts completely?
+    pub fn super_socket(
+        &mut self,
+        name: SocketName,
+        socket: &mut dyn Socket,
+        child_max_area: Area,
+    ) {
+
     }
 }

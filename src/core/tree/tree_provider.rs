@@ -3,83 +3,21 @@ use crate::core::element::*;
 use crate::core::tree::*;
 
 pub trait TreeProvider {
-    // TODO: This should return something more descriptive than true/false
-    fn socket<'a, C: TreeContext<'a>>(
+    // Provides the given socket with elements that appear at the given point in the tree
+    fn socket<'window, 'ctx>(
         &mut self,
-        ctx: C,
+        ctx: TreeContext<'window, 'ctx>,
         name: SocketName,
-    ) -> bool where Self: Sized;
+    ) -> bool;
 }
 
 impl TreeProvider for () {
-    fn socket<'b, C: TreeContext<'b>>(
+    fn socket<'window, 'ctx>(
         &mut self,
-        _ctx: C,
+        _ctx: TreeContext<'window, 'ctx>,
         _name: SocketName,
     ) -> bool {
         // Do nothing
         false
-    }
-}
-
-pub trait DynTreeProvider: TreeProvider {
-    fn socket_dyn<'a>(
-        &mut self,
-        ctx: DynTreeContext<'a>,
-        name: SocketName,
-    ) -> bool;
-}
-
-impl<T: TreeProvider> DynTreeProvider for T {
-    fn socket_dyn<'a>(
-        &mut self,
-        ctx: DynTreeContext<'a>,
-        name: SocketName,
-    ) -> bool {
-        self.socket(ctx, name)
-    }
-}
-
-pub trait TreeProviderRef<'a>: Sized + 'a {
-    fn invoke_socket<'b, C: TreeContext<'b>>(
-        &mut self,
-        ctx: C,
-        name: SocketName,
-    ) -> bool;
-
-    fn upcast_mut(
-        self,
-    ) -> &'a mut dyn DynTreeProvider;
-}
-
-impl<'a, T: TreeProvider> TreeProviderRef<'a> for &'a mut T {
-    fn invoke_socket<'b, C: TreeContext<'b>>(
-        &mut self,
-        ctx: C,
-        name: SocketName,
-    ) -> bool {
-        self.socket(ctx, name)
-    }
-
-    fn upcast_mut(
-        self,
-    ) -> &'a mut dyn DynTreeProvider {
-        self
-    }
-}
-
-impl<'a> TreeProviderRef<'a> for &'a mut dyn DynTreeProvider {
-    fn invoke_socket<'b, C: TreeContext<'b>>(
-        &mut self,
-        ctx: C,
-        name: SocketName,
-    ) -> bool {
-        self.socket_dyn(ctx.upcast(), name)
-    }
-
-    fn upcast_mut(
-        self,
-    ) -> &'a mut dyn DynTreeProvider {
-        self
     }
 }

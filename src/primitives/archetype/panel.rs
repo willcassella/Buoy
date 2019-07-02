@@ -6,16 +6,16 @@ pub trait Panel {
         max_area: Area
     ) -> Area;
 
-    fn close<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+    fn close<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
         children: Vec<LayoutObj>
     );
 }
 
-pub fn panel<'a, T: Panel, C: Context<'a>>(
-    panel: T,
-    mut ctx: C,
+pub fn panel<'window, 'ctx, T: Panel>(
+    panel: &T,
+    mut ctx: Context<'window, 'ctx>,
 ) {
     let mut children = Vec::new();
 

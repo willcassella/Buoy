@@ -1,11 +1,11 @@
 use crate::builder::*;
 
-pub trait ElementExt: Element {
-    fn begin<C: BuilderContext>(
+pub trait ElementExt: Element + Sized {
+    fn begin<'b, 'a, 'window, 'ctx>(
         self,
-        ctx: &mut C,
+        ctx: &'b mut BuilderContext<'a, 'window, 'ctx>,
         id: Id,
-    ) -> &mut C {
+    ) -> &'b mut BuilderContext<'a, 'window, 'ctx> {
         ctx.element_begin(self, id);
         ctx
     }

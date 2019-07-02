@@ -6,7 +6,7 @@ use super::archetype;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-pub struct BlockBorder {
+pub struct Border {
     pub left: f32,
     pub top: f32,
     pub right: f32,
@@ -14,7 +14,7 @@ pub struct BlockBorder {
     pub color: color::RGBA8,
 }
 
-impl BlockBorder {
+impl Border {
     fn generate_commands(&self, region: Region, cmds: &mut CommandList) {
         let top_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y, region.area.width, self.top), self.color);
         let bottom_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y + region.area.height - self.bottom, region.area.width, self.bottom), self.color);
@@ -24,9 +24,9 @@ impl BlockBorder {
     }
 }
 
-impl BlockBorder {
+impl Border {
     pub fn uniform(size: f32) -> Self {
-        BlockBorder {
+        Border {
             left: size,
             top: size,
             right: size,
@@ -36,7 +36,7 @@ impl BlockBorder {
     }
 }
 
-impl BlockBorder {
+impl Border {
     pub fn top(mut self, top: f32) -> Self {
         self.top = top;
         self
@@ -63,9 +63,9 @@ impl BlockBorder {
     }
 }
 
-impl Default for BlockBorder {
+impl Default for Border {
     fn default() -> Self {
-        BlockBorder {
+        Border {
             left: 0_f32,
             top: 0_f32,
             right: 0_f32,
@@ -75,16 +75,16 @@ impl Default for BlockBorder {
     }
 }
 
-impl Element for BlockBorder {
-    fn run<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+impl Element for Border {
+    fn run<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
     ) {
         archetype::wrap(self, ctx)
     }
 }
 
-impl archetype::Wrap for BlockBorder {
+impl archetype::Wrap for Border {
     fn open(&self, mut max_area: Area) -> Area {
         max_area.width -= self.left + self.right;
         max_area.height -= self.top + self.bottom;
@@ -92,9 +92,9 @@ impl archetype::Wrap for BlockBorder {
         max_area
     }
 
-    fn close_some<'a, C: Context<'a>, L: Layout>(
-        self,
-        ctx: C,
+    fn close_some<'window, 'ctx, L: Layout>(
+        &self,
+        ctx: Context<'window, 'ctx>,
         child: LayoutObj<L>,
     ) {
         let mut min_area = child.min_area;
@@ -103,26 +103,27 @@ impl archetype::Wrap for BlockBorder {
         min_area.width += self.left + self.right;
         min_area.height += self.top + self.bottom;
 
+        let this = self.clone();
         ctx.layout_new(min_area, move |mut region: Region, cmds: &mut CommandList| {
             // Unless we're fully transparent, render the border
-            if self.color != color::constants::TRANSPARENT {
-                self.generate_commands(region, cmds);
+            if this.color != color::constants::TRANSPARENT {
+                this.generate_commands(region, cmds);
             }
 
             // Reduce area to account for border
-            region.pos.x += self.left;
-            region.area.width -= self.left + self.right;
-            region.pos.y += self.top;
-            region.area.height -= self.top + self.bottom;
+            region.pos.x += this.left;
+            region.area.width -= this.left + this.right;
+            region.pos.y += this.top;
+            region.area.height -= this.top + this.bottom;
 
             // Render the child
             child.imp.render(region, cmds);
         })
     }
 
-    fn close_none<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+    fn close_none<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
     ) {
         // Since we don't have a child, min area is just size of border
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
@@ -130,8 +131,9 @@ impl archetype::Wrap for BlockBorder {
         if self.color == color::constants::TRANSPARENT {
             ctx.layout_new(min_area, ());
         } else {
+            let this = self.clone();
             ctx.layout_new(min_area, move |region: Region, cmds: &mut CommandList| {
-                self.generate_commands(region, cmds);
+                this.generate_commands(region, cmds);
             });
         }
     }

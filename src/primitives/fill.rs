@@ -6,13 +6,13 @@ use super::archetype;
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug)]
-pub struct SolidFill {
+pub struct Fill {
     pub color: color::RGBA8,
 }
 
-impl SolidFill {
+impl Fill {
     pub fn new(color: color::RGBA8) -> Self {
-        SolidFill {
+        Fill {
             color,
         }
     }
@@ -22,10 +22,10 @@ impl SolidFill {
     }
 }
 
-impl archetype::Wrap for SolidFill {
-    fn close_some<'a, C: Context<'a>, L: Layout>(
-        self,
-        ctx: C,
+impl archetype::Wrap for Fill {
+    fn close_some<'window, 'ctx, L: Layout>(
+        &self,
+        ctx: Context<'window, 'ctx>,
         child: LayoutObj<L>,
     ) {
         let color = self.color;
@@ -35,9 +35,9 @@ impl archetype::Wrap for SolidFill {
         });
     }
 
-    fn close_none<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+    fn close_none<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
     ) {
         let color = self.color;
         ctx.layout_new(Area::zero(), move |region: Region, cmds: &mut CommandList| {
@@ -46,10 +46,10 @@ impl archetype::Wrap for SolidFill {
     }
 }
 
-impl Element for SolidFill {
-    fn run<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+impl Element for Fill {
+    fn run<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
     ) {
         archetype::wrap(self, ctx)
     }

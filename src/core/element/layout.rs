@@ -52,6 +52,13 @@ impl<L: Layout> LayoutObj<L> {
             imp: layout,
         }
     }
+
+    pub fn upcast(self) -> LayoutObj {
+        LayoutObj {
+            min_area: self.min_area,
+            imp: self.imp.box_upcast(),
+        }
+    }
 }
 
 impl LayoutObj<()> {

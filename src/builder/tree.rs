@@ -4,16 +4,16 @@ use crate::prelude::*;
 use super::builder_context::{Node, NodeKind};
 
 impl TreeProvider for VecDeque<Node> {
-    fn socket<'a, C: TreeContext<'a>>(
+    fn socket<'window, 'ctx>(
         &mut self,
-        mut ctx: C,
+        mut ctx: TreeContext<'window, 'ctx>,
         name: SocketName,
     ) -> bool {
         assert_eq!(name, SocketName::default(), "Only default sockets are supported at the moment");
 
         while ctx.remaining_capacity() != 0 {
             // Get the first element
-            let node = match self.pop_front() {
+            let mut node = match self.pop_front() {
                 Some(node) => node,
                 None => return false,
             };
@@ -25,7 +25,7 @@ impl TreeProvider for VecDeque<Node> {
             };
 
             // Run it
-            ctx.element(id, element, node.children);
+            ctx.element(id, &*element, &mut node.children);
         }
 
         !self.is_empty()

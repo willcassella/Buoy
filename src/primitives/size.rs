@@ -7,14 +7,14 @@ use super::archetype;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-pub struct Space {
+pub struct Size {
     pub h_align: HAlign,
     pub v_align: VAlign,
     pub max: Area,
     pub min: Area,
 }
 
-impl Space {
+impl Size {
     pub fn h_align(mut self, h_align: HAlign) -> Self {
         self.h_align = h_align;
         self
@@ -58,9 +58,9 @@ impl Space {
     }
 }
 
-impl Default for Space {
+impl Default for Size {
     fn default() -> Self {
-        Space {
+        Size {
             h_align: HAlign::Left,
             v_align: VAlign::Top,
             min: Area::zero(),
@@ -69,16 +69,16 @@ impl Default for Space {
     }
 }
 
-impl Element for Space {
-    fn run<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+impl Element for Size {
+    fn run<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
     ) {
         archetype::wrap(self, ctx)
     }
 }
 
-impl archetype::Wrap for Space {
+impl archetype::Wrap for Size {
     fn open(
         &self,
         mut max_area: Area
@@ -88,26 +88,27 @@ impl archetype::Wrap for Space {
         max_area
     }
 
-    fn close_some<'a, C: Context<'a>, L: Layout>(
-        self,
-        ctx: C,
+    fn close_some<'window, 'ctx, L: Layout>(
+        &self,
+        ctx: Context<'window, 'ctx>,
         child: LayoutObj<L>,
     ) {
+        let this = self.clone();
         ctx.layout_new(child.min_area, move |mut region: Region, cmds: &mut CommandList| {
-            if self.max.width < region.area.width {
-                region = self.h_align.align(self.max, region);
+            if this.max.width < region.area.width {
+                region = this.h_align.align(this.max, region);
             }
-            if self.max.height < region.area.height {
-                region = self.v_align.align(self.max, region);
+            if this.max.height < region.area.height {
+                region = this.v_align.align(this.max, region);
             }
 
             child.imp.render(region, cmds);
         });
     }
 
-    fn close_none<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+    fn close_none<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
     ) {
         // Just take up space
         if self.min != Area::zero() {

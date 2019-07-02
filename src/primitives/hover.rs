@@ -28,20 +28,21 @@ impl Hover {
 }
 
 impl Element for Hover {
-    fn run<'a, C: Context<'a>>(
-        self,
-        ctx: C,
+    fn run<'window, 'ctx>(
+        &self,
+        ctx: Context<'window, 'ctx>,
     ) {
         archetype::wrap(self, ctx)
     }
 }
 
 impl archetype::Wrap for Hover {
-    fn close_some<'a, C: Context<'a>, L: Layout>(
-        self,
-        ctx: C,
+    fn close_some<'window, 'ctx, L: Layout>(
+        &self,
+        ctx: Context<'window, 'ctx>,
         child: LayoutObj<L>,
     ) {
+        let this = self.clone();
         ctx.layout_new(child.min_area, move |region: Region, cmds: &mut CommandList| {
             // Render the child
             child.imp.render(region, cmds);
@@ -49,16 +50,16 @@ impl archetype::Wrap for Hover {
             // Create the hover boundary
             let quad = HoverQuad {
                 quad: Quad::from(region),
-                active_state: self.hovered.clone(),
-                action: self.action.clone(),
+                active_state: this.hovered.clone(),
+                action: this.action.clone(),
             };
             cmds.add_hover_quads(&[quad]);
         });
     }
 
-    fn close_none<'a, C: Context<'a>>(
-        self,
-        _ctx: C,
+    fn close_none<'window, 'ctx>(
+        &self,
+        _ctx: Context<'window, 'ctx>,
     ) {
         // Do nothing
     }

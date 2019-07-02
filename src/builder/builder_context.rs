@@ -4,8 +4,8 @@ use std::collections::VecDeque;
 use crate::prelude::*;
 
 pub(crate) enum NodeKind {
-    Element(Box<dyn DynElement>, Id),
-    Filter(Rc<dyn DynFilter>),
+    Element(Box<dyn Element>, Id),
+    Filter(Rc<dyn Filter>),
     Socket(SocketName),
 }
 
@@ -14,148 +14,113 @@ pub(crate) struct Node {
     pub children: VecDeque<Node>,
 }
 
-pub trait BuilderContext: Sized {
-    fn element_id(
-        &self,
-    ) -> Id;
-
-    fn max_area(
-        &self,
-    ) -> Area;
-
-    fn element_begin<E: Element>(
-        &mut self,
-        element: E,
-        id: Id,
-    );
-
-    fn filter_begin<F: Filter + 'static>(
-        &mut self,
-        filter: F,
-    );
-
-    fn end(
-        &mut self,
-    );
-
-    fn filter_next_frame(
-        &mut self,
-        filter: Rc<dyn DynFilter>,
-    );
-
-    fn filter_late_next_frame(
-        &mut self,
-        filter: Rc<dyn DynFilter>,
-    );
-
-    fn new_input<F: InputState>(
-        &mut self
-    ) -> Input<F>;
-
-    fn read_input<F: InputState>(
-        &self,
-        input: Input<F>
-    ) -> F;
-}
-
-pub struct BuilderContextImpl<'a, C> {
-    pub(crate) ctx: &'a mut C,
-    pub(crate) roots: VecDeque<Node>,
+pub struct BuilderContext<'a, 'window, 'ctx> {
+    pub(crate) ctx: &'a mut Context<'window, 'ctx>,
+    pub(crate) children: VecDeque<Node>,
     pub(crate) stack: Vec<Node>,
+    pub(crate) root: Option<Node>,
 }
 
-impl<'a, 'b, C: Context<'b>> BuilderContextImpl<'a, C> {
+impl<'a, 'window, 'ctx> BuilderContext<'a, 'window, 'ctx> {
     pub(crate) fn new(
-        ctx: &'a mut C
+        ctx: &'a mut Context<'window, 'ctx>,
     ) -> Self {
-        BuilderContextImpl{
+        BuilderContext{
             ctx,
-            roots: VecDeque::new(),
+            children: VecDeque::new(),
             stack: Vec::new(),
+            root: None,
         }
     }
 
-    pub(crate) fn into_tree(
+    pub(crate) fn get_root(
         mut self,
-    ) -> VecDeque<Node> {
+    ) -> Option<Node> {
         // Empty the stack
         while !self.stack.is_empty() {
             self.end();
         }
 
-        self.roots
+        self.root
     }
-}
 
-impl<'a, 'b, C: Context<'b>> BuilderContext for BuilderContextImpl<'a, C> {
-    fn element_id(&self) -> Id {
+    pub fn element_id(&self) -> Id {
         self.ctx.element_id()
     }
 
-    fn max_area(&self) -> Area {
+    pub fn max_area(&self) -> Area {
         self.ctx.max_area()
     }
 
-    fn element_begin<E: Element>(
+    pub fn element_begin<E: Element>(
         &mut self,
         element: E,
         id: Id,
     ) {
-        // Create a new node for this element
-        // Back the current root set up as its children
-        let node = Node {
-            kind: NodeKind::Element(element.upcast_box(), id),
-            children: std::mem::replace(&mut self.roots, VecDeque::new()),
-        };
-
-        self.stack.push(node);
+        let kind = NodeKind::Element(Box::new(element), id);
+        self.node_begin(kind);
     }
 
-    fn filter_begin<F: Filter + 'static>(
+    pub fn filter_begin<F: Filter + 'static>(
         &mut self,
         filter: F,
     ) {
-        // Create a new node for this element
-        // Back the current root set up as its children
+        let kind = NodeKind::Filter(Rc::new(filter));
+        self.node_begin(kind);
+    }
+
+    fn node_begin(
+        &mut self,
+        kind: NodeKind,
+    ) {
+        // There can only be one root node
+        assert!(self.root.is_none());
+
+        // Store the current set of children as the new node's children for now,
+        // even though they're actually its siiblings
         let node = Node {
-            kind: NodeKind::Filter(Rc::new(filter)),
-            children: std::mem::replace(&mut self.roots, VecDeque::new()),
+            kind: kind,
+            children: std::mem::replace(&mut self.children, VecDeque::new()),
         };
 
         self.stack.push(node);
     }
 
-    fn end(
+    pub fn end(
         &mut self,
     ) {
         let mut node = self.stack.pop().expect("Call to 'end' beyond last element");
 
-        // Current roots are the node's children
-        std::mem::swap(&mut self.roots, &mut node.children);
+        // Current children are the node's children
+        std::mem::swap(&mut self.children, &mut node.children);
 
-        // Node is now a root
-        self.roots.push_back(node);
+        // If there's a parent element, add this as a child
+        if !self.stack.is_empty() {
+            self.children.push_back(node);
+        } else {
+            self.root = Some(node);
+        }
     }
 
-    fn filter_next_frame(
+    pub fn filter_next_frame(
         &mut self,
-        filter: Rc<dyn DynFilter>,
+        filter: Rc<dyn Filter>,
     ) {
         self.ctx.filter_next_frame(filter)
     }
 
-    fn filter_late_next_frame(
+    pub fn filter_late_next_frame(
         &mut self,
-        filter: Rc<dyn DynFilter>,
+        filter: Rc<dyn Filter>,
     ) {
         self.ctx.filter_late_next_frame(filter)
     }
 
-    fn new_input<F: InputState>(&mut self) -> Input<F> {
+    pub fn new_input<F: InputState>(&mut self) -> Input<F> {
         self.ctx.new_input()
     }
 
-    fn read_input<F: InputState>(&self, input: Input<F>) -> F {
+    pub fn read_input<F: InputState>(&self, input: Input<F>) -> F {
         self.ctx.read_input(input)
     }
 }
