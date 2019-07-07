@@ -31,7 +31,7 @@ impl Element for Hover {
     fn run<'window, 'ctx>(
         &self,
         ctx: Context<'window, 'ctx>,
-    ) {
+    ) -> LayoutObj {
         archetype::wrap(self, ctx)
     }
 }
@@ -39,11 +39,11 @@ impl Element for Hover {
 impl archetype::Wrap for Hover {
     fn close_some<'window, 'ctx, L: Layout>(
         &self,
-        ctx: Context<'window, 'ctx>,
+        _ctx: Context<'window, 'ctx>,
         child: LayoutObj<L>,
-    ) {
+    ) -> LayoutObj {
         let this = self.clone();
-        ctx.layout_new(child.min_area, move |region: Region, cmds: &mut CommandList| {
+        return LayoutObj::new(child.min_area, move |region: Region, cmds: &mut CommandList| {
             // Render the child
             child.imp.render(region, cmds);
 
@@ -54,13 +54,13 @@ impl archetype::Wrap for Hover {
                 action: this.action.clone(),
             };
             cmds.add_hover_quads(&[quad]);
-        });
+        }).upcast();
     }
 
     fn close_none<'window, 'ctx>(
         &self,
         _ctx: Context<'window, 'ctx>,
-    ) {
-        // Do nothing
+    ) -> LayoutObj {
+        LayoutObj::new(Area::zero(), ()).upcast()
     }
 }

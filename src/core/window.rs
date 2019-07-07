@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::mem::replace;
+use std::marker::PhantomData;
 
 use crate::space::*;
 use crate::input::*;
@@ -23,7 +24,7 @@ impl Window {
         &mut self,
         max_area: Area,
         root: E,
-    ) -> Option<LayoutObj> {
+    ) -> LayoutObj {
         // Increment frame id
         self.frame_id = self.frame_id.next();
         self.next_context_id = Default::default();
@@ -41,23 +42,19 @@ impl Window {
            next_frame_filters: FilterStack::default(),
         };
 
-        // Create root socket and tree provider
-        let mut out: Option<LayoutObj> = None;
-        let mut tree_provider = ();
+        let ctx = Context {
+            p: PhantomData,
 
-        let mut ctx = Context {
-            tree_provider: &mut tree_provider,
-            out_layout: &mut out,
-            element_id: Id::from(""),
             max_area,
+            element_id: Id::from(""),
+            children: Children::new(),
+
             prev_input: &self.prev_input,
             global_data: &mut global_data,
         };
 
         // Run the element
-        root.run(ctx);
-
-        out
+        root.run(ctx)
     }
 
     pub fn filter(

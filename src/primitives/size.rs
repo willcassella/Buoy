@@ -73,7 +73,7 @@ impl Element for Size {
     fn run<'window, 'ctx>(
         &self,
         ctx: Context<'window, 'ctx>,
-    ) {
+    ) -> LayoutObj {
         archetype::wrap(self, ctx)
     }
 }
@@ -90,11 +90,11 @@ impl archetype::Wrap for Size {
 
     fn close_some<'window, 'ctx, L: Layout>(
         &self,
-        ctx: Context<'window, 'ctx>,
+        _ctx: Context<'window, 'ctx>,
         child: LayoutObj<L>,
-    ) {
+    ) -> LayoutObj {
         let this = self.clone();
-        ctx.layout_new(child.min_area, move |mut region: Region, cmds: &mut CommandList| {
+        return LayoutObj::new(child.min_area, move |mut region: Region, cmds: &mut CommandList| {
             if this.max.width < region.area.width {
                 region = this.h_align.align(this.max, region);
             }
@@ -103,16 +103,14 @@ impl archetype::Wrap for Size {
             }
 
             child.imp.render(region, cmds);
-        });
+        }).upcast();
     }
 
     fn close_none<'window, 'ctx>(
         &self,
-        ctx: Context<'window, 'ctx>,
-    ) {
+        _ctx: Context<'window, 'ctx>,
+    ) -> LayoutObj {
         // Just take up space
-        if self.min != Area::zero() {
-            ctx.layout_new(self.min, ());
-        }
+        LayoutObj::new(self.min, ()).upcast()
     }
 }

@@ -48,7 +48,7 @@ impl Element for List {
     fn run<'window, 'ctx>(
         &self,
         ctx: Context<'window, 'ctx>,
-    ) {
+    ) -> LayoutObj {
         archetype::panel(self, ctx)
     }
 }
@@ -70,9 +70,9 @@ impl archetype::Panel for List {
 
     fn close<'window, 'ctx>(
         &self,
-        ctx: Context<'window, 'ctx>,
+        _ctx: Context<'window, 'ctx>,
         children: Vec<LayoutObj>
-    ) {
+    ) -> LayoutObj {
         let mut min_area = Area::zero();
 
         // Figure out height and width for the stack
@@ -108,7 +108,7 @@ impl archetype::Panel for List {
             }),
         };
 
-        ctx.layout_new(min_area, layout_func);
+        LayoutObj::new(min_area, layout_func)
     }
 }
 

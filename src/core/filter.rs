@@ -1,8 +1,6 @@
 use std::rc::Rc;
 
-use crate::core::common::*;
 use crate::core::element::*;
-use crate::core::tree::*;
 
 #[derive(Clone, Default)]
 pub struct FilterStack {
@@ -29,13 +27,8 @@ impl FilterStack {
 pub trait Filter {
     fn element<'window, 'ctx>(
         &self,
-        ctx: TreeContext<'window, 'ctx>,
         id: Id,
         element: &dyn Element,
-        children: &mut dyn TreeProvider,
-        _filters: &mut FilterStack,
-    ) {
-        //ctx.element(id, element, children);
-        unimplemented!()
-    }
+        filters: &mut FilterStack,
+    );
 }

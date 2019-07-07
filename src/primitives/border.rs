@@ -79,7 +79,7 @@ impl Element for Border {
     fn run<'window, 'ctx>(
         &self,
         ctx: Context<'window, 'ctx>,
-    ) {
+    ) -> LayoutObj {
         archetype::wrap(self, ctx)
     }
 }
@@ -94,9 +94,9 @@ impl archetype::Wrap for Border {
 
     fn close_some<'window, 'ctx, L: Layout>(
         &self,
-        ctx: Context<'window, 'ctx>,
+        _ctx: Context<'window, 'ctx>,
         child: LayoutObj<L>,
-    ) {
+    ) -> LayoutObj {
         let mut min_area = child.min_area;
 
         // Add to width/height to account for border
@@ -104,7 +104,7 @@ impl archetype::Wrap for Border {
         min_area.height += self.top + self.bottom;
 
         let this = self.clone();
-        ctx.layout_new(min_area, move |mut region: Region, cmds: &mut CommandList| {
+        return LayoutObj::new(min_area, move |mut region: Region, cmds: &mut CommandList| {
             // Unless we're fully transparent, render the border
             if this.color != color::constants::TRANSPARENT {
                 this.generate_commands(region, cmds);
@@ -118,23 +118,23 @@ impl archetype::Wrap for Border {
 
             // Render the child
             child.imp.render(region, cmds);
-        })
+        }).upcast();
     }
 
     fn close_none<'window, 'ctx>(
         &self,
-        ctx: Context<'window, 'ctx>,
-    ) {
+        _ctx: Context<'window, 'ctx>,
+    ) -> LayoutObj {
         // Since we don't have a child, min area is just size of border
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
 
         if self.color == color::constants::TRANSPARENT {
-            ctx.layout_new(min_area, ());
+            return LayoutObj::new(min_area, ()).upcast().upcast();
         } else {
             let this = self.clone();
-            ctx.layout_new(min_area, move |region: Region, cmds: &mut CommandList| {
+            return LayoutObj::new(min_area, move |region: Region, cmds: &mut CommandList| {
                 this.generate_commands(region, cmds);
-            });
+            }).upcast();
         }
     }
 }

@@ -26,11 +26,10 @@ impl Id {
 
 impl<'a> From<&'a str> for Id {
     fn from(id: &'a str) -> Self {
-        // let mut hasher = DefaultHasher::new();
-        // id.hash(&mut hasher);
+        let mut hasher = DefaultHasher::new();
+        id.hash(&mut hasher);
 
-        // Id(hasher.finish())
-        Id(0)
+        Id(hasher.finish())
     }
 }
 
