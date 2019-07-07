@@ -1,11 +1,10 @@
-use std::marker::PhantomData;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-use crate::space::*;
-use crate::input::*;
 use crate::core::element::*;
 use crate::core::filter::*;
+use crate::input::*;
+use crate::space::*;
 
 pub struct Context<'window> {
     pub(crate) max_area: Area,
@@ -31,9 +30,7 @@ pub struct Builder<'ctx, 'window> {
 }
 
 impl<'ctx, 'window> Builder<'ctx, 'window> {
-    pub fn finish(
-        mut self,
-    ) -> LayoutObj {
+    pub fn finish(mut self) -> LayoutObj {
         while !self.stack.is_empty() {
             self.end();
         }
@@ -50,10 +47,7 @@ impl<'ctx, 'window> Builder<'ctx, 'window> {
         self.root.elem.run(sub_ctx, self.root.id)
     }
 
-    pub fn end<'a>(
-        &'a mut self,
-    ) -> &'a mut Builder<'ctx, 'window> {
-
+    pub fn end<'a>(&'a mut self) -> &'a mut Builder<'ctx, 'window> {
         let (node, socket) = self.stack.pop().expect("Bad call to 'end'");
 
         // Get the parent node
@@ -100,7 +94,11 @@ impl<'ctx, 'window> Builder<'ctx, 'window> {
         };
 
         // Insert the children into the parent
-        parent.children.entry(target).or_default().append(&mut children);
+        parent
+            .children
+            .entry(target)
+            .or_default()
+            .append(&mut children);
         self
     }
 }
@@ -128,12 +126,7 @@ impl<'window> Context<'window> {
         }
     }
 
-    pub fn open_socket(
-        &mut self,
-        name: SocketName,
-        max_area: Area,
-        socket: &mut dyn Socket,
-    ) {
+    pub fn open_socket(&mut self, name: SocketName, max_area: Area, socket: &mut dyn Socket) {
         let children = match self.children.get_mut(&name) {
             Some(children) => children,
             None => return,
@@ -158,17 +151,11 @@ impl<'window> Context<'window> {
         }
     }
 
-    pub fn next_frame_pre_filter<F: Filter>(
-        &mut self,
-        _filter: F,
-    ) {
+    pub fn next_frame_pre_filter<F: Filter>(&mut self, _filter: F) {
         unimplemented!()
     }
 
-    pub fn next_frame_post_filter<F: Filter>(
-        &mut self,
-        _filter: F,
-    ) {
+    pub fn next_frame_post_filter<F: Filter>(&mut self, _filter: F) {
         unimplemented!()
     }
 

@@ -1,6 +1,6 @@
-use std::hash::{Hasher, Hash};
-use std::fmt::{self, Display, Formatter};
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::{self, Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Hash, Eq, PartialEq)]

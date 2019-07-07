@@ -60,10 +60,7 @@ pub struct Limit<F> {
 }
 
 pub fn limit<F>(fill: F, limit: usize) -> Limit<F> {
-    Limit {
-        fill,
-        limit,
-    }
+    Limit { fill, limit }
 }
 
 impl<T, F: Fill<T>> Fill<T> for Limit<F> {

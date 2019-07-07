@@ -1,6 +1,6 @@
 use crate::prelude::*;
-use crate::render::{CommandList, color};
 use crate::render::commands::ColoredQuad;
+use crate::render::{color, CommandList};
 
 use super::archetype;
 
@@ -12,9 +12,7 @@ pub struct Fill {
 
 impl Fill {
     pub fn new(color: color::RGBA8) -> Self {
-        Fill {
-            color,
-        }
+        Fill { color }
     }
 
     fn generate_quad(color: color::RGBA8, region: Region, cmds: &mut CommandList) {
@@ -23,37 +21,32 @@ impl Fill {
 }
 
 impl archetype::Wrap for Fill {
-    fn close_some<L: Layout>(
-        &self,
-        _ctx: Context,
-        _id: Id,
-        child: LayoutObj<L>,
-    ) -> LayoutObj {
+    fn close_some<L: Layout>(&self, _ctx: Context, _id: Id, child: LayoutObj<L>) -> LayoutObj {
         let color = self.color;
-        return LayoutObj::new(child.min_area, move |region: Region, cmds: &mut CommandList| {
-            Self::generate_quad(color, region, cmds);
-            child.imp.render(region, cmds);
-        }).upcast();
+        LayoutObj::new(
+            child.min_area,
+            move |region: Region, cmds: &mut CommandList| {
+                Self::generate_quad(color, region, cmds);
+                child.imp.render(region, cmds);
+            },
+        )
+        .upcast()
     }
 
-    fn close_none(
-        &self,
-        _ctx: Context,
-        _id: Id,
-    ) -> LayoutObj {
+    fn close_none(&self, _ctx: Context, _id: Id) -> LayoutObj {
         let color = self.color;
-        return LayoutObj::new(Area::zero(), move |region: Region, cmds: &mut CommandList| {
-            Self::generate_quad(color, region, cmds);
-        }).upcast();
+        LayoutObj::new(
+            Area::zero(),
+            move |region: Region, cmds: &mut CommandList| {
+                Self::generate_quad(color, region, cmds);
+            },
+        )
+        .upcast()
     }
 }
 
 impl Element for Fill {
-    fn run(
-        &self,
-        ctx: Context,
-        id: Id,
-    ) -> LayoutObj {
+    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
         archetype::wrap(ctx, id, self)
     }
 }

@@ -1,6 +1,6 @@
 use crate::prelude::*;
-use crate::render::{CommandList, color};
-use crate::render::commands::{Quad, ColoredQuad};
+use crate::render::commands::{ColoredQuad, Quad};
+use crate::render::{color, CommandList};
 
 use super::archetype;
 
@@ -16,10 +16,37 @@ pub struct Border {
 
 impl Border {
     fn generate_commands(&self, region: Region, cmds: &mut CommandList) {
-        let top_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y, region.area.width, self.top), self.color);
-        let bottom_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y + region.area.height - self.bottom, region.area.width, self.bottom), self.color);
-        let left_quad = ColoredQuad::new(Quad::new(region.pos.x, region.pos.y + self.top, self.left, region.area.height - self.top - self.bottom), self.color);
-        let right_quad = ColoredQuad::new(Quad::new(region.pos.x + region.area.width - self.right, region.pos.y + self.top, self.right, region.area.height - self.top - self.bottom), self.color);
+        let top_quad = ColoredQuad::new(
+            Quad::new(region.pos.x, region.pos.y, region.area.width, self.top),
+            self.color,
+        );
+        let bottom_quad = ColoredQuad::new(
+            Quad::new(
+                region.pos.x,
+                region.pos.y + region.area.height - self.bottom,
+                region.area.width,
+                self.bottom,
+            ),
+            self.color,
+        );
+        let left_quad = ColoredQuad::new(
+            Quad::new(
+                region.pos.x,
+                region.pos.y + self.top,
+                self.left,
+                region.area.height - self.top - self.bottom,
+            ),
+            self.color,
+        );
+        let right_quad = ColoredQuad::new(
+            Quad::new(
+                region.pos.x + region.area.width - self.right,
+                region.pos.y + self.top,
+                self.right,
+                region.area.height - self.top - self.bottom,
+            ),
+            self.color,
+        );
         cmds.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
     }
 }
@@ -76,11 +103,7 @@ impl Default for Border {
 }
 
 impl Element for Border {
-    fn run(
-        &self,
-        ctx: Context,
-        id: Id,
-    ) -> LayoutObj {
+    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
         archetype::wrap(ctx, id, self)
     }
 }
@@ -93,51 +116,50 @@ impl archetype::Wrap for Border {
         max_area
     }
 
-    fn close_some<L: Layout>(
-        &self,
-        _ctx: Context,
-        _id: Id,
-        child: LayoutObj<L>,
-    ) -> LayoutObj {
+    fn close_some<L: Layout>(&self, _ctx: Context, _id: Id, child: LayoutObj<L>) -> LayoutObj {
         let mut min_area = child.min_area;
 
         // Add to width/height to account for border
         min_area.width += self.left + self.right;
         min_area.height += self.top + self.bottom;
 
-        let this = self.clone();
-        return LayoutObj::new(min_area, move |mut region: Region, cmds: &mut CommandList| {
-            // Unless we're fully transparent, render the border
-            if this.color != color::constants::TRANSPARENT {
-                this.generate_commands(region, cmds);
-            }
+        let this = *self;
+        LayoutObj::new(
+            min_area,
+            move |mut region: Region, cmds: &mut CommandList| {
+                // Unless we're fully transparent, render the border
+                if this.color != color::constants::TRANSPARENT {
+                    this.generate_commands(region, cmds);
+                }
 
-            // Reduce area to account for border
-            region.pos.x += this.left;
-            region.area.width -= this.left + this.right;
-            region.pos.y += this.top;
-            region.area.height -= this.top + this.bottom;
+                // Reduce area to account for border
+                region.pos.x += this.left;
+                region.area.width -= this.left + this.right;
+                region.pos.y += this.top;
+                region.area.height -= this.top + this.bottom;
 
-            // Render the child
-            child.imp.render(region, cmds);
-        }).upcast();
+                // Render the child
+                child.imp.render(region, cmds);
+            },
+        )
+        .upcast()
     }
 
-    fn close_none(
-        &self,
-        _ctx: Context,
-        _id: Id,
-    ) -> LayoutObj {
+    fn close_none(&self, _ctx: Context, _id: Id) -> LayoutObj {
         // Since we don't have a child, min area is just size of border
-        let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };
+        let min_area = Area {
+            width: self.left + self.right,
+            height: self.top + self.bottom,
+        };
 
         if self.color == color::constants::TRANSPARENT {
-            return LayoutObj::new(min_area, ()).upcast().upcast();
+            LayoutObj::new(min_area, ()).upcast()
         } else {
-            let this = self.clone();
-            return LayoutObj::new(min_area, move |region: Region, cmds: &mut CommandList| {
+            let this = *self;
+            LayoutObj::new(min_area, move |region: Region, cmds: &mut CommandList| {
                 this.generate_commands(region, cmds);
-            }).upcast();
+            })
+            .upcast()
         }
     }
 }

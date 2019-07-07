@@ -1,37 +1,25 @@
-use crate::space::*;
 use crate::render::CommandList;
+use crate::space::*;
 
 pub trait Layout: 'static {
-    fn render(
-        &self,
-        region: Region,
-        cmds: &mut CommandList
-    );
+    fn render(&self, region: Region, cmds: &mut CommandList);
 
     fn box_upcast(self) -> Box<dyn Layout>
     where
-        Self: Sized
+        Self: Sized,
     {
         Box::new(self)
     }
 }
 
 impl Layout for () {
-    fn render(
-        &self,
-        _region: Region,
-        _cmds: &mut CommandList
-    ) {
+    fn render(&self, _region: Region, _cmds: &mut CommandList) {
         // NullLayout only takes up space
     }
 }
 
 impl Layout for Box<dyn Layout> {
-    fn render(
-        &self,
-        region: Region,
-        cmds: &mut CommandList,
-    ) {
+    fn render(&self, region: Region, cmds: &mut CommandList) {
         self.as_ref().render(region, cmds)
     }
 
@@ -70,14 +58,11 @@ impl LayoutObj<()> {
     }
 }
 
-impl<T> Layout for T where
-    T: Fn(Region, &mut CommandList) + 'static
+impl<T> Layout for T
+where
+    T: Fn(Region, &mut CommandList) + 'static,
 {
-    fn render(
-        &self,
-        region: Region,
-        cmds: &mut CommandList
-    ) {
+    fn render(&self, region: Region, cmds: &mut CommandList) {
         self(region, cmds);
     }
 }

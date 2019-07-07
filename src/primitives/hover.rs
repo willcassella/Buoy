@@ -1,5 +1,8 @@
-use crate::render::{CommandList, commands::{InputAction, Quad, HoverQuad}};
 use crate::prelude::*;
+use crate::render::{
+    commands::{HoverQuad, InputAction, Quad},
+    CommandList,
+};
 
 use super::archetype;
 
@@ -28,42 +31,33 @@ impl Hover {
 }
 
 impl Element for Hover {
-    fn run(
-        &self,
-        ctx: Context,
-        id: Id,
-    ) -> LayoutObj {
+    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
         archetype::wrap(ctx, id, self)
     }
 }
 
 impl archetype::Wrap for Hover {
-    fn close_some<L: Layout>(
-        &self,
-        _ctx: Context,
-        _id: Id,
-        child: LayoutObj<L>,
-    ) -> LayoutObj {
+    fn close_some<L: Layout>(&self, _ctx: Context, _id: Id, child: LayoutObj<L>) -> LayoutObj {
         let this = self.clone();
-        return LayoutObj::new(child.min_area, move |region: Region, cmds: &mut CommandList| {
-            // Render the child
-            child.imp.render(region, cmds);
+        LayoutObj::new(
+            child.min_area,
+            move |region: Region, cmds: &mut CommandList| {
+                // Render the child
+                child.imp.render(region, cmds);
 
-            // Create the hover boundary
-            let quad = HoverQuad {
-                quad: Quad::from(region),
-                active_state: this.hovered.clone(),
-                action: this.action.clone(),
-            };
-            cmds.add_hover_quads(&[quad]);
-        }).upcast();
+                // Create the hover boundary
+                let quad = HoverQuad {
+                    quad: Quad::from(region),
+                    active_state: this.hovered,
+                    action: this.action.clone(),
+                };
+                cmds.add_hover_quads(&[quad]);
+            },
+        )
+        .upcast()
     }
 
-    fn close_none(
-        &self,
-        _ctx: Context,
-        _id: Id,
-    ) -> LayoutObj {
+    fn close_none(&self, _ctx: Context, _id: Id) -> LayoutObj {
         LayoutObj::new(Area::zero(), ()).upcast()
     }
 }

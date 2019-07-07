@@ -70,49 +70,37 @@ impl Default for Size {
 }
 
 impl Element for Size {
-    fn run(
-        &self,
-        ctx: Context,
-        id: Id,
-    ) -> LayoutObj {
+    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
         archetype::wrap(ctx, id, self)
     }
 }
 
 impl archetype::Wrap for Size {
-    fn open(
-        &self,
-        mut max_area: Area
-    ) -> Area {
+    fn open(&self, mut max_area: Area) -> Area {
         max_area.width = max_area.width.min(self.max.width).max(self.min.width);
         max_area.height = max_area.height.min(self.max.height).max(self.min.height);
         max_area
     }
 
-    fn close_some<L: Layout>(
-        &self,
-        _ctx: Context,
-        _id: Id,
-        child: LayoutObj<L>,
-    ) -> LayoutObj {
-        let this = self.clone();
-        return LayoutObj::new(child.min_area, move |mut region: Region, cmds: &mut CommandList| {
-            if this.max.width < region.area.width {
-                region = this.h_align.align(this.max, region);
-            }
-            if this.max.height < region.area.height {
-                region = this.v_align.align(this.max, region);
-            }
+    fn close_some<L: Layout>(&self, _ctx: Context, _id: Id, child: LayoutObj<L>) -> LayoutObj {
+        let this = *self;
+        LayoutObj::new(
+            child.min_area,
+            move |mut region: Region, cmds: &mut CommandList| {
+                if this.max.width < region.area.width {
+                    region = this.h_align.align(this.max, region);
+                }
+                if this.max.height < region.area.height {
+                    region = this.v_align.align(this.max, region);
+                }
 
-            child.imp.render(region, cmds);
-        }).upcast();
+                child.imp.render(region, cmds);
+            },
+        )
+        .upcast()
     }
 
-    fn close_none(
-        &self,
-        _ctx: Context,
-        _id: Id,
-    ) -> LayoutObj {
+    fn close_none(&self, _ctx: Context, _id: Id) -> LayoutObj {
         // Just take up space
         LayoutObj::new(self.min, ()).upcast()
     }

@@ -1,8 +1,8 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use crate::util::fill::Fill;
 use crate::core::element::*;
+use crate::util::fill::Fill;
 
 pub trait Socket: Fill<LayoutObj> {
     fn upcast(&self) -> &dyn Socket;

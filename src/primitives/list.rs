@@ -22,9 +22,7 @@ pub struct List {
 
 impl List {
     pub fn new(dir: Dir) -> Self {
-        List{
-            dir,
-        }
+        List { dir }
     }
 
     pub fn left_to_right() -> Self {
@@ -45,49 +43,33 @@ impl List {
 }
 
 impl Element for List {
-    fn run(
-        &self,
-        ctx: Context,
-        id: Id,
-    ) -> LayoutObj {
+    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
         archetype::panel(ctx, id, self)
     }
 }
 
 impl archetype::Panel for List {
-    fn open(
-        &self,
-        mut max_area: Area
-    ) -> Area {
+    fn open(&self, mut max_area: Area) -> Area {
         match self.dir {
-            Dir::LeftToRight |
-            Dir::RightToLeft => max_area.width = f32::INFINITY,
-            Dir::TopToBottom |
-            Dir::BottomToTop => max_area.height = f32::INFINITY,
+            Dir::LeftToRight | Dir::RightToLeft => max_area.width = f32::INFINITY,
+            Dir::TopToBottom | Dir::BottomToTop => max_area.height = f32::INFINITY,
         };
 
         max_area
     }
 
-    fn close(
-        &self,
-        _ctx: Context,
-        _id: Id,
-        children: Vec<LayoutObj>
-    ) -> LayoutObj {
+    fn close(&self, _ctx: Context, _id: Id, children: Vec<LayoutObj>) -> LayoutObj {
         let mut min_area = Area::zero();
 
         // Figure out height and width for the stack
         match self.dir {
-            Dir::LeftToRight |
-            Dir::RightToLeft => {
+            Dir::LeftToRight | Dir::RightToLeft => {
                 for child in &children {
                     min_area.width += child.min_area.width;
                     min_area.height = min_area.height.max(child.min_area.height);
                 }
-            },
-            Dir::TopToBottom |
-            Dir::BottomToTop => {
+            }
+            Dir::TopToBottom | Dir::BottomToTop => {
                 for child in &children {
                     min_area.height += child.min_area.height;
                     min_area.width = min_area.width.max(child.min_area.width);

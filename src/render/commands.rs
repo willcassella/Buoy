@@ -44,10 +44,7 @@ pub struct ColoredQuad {
 
 impl ColoredQuad {
     pub fn new(quad: Quad, color: RGBA8) -> Self {
-        ColoredQuad {
-            quad,
-            color,
-        }
+        ColoredQuad { quad, color }
     }
 }
 

@@ -16,10 +16,7 @@ pub struct Point {
 
 impl Point {
     pub fn zero() -> Self {
-        Point {
-            x: 0_f32,
-            y: 0_f32,
-        }
+        Point { x: 0_f32, y: 0_f32 }
     }
 }
 
@@ -65,15 +62,15 @@ impl HAlign {
         match self {
             HAlign::Left => {
                 region.area.width = area.width;
-            },
+            }
             HAlign::Right => {
                 region.pos.x = region.pos.x + region.area.width - area.width;
                 region.area.width = area.width;
-            },
+            }
             HAlign::Center => {
                 region.pos.x = (region.pos.x + region.area.width / 2_f32) - area.width / 2_f32;
                 region.area.width = area.width;
-            },
+            }
         }
 
         region
@@ -99,11 +96,11 @@ impl VAlign {
         match self {
             VAlign::Top => {
                 region.area.height = area.height;
-            },
+            }
             VAlign::Bottom => {
                 region.pos.y = region.pos.y + region.area.height - area.height;
                 region.area.height = area.height;
-            },
+            }
             VAlign::Center => {
                 region.pos.y = (region.pos.y + region.area.height / 2_f32) - area.height / 2_f32;
                 region.area.height = area.height;

@@ -1,5 +1,5 @@
 mod wrap;
-pub use wrap::{Wrap, wrap};
+pub use wrap::{wrap, Wrap};
 
 mod panel;
-pub use panel::{Panel, panel};
+pub use panel::{panel, Panel};

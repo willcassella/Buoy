@@ -9,26 +9,15 @@ pub struct FilterStack {
 }
 
 impl FilterStack {
-    pub fn add_filter(
-        &mut self,
-        filter: Rc<dyn Filter>,
-    ) {
+    pub fn add_filter(&mut self, filter: Rc<dyn Filter>) {
         self.filters.push(filter);
     }
 
-    pub fn add_filter_late(
-        &mut self,
-        filter: Rc<dyn Filter>,
-    ) {
+    pub fn add_filter_late(&mut self, filter: Rc<dyn Filter>) {
         self.late_filters.push(filter);
     }
 }
 
 pub trait Filter {
-    fn element<'window, 'ctx>(
-        &self,
-        id: Id,
-        element: &dyn Element,
-        filters: &mut FilterStack,
-    );
+    fn element(&self, id: Id, element: &dyn Element, filters: &mut FilterStack);
 }

@@ -10,7 +10,8 @@ impl Default for RGBA8 {
 
 impl RGBA8 {
     pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
-        let v = u32::from(red) << 24 | u32::from(green) << 16 | u32::from(blue) << 8 | u32::from(alpha);
+        let v =
+            u32::from(red) << 24 | u32::from(green) << 16 | u32::from(blue) << 8 | u32::from(alpha);
         RGBA8(v)
     }
 

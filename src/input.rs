@@ -1,7 +1,7 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::num::Wrapping;
-use std::collections::HashMap;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default, Hash)]
@@ -57,11 +57,9 @@ impl InputId {
     }
 }
 
-pub trait InputState: Clone + Send + Any + Default {
-}
+pub trait InputState: Clone + Send + Any + Default {}
 
-impl<T: Clone + Send + Any + Default> InputState for T {
-}
+impl<T: Clone + Send + Any + Default> InputState for T {}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

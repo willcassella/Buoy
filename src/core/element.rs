@@ -3,8 +3,8 @@ use crate::core::common::*;
 use crate::space::Area;
 
 mod context;
-pub use self::context::{Context, Builder};
-pub(crate) use self::context::{Children};
+pub(crate) use self::context::Children;
+pub use self::context::{Builder, Context};
 
 mod id;
 pub use self::id::Id;
@@ -20,19 +20,11 @@ pub struct ElementId;
 // An 'Element' is something run in the the context of a socket
 // This is the starting point for any UI tree
 pub trait Element {
-    fn run(
-        &self,
-        ctx: Context,
-        id: Id,
-    ) -> LayoutObj;
+    fn run(&self, ctx: Context, id: Id) -> LayoutObj;
 }
 
 impl Element for () {
-    fn run<'window>(
-        &self,
-        _ctx: Context<'window>,
-        _id: Id,
-    ) -> LayoutObj {
+    fn run<'window>(&self, _ctx: Context<'window>, _id: Id) -> LayoutObj {
         LayoutObj::new(Area::zero(), ()).upcast()
     }
 }
