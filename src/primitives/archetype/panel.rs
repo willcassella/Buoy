@@ -6,21 +6,23 @@ pub trait Panel {
         max_area: Area
     ) -> Area;
 
-    fn close<'window, 'ctx>(
+    fn close(
         &self,
-        ctx: Context<'window, 'ctx>,
+        ctx: Context,
+        id: Id,
         children: Vec<LayoutObj>
     ) -> LayoutObj;
 }
 
-pub fn panel<'window, 'ctx, T: Panel>(
+pub fn panel<T: Panel>(
+    mut ctx: Context,
+    id: Id,
     panel: &T,
-    mut ctx: Context<'window, 'ctx>,
 ) -> LayoutObj {
-    let mut children = Vec::new();
-
     let child_max_area = panel.open(ctx.max_area());
-    ctx.open_socket(SocketName::default(), &mut children, child_max_area);
 
-    panel.close(ctx, children)
+    let mut children = Vec::new();
+    ctx.open_socket(SocketName::default(), child_max_area, &mut children);
+
+    panel.close(ctx, id, children)
 }

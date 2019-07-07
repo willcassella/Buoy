@@ -23,34 +23,36 @@ pub trait Element {
     fn run(
         &self,
         ctx: Context,
+        id: Id,
     ) -> LayoutObj;
 }
 
 impl Element for () {
-    fn run<'window, 'ctx>(
+    fn run<'window>(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context<'window>,
+        _id: Id,
     ) -> LayoutObj {
         LayoutObj::new(Area::zero(), ()).upcast()
     }
 }
 
 pub trait ElementExt: Element {
-    fn begin<'a, 'b, 'window, 'ctx>(
+    fn begin<'a, 'ctx, 'window>(
         self,
-        builder: &'a mut Builder<'b, 'window, 'ctx>,
+        builder: &'a mut Builder<'ctx, 'window>,
         socket: SocketName,
         id: Id,
-    ) -> &'a mut Builder<'b, 'window, 'ctx>;
+    ) -> &'a mut Builder<'ctx, 'window>;
 }
 
 impl<T: Element + 'static> ElementExt for T {
-    fn begin<'a, 'b, 'window, 'ctx>(
+    fn begin<'a, 'ctx, 'window>(
         self,
-        builder: &'a mut Builder<'b, 'window, 'ctx>,
+        builder: &'a mut Builder<'ctx, 'window>,
         socket: SocketName,
         id: Id,
-    ) -> &'a mut Builder<'b, 'window, 'ctx> {
+    ) -> &'a mut Builder<'ctx, 'window> {
         builder.begin_element(socket, id, self)
     }
 }

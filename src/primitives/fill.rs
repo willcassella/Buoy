@@ -23,9 +23,10 @@ impl Fill {
 }
 
 impl archetype::Wrap for Fill {
-    fn close_some<'window, 'ctx, L: Layout>(
+    fn close_some<L: Layout>(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context,
+        _id: Id,
         child: LayoutObj<L>,
     ) -> LayoutObj {
         let color = self.color;
@@ -35,9 +36,10 @@ impl archetype::Wrap for Fill {
         }).upcast();
     }
 
-    fn close_none<'window, 'ctx>(
+    fn close_none(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context,
+        _id: Id,
     ) -> LayoutObj {
         let color = self.color;
         return LayoutObj::new(Area::zero(), move |region: Region, cmds: &mut CommandList| {
@@ -47,10 +49,11 @@ impl archetype::Wrap for Fill {
 }
 
 impl Element for Fill {
-    fn run<'window, 'ctx>(
+    fn run(
         &self,
-        ctx: Context<'window, 'ctx>,
+        ctx: Context,
+        id: Id,
     ) -> LayoutObj {
-        archetype::wrap(self, ctx)
+        archetype::wrap(ctx, id, self)
     }
 }

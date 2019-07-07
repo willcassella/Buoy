@@ -76,11 +76,12 @@ impl Default for Border {
 }
 
 impl Element for Border {
-    fn run<'window, 'ctx>(
+    fn run(
         &self,
-        ctx: Context<'window, 'ctx>,
+        ctx: Context,
+        id: Id,
     ) -> LayoutObj {
-        archetype::wrap(self, ctx)
+        archetype::wrap(ctx, id, self)
     }
 }
 
@@ -92,9 +93,10 @@ impl archetype::Wrap for Border {
         max_area
     }
 
-    fn close_some<'window, 'ctx, L: Layout>(
+    fn close_some<L: Layout>(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context,
+        _id: Id,
         child: LayoutObj<L>,
     ) -> LayoutObj {
         let mut min_area = child.min_area;
@@ -121,9 +123,10 @@ impl archetype::Wrap for Border {
         }).upcast();
     }
 
-    fn close_none<'window, 'ctx>(
+    fn close_none(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context,
+        _id: Id,
     ) -> LayoutObj {
         // Since we don't have a child, min area is just size of border
         let min_area = Area{ width: self.left + self.right, height: self.top + self.bottom };

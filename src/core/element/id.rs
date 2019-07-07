@@ -3,11 +3,11 @@ use std::fmt::{self, Display, Formatter};
 use std::collections::hash_map::DefaultHasher;
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, Hash, Eq, PartialEq)]
 pub struct Id(u64);
 
 impl Id {
-    pub fn append(self, id: Id) -> Self {
+    pub fn id(self, id: Id) -> Self {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
         id.hash(&mut hasher);
@@ -15,12 +15,12 @@ impl Id {
         Id(hasher.finish())
     }
 
-    pub fn append_str(self, id: &str) -> Self {
-        self.append(Id::from(id))
+    pub fn str(self, id: &str) -> Self {
+        self.id(Id::from(id))
     }
 
-    pub fn append_num(self, id: u64) -> Self {
-        self.append(Id::from(id))
+    pub fn num(self, id: u64) -> Self {
+        self.id(Id::from(id))
     }
 }
 

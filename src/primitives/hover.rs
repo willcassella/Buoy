@@ -28,18 +28,20 @@ impl Hover {
 }
 
 impl Element for Hover {
-    fn run<'window, 'ctx>(
+    fn run(
         &self,
-        ctx: Context<'window, 'ctx>,
+        ctx: Context,
+        id: Id,
     ) -> LayoutObj {
-        archetype::wrap(self, ctx)
+        archetype::wrap(ctx, id, self)
     }
 }
 
 impl archetype::Wrap for Hover {
-    fn close_some<'window, 'ctx, L: Layout>(
+    fn close_some<L: Layout>(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context,
+        _id: Id,
         child: LayoutObj<L>,
     ) -> LayoutObj {
         let this = self.clone();
@@ -57,9 +59,10 @@ impl archetype::Wrap for Hover {
         }).upcast();
     }
 
-    fn close_none<'window, 'ctx>(
+    fn close_none(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context,
+        _id: Id,
     ) -> LayoutObj {
         LayoutObj::new(Area::zero(), ()).upcast()
     }

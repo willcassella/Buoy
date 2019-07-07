@@ -45,11 +45,12 @@ impl List {
 }
 
 impl Element for List {
-    fn run<'window, 'ctx>(
+    fn run(
         &self,
-        ctx: Context<'window, 'ctx>,
+        ctx: Context,
+        id: Id,
     ) -> LayoutObj {
-        archetype::panel(self, ctx)
+        archetype::panel(ctx, id, self)
     }
 }
 
@@ -68,9 +69,10 @@ impl archetype::Panel for List {
         max_area
     }
 
-    fn close<'window, 'ctx>(
+    fn close(
         &self,
-        _ctx: Context<'window, 'ctx>,
+        _ctx: Context,
+        _id: Id,
         children: Vec<LayoutObj>
     ) -> LayoutObj {
         let mut min_area = Area::zero();

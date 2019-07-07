@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use std::mem::replace;
-use std::marker::PhantomData;
 
 use crate::space::*;
 use crate::input::*;
@@ -43,10 +42,7 @@ impl Window {
         };
 
         let ctx = Context {
-            p: PhantomData,
-
             max_area,
-            element_id: Id::from(""),
             children: Children::new(),
 
             prev_input: &self.prev_input,
@@ -54,7 +50,7 @@ impl Window {
         };
 
         // Run the element
-        root.run(ctx)
+        root.run(ctx, Id::default())
     }
 
     pub fn filter(

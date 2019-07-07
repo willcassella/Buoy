@@ -7,11 +7,8 @@ use crate::input::*;
 use crate::core::element::*;
 use crate::core::filter::*;
 
-pub struct Context<'window, 'ctx> {
-    pub(crate) p: PhantomData<&'ctx ()>,
-
+pub struct Context<'window> {
     pub(crate) max_area: Area,
-    pub(crate) element_id: Id,
     pub(crate) children: Children,
 
     pub(crate) prev_input: &'window InputCache,
@@ -26,14 +23,14 @@ pub(crate) struct Node {
 
 pub(crate) type Children = HashMap<SocketName, VecDeque<Node>>;
 
-pub struct Builder<'a, 'window, 'ctx> {
-    pub(crate) ctx: &'a mut Context<'window, 'ctx>,
+pub struct Builder<'ctx, 'window> {
+    pub(crate) ctx: &'ctx mut Context<'window>,
     pub(crate) max_area: Area,
     pub(crate) root: Node,
     pub(crate) stack: Vec<(Node, SocketName)>,
 }
 
-impl<'a, 'window, 'ctx> Builder<'a, 'window, 'ctx> {
+impl<'ctx, 'window> Builder<'ctx, 'window> {
     pub fn finish(
         mut self,
     ) -> LayoutObj {
@@ -43,22 +40,19 @@ impl<'a, 'window, 'ctx> Builder<'a, 'window, 'ctx> {
 
         // Need to create a context for this element
         let sub_ctx = Context {
-            p: PhantomData,
-
             max_area: self.max_area,
-            element_id: self.root.id,
             children: self.root.children,
 
             prev_input: self.ctx.prev_input,
             global_data: self.ctx.global_data,
         };
 
-        self.root.elem.run(sub_ctx)
+        self.root.elem.run(sub_ctx, self.root.id)
     }
 
-    pub fn end<'b>(
-        &'b mut self,
-    ) -> &'b mut Builder<'a, 'window, 'ctx> {
+    pub fn end<'a>(
+        &'a mut self,
+    ) -> &'a mut Builder<'ctx, 'window> {
 
         let (node, socket) = self.stack.pop().expect("Bad call to 'end'");
 
@@ -72,12 +66,12 @@ impl<'a, 'window, 'ctx> Builder<'a, 'window, 'ctx> {
         self
     }
 
-    pub fn begin_element<'b, E: Element + 'static>(
-        &'b mut self,
+    pub fn begin_element<'a, E: Element + 'static>(
+        &'a mut self,
         socket: SocketName,
         id: Id,
         elem: E,
-    ) -> &'b mut Builder<'a, 'window, 'ctx> {
+    ) -> &'a mut Builder<'ctx, 'window> {
         let node = Node {
             id,
             elem: Box::new(elem),
@@ -88,11 +82,11 @@ impl<'a, 'window, 'ctx> Builder<'a, 'window, 'ctx> {
         self
     }
 
-    pub fn connect_socket<'b>(
-        &'b mut self,
+    pub fn connect_socket<'a>(
+        &'a mut self,
         target: SocketName,
         socket: SocketName,
-    ) -> &'b mut Builder<'a, 'window, 'ctx> {
+    ) -> &'a mut Builder<'ctx, 'window> {
         // Get the current children
         let mut children = match self.ctx.children.remove_entry(&socket) {
             Some((_, children)) => children,
@@ -111,22 +105,17 @@ impl<'a, 'window, 'ctx> Builder<'a, 'window, 'ctx> {
     }
 }
 
-impl<'window, 'ctx> Context<'window, 'ctx> {
-    // Returns the id of the currently running element
-    pub fn element_id(&self) -> Id {
-        self.element_id
-    }
-
+impl<'window> Context<'window> {
     pub fn max_area(&self) -> Area {
         self.max_area
     }
 
-    pub fn begin_element<'a, E: Element + 'static>(
-        &'a mut self,
+    pub fn begin_element<'ctx, E: Element + 'static>(
+        &'ctx mut self,
         max_area: Area,
         id: Id,
         elem: E,
-    ) -> Builder<'a, 'window, 'ctx> {
+    ) -> Builder<'ctx, 'window> {
         Builder {
             ctx: self,
             max_area,
@@ -142,8 +131,8 @@ impl<'window, 'ctx> Context<'window, 'ctx> {
     pub fn open_socket(
         &mut self,
         name: SocketName,
-        socket: &mut dyn Socket,
         max_area: Area,
+        socket: &mut dyn Socket,
     ) {
         let children = match self.children.get_mut(&name) {
             Some(children) => children,
@@ -159,15 +148,13 @@ impl<'window, 'ctx> Context<'window, 'ctx> {
 
             // Run the child
             let sub_ctx = Context {
-                p: PhantomData,
                 max_area,
-                element_id: child.id,
                 children: child.children,
                 prev_input: self.prev_input,
                 global_data: self.global_data,
             };
 
-            socket.push(child.elem.run(sub_ctx));
+            socket.push(child.elem.run(sub_ctx, child.id));
         }
     }
 
