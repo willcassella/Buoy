@@ -22,15 +22,15 @@ pub(crate) struct Node {
 
 pub(crate) type Children = HashMap<SocketName, VecDeque<Node>>;
 
-pub struct Builder<'ctx, 'window> {
+pub struct SubContext<'ctx, 'window> {
     pub(crate) ctx: &'ctx mut Context<'window>,
     pub(crate) max_area: Area,
     pub(crate) root: Node,
     pub(crate) stack: Vec<(Node, SocketName)>,
 }
 
-impl<'ctx, 'window> Builder<'ctx, 'window> {
-    pub fn finish(mut self) -> LayoutObj {
+impl<'ctx, 'window> SubContext<'ctx, 'window> {
+    pub fn close(mut self) -> LayoutObj {
         while !self.stack.is_empty() {
             self.end();
         }
@@ -47,7 +47,7 @@ impl<'ctx, 'window> Builder<'ctx, 'window> {
         self.root.elem.run(sub_ctx, self.root.id)
     }
 
-    pub fn end<'a>(&'a mut self) -> &'a mut Builder<'ctx, 'window> {
+    pub fn end<'a>(&'a mut self) -> &'a mut SubContext<'ctx, 'window> {
         let (node, socket) = self.stack.pop().expect("Bad call to 'end'");
 
         // Get the parent node
@@ -60,12 +60,12 @@ impl<'ctx, 'window> Builder<'ctx, 'window> {
         self
     }
 
-    pub fn begin_element<'a, E: Element + 'static>(
+    pub fn begin<'a, E: Element + 'static>(
         &'a mut self,
         socket: SocketName,
         id: Id,
         elem: E,
-    ) -> &'a mut Builder<'ctx, 'window> {
+    ) -> &'a mut SubContext<'ctx, 'window> {
         let node = Node {
             id,
             elem: Box::new(elem),
@@ -80,7 +80,7 @@ impl<'ctx, 'window> Builder<'ctx, 'window> {
         &'a mut self,
         target: SocketName,
         socket: SocketName,
-    ) -> &'a mut Builder<'ctx, 'window> {
+    ) -> &'a mut SubContext<'ctx, 'window> {
         // Get the current children
         let mut children = match self.ctx.children.remove_entry(&socket) {
             Some((_, children)) => children,
@@ -108,13 +108,13 @@ impl<'window> Context<'window> {
         self.max_area
     }
 
-    pub fn begin_element<'ctx, E: Element + 'static>(
+    pub fn open_element<'ctx, E: Element + 'static>(
         &'ctx mut self,
         max_area: Area,
         id: Id,
         elem: E,
-    ) -> Builder<'ctx, 'window> {
-        Builder {
+    ) -> SubContext<'ctx, 'window> {
+        SubContext {
             ctx: self,
             max_area,
             root: Node {

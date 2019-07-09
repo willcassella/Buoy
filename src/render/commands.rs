@@ -48,11 +48,10 @@ impl ColoredQuad {
     }
 }
 
-pub type InputAction = Rc<dyn Fn(&mut Window)>;
+pub type HoverAction = Rc<dyn Fn(&mut Window, bool)>;
 
 #[derive(Clone)]
 pub struct HoverQuad {
     pub quad: Quad,
-    pub active_state: Input<bool>,
-    pub action: Option<InputAction>,
+    pub action: HoverAction,
 }

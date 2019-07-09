@@ -4,7 +4,7 @@ use crate::space::Area;
 
 mod context;
 pub(crate) use self::context::Children;
-pub use self::context::{Builder, Context};
+pub use self::context::{Context, SubContext};
 
 mod id;
 pub use self::id::Id;
@@ -15,7 +15,11 @@ pub use self::socket::{Socket, SocketName};
 mod layout;
 pub use self::layout::{Layout, LayoutObj};
 
-pub struct ElementId;
+pub struct Builder<T: Element> {
+    pub id: Id,
+    pub socket: SocketName,
+    pub e: T,
+}
 
 // An 'Element' is something run in the the context of a socket
 // This is the starting point for any UI tree
@@ -32,19 +36,19 @@ impl Element for () {
 pub trait ElementExt: Element {
     fn begin<'a, 'ctx, 'window>(
         self,
-        builder: &'a mut Builder<'ctx, 'window>,
+        sub_ctx: &'a mut SubContext<'ctx, 'window>,
         socket: SocketName,
         id: Id,
-    ) -> &'a mut Builder<'ctx, 'window>;
+    ) -> &'a mut SubContext<'ctx, 'window>;
 }
 
 impl<T: Element + 'static> ElementExt for T {
     fn begin<'a, 'ctx, 'window>(
         self,
-        builder: &'a mut Builder<'ctx, 'window>,
+        sub_ctx: &'a mut SubContext<'ctx, 'window>,
         socket: SocketName,
         id: Id,
-    ) -> &'a mut Builder<'ctx, 'window> {
-        builder.begin_element(socket, id, self)
+    ) -> &'a mut SubContext<'ctx, 'window> {
+        sub_ctx.begin(socket, id, self)
     }
 }

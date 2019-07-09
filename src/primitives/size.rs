@@ -84,14 +84,19 @@ impl archetype::Wrap for Size {
 
     fn close_some<L: Layout>(&self, _ctx: Context, _id: Id, child: LayoutObj<L>) -> LayoutObj {
         let this = *self;
+
         LayoutObj::new(
-            child.min_area,
+            child.min_area.stretch(&this.min), // TODO: Handle if child is too big (will require clipping/scrolling)
             move |mut region: Region, cmds: &mut CommandList| {
                 if this.max.width < region.area.width {
                     region = this.h_align.align(this.max, region);
+                } else if this.min.width > region.area.width {
+                    region.area.width = this.min.width;
                 }
                 if this.max.height < region.area.height {
                     region = this.v_align.align(this.max, region);
+                } else if this.min.height > region.area.height {
+                    region.area.height = this.min.height;
                 }
 
                 child.imp.render(region, cmds);

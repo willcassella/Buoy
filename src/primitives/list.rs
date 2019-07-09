@@ -7,7 +7,7 @@ use super::archetype;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
-pub enum Dir {
+pub enum ListDir {
     LeftToRight,
     RightToLeft,
     TopToBottom,
@@ -17,28 +17,28 @@ pub enum Dir {
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct List {
-    pub dir: Dir,
+    pub dir: ListDir,
 }
 
 impl List {
-    pub fn new(dir: Dir) -> Self {
+    pub fn new(dir: ListDir) -> Self {
         List { dir }
     }
 
     pub fn left_to_right() -> Self {
-        List::new(Dir::LeftToRight)
+        List::new(ListDir::LeftToRight)
     }
 
     pub fn right_to_left() -> Self {
-        List::new(Dir::RightToLeft)
+        List::new(ListDir::RightToLeft)
     }
 
     pub fn top_to_bottom() -> Self {
-        List::new(Dir::TopToBottom)
+        List::new(ListDir::TopToBottom)
     }
 
     pub fn bottom_to_top() -> Self {
-        List::new(Dir::BottomToTop)
+        List::new(ListDir::BottomToTop)
     }
 }
 
@@ -51,8 +51,8 @@ impl Element for List {
 impl archetype::Panel for List {
     fn open(&self, mut max_area: Area) -> Area {
         match self.dir {
-            Dir::LeftToRight | Dir::RightToLeft => max_area.width = f32::INFINITY,
-            Dir::TopToBottom | Dir::BottomToTop => max_area.height = f32::INFINITY,
+            ListDir::LeftToRight | ListDir::RightToLeft => max_area.width = f32::INFINITY,
+            ListDir::TopToBottom | ListDir::BottomToTop => max_area.height = f32::INFINITY,
         };
 
         max_area
@@ -63,13 +63,13 @@ impl archetype::Panel for List {
 
         // Figure out height and width for the stack
         match self.dir {
-            Dir::LeftToRight | Dir::RightToLeft => {
+            ListDir::LeftToRight | ListDir::RightToLeft => {
                 for child in &children {
                     min_area.width += child.min_area.width;
                     min_area.height = min_area.height.max(child.min_area.height);
                 }
             }
-            Dir::TopToBottom | Dir::BottomToTop => {
+            ListDir::TopToBottom | ListDir::BottomToTop => {
                 for child in &children {
                     min_area.height += child.min_area.height;
                     min_area.width = min_area.width.max(child.min_area.width);
@@ -78,16 +78,16 @@ impl archetype::Panel for List {
         }
 
         let layout_func: Box<dyn Layout> = match self.dir {
-            Dir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
+            ListDir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_left_to_right(children.as_slice(), region, cmds);
             }),
-            Dir::RightToLeft => Box::new(move |region: Region, cmds: &mut CommandList| {
+            ListDir::RightToLeft => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_right_to_left(children.as_slice(), region, cmds);
             }),
-            Dir::TopToBottom => Box::new(move |region: Region, cmds: &mut CommandList| {
+            ListDir::TopToBottom => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_top_to_bottom(children.as_slice(), region, cmds);
             }),
-            Dir::BottomToTop => Box::new(move |region: Region, cmds: &mut CommandList| {
+            ListDir::BottomToTop => Box::new(move |region: Region, cmds: &mut CommandList| {
                 render_bottom_to_top(children.as_slice(), region, cmds);
             }),
         };

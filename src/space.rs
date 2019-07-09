@@ -41,6 +41,13 @@ impl Area {
             height: f32::INFINITY,
         }
     }
+
+    pub fn stretch(&self, other: &Self) -> Self {
+        Area {
+            width: self.width.max(other.width),
+            height: self.height.max(other.height),
+        }
+    }
 }
 
 impl Default for Area {
