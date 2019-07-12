@@ -1,4 +1,4 @@
-pub mod input;
+pub mod state;
 pub mod render;
 pub mod space;
 pub mod util;
@@ -11,7 +11,7 @@ pub mod primitives;
 pub mod prelude {
     pub use crate::element::*;
     pub use crate::filter::*;
-    pub use crate::input::*;
+    pub use crate::state::*;
     pub use crate::space::*;
 
     pub use crate::Window;

@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::core::common::*;
 use crate::core::element::*;
 use crate::core::filter::*;
-use crate::input::*;
+use crate::state::*;
 use crate::space::*;
 
 #[derive(Default)]
@@ -12,8 +12,8 @@ pub struct Window {
     frame_id: FrameId,
     next_context_id: ContextId,
 
-    prev_input: InputCache,
-    cur_input: InputCache,
+    prev_frame_state: StateCache,
+    cur_frame_state: StateCache,
 
     next_frame_filters: FilterStack,
 }
@@ -25,15 +25,15 @@ impl Window {
         self.next_context_id = Default::default();
 
         // Swap input caches
-        std::mem::swap(&mut self.prev_input, &mut self.cur_input);
-        self.cur_input.clear();
+        std::mem::swap(&mut self.prev_frame_state, &mut self.cur_frame_state);
+        self.cur_frame_state.clear();
 
         // Get filters for the next frame
         let frame_filters = replace(&mut self.next_frame_filters, FilterStack::default());
 
         // Create a context for running
         let mut global_data = GlobalData {
-            next_input_id: InputId::new(self.frame_id, ContextId(0)),
+            next_state_id: StateId::new(self.frame_id, ContextId(0)),
             next_frame_filters: FilterStack::default(),
         };
 
@@ -41,7 +41,7 @@ impl Window {
             max_area,
             children: Children::new(),
 
-            prev_input: &self.prev_input,
+            prev_frame_state: &self.prev_frame_state,
             global_data: &mut global_data,
         };
 
@@ -57,11 +57,11 @@ impl Window {
         self.next_frame_filters.add_filter_late(filter);
     }
 
-    pub fn send_input<T: InputState>(&mut self, input: Input<T>, value: T) {
-        if input.id.frame_id != self.frame_id {
+   pub fn write_state<T: StateT>(&mut self, state: State<T>, value: T) {
+        if state.id.frame_id != self.frame_id {
             panic!("Writing to state for wrong frame");
         }
 
-        self.cur_input.insert(input.id, Box::new(value));
+        self.cur_frame_state.insert(state.id, Box::new(value));
     }
 }

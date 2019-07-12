@@ -3,14 +3,14 @@ use std::collections::VecDeque;
 
 use crate::core::element::*;
 use crate::core::filter::*;
-use crate::input::*;
+use crate::state::*;
 use crate::space::*;
 
 pub struct Context<'window> {
     pub(crate) max_area: Area,
     pub(crate) children: Children,
 
-    pub(crate) prev_input: &'window InputCache,
+    pub(crate) prev_frame_state: &'window StateCache,
     pub(crate) global_data: &'window mut GlobalData,
 }
 
@@ -40,7 +40,7 @@ impl<'ctx, 'window> SubContext<'ctx, 'window> {
             max_area: self.max_area,
             children: self.root.children,
 
-            prev_input: self.ctx.prev_input,
+            prev_frame_state: self.ctx.prev_frame_state,
             global_data: self.ctx.global_data,
         };
 
@@ -101,6 +101,14 @@ impl<'ctx, 'window> SubContext<'ctx, 'window> {
             .append(&mut children);
         self
     }
+
+    pub fn new_state<T: StateT>(&mut self) -> State<T> {
+        self.ctx.new_state()
+    }
+
+    pub fn read_state<T: StateT>(&self, state: State<T>) -> T {
+        self.ctx.read_state(state)
+    }
 }
 
 impl<'window> Context<'window> {
@@ -143,7 +151,7 @@ impl<'window> Context<'window> {
             let sub_ctx = Context {
                 max_area,
                 children: child.children,
-                prev_input: self.prev_input,
+                prev_frame_state: self.prev_frame_state,
                 global_data: self.global_data,
             };
 
@@ -159,18 +167,18 @@ impl<'window> Context<'window> {
         unimplemented!()
     }
 
-    pub fn new_input<F: InputState>(&mut self) -> Input<F> {
-        let id = self.global_data.next_input_id.increment();
-        Input::new(id)
+    pub fn new_state<T: StateT>(&mut self) -> State<T> {
+        let id = self.global_data.next_state_id.increment();
+        State::new(id)
     }
 
-    pub fn read_input<F: InputState>(&self, input: Input<F>) -> F {
-        if input.id.frame_id != self.global_data.next_input_id.frame_id.prev() {
+    pub fn read_state<T: StateT>(&self, state: State<T>) -> T {
+        if state.id.frame_id != self.global_data.next_state_id.frame_id.prev() {
             panic!("Attempt to read state from wrong frame");
         }
 
-        if let Some(v) = self.prev_input.get(&input.id) {
-            v.downcast_ref::<F>().expect("Mismatched types").clone()
+        if let Some(v) = self.prev_frame_state.get(&state.id) {
+            v.downcast_ref::<T>().expect("Mismatched types").clone()
         } else {
             Default::default()
         }

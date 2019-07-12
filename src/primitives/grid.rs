@@ -4,7 +4,7 @@ use crate::prelude::*;
 pub struct Grid {
     pub rows: Vec<GridLine>,
     pub cols: Vec<GridLine>,
-    pub areas: Vec<GridArea>,
+    pub regions: Vec<GridRegion>,
 }
 
 #[derive(Copy, Clone)]
@@ -16,7 +16,7 @@ pub enum GridLine {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-pub struct GridArea {
+pub struct GridRegion {
     start_row: u32,
     end_row: u32,
     start_column: u32,

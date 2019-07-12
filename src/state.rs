@@ -35,15 +35,15 @@ pub struct Cookie(pub u16);
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default, Hash)]
-pub struct InputId {
+pub struct StateId {
     pub(super) frame_id: FrameId,
     pub(super) context_id: ContextId,
     pub(super) cookie: Cookie,
 }
 
-impl InputId {
+impl StateId {
     pub fn new(frame_id: FrameId, context_id: ContextId) -> Self {
-        InputId {
+        StateId {
             frame_id,
             context_id,
             cookie: Cookie(1),
@@ -57,24 +57,24 @@ impl InputId {
     }
 }
 
-pub trait InputState: Clone + Send + Any + Default {}
+pub trait StateT: Clone + Send + Any + Default {}
 
-impl<T: Clone + Send + Any + Default> InputState for T {}
+impl<T: Clone + Send + Any + Default> StateT for T {}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Input<T: InputState> {
-    pub(super) id: InputId,
+pub struct State<T: StateT> {
+    pub(super) id: StateId,
     _phantom: PhantomData<T>,
 }
 
-impl<T: InputState> Input<T> {
-    pub fn new(id: InputId) -> Self {
-        Input {
+impl<T: StateT> State<T> {
+    pub fn new(id: StateId) -> Self {
+        State {
             id,
             _phantom: PhantomData,
         }
     }
 }
 
-pub type InputCache = HashMap<InputId, Box<Any>>;
+pub type StateCache = HashMap<StateId, Box<Any>>;

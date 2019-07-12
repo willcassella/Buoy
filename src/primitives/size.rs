@@ -15,46 +15,12 @@ pub struct Size {
 }
 
 impl Size {
-    pub fn h_align(mut self, h_align: HAlign) -> Self {
-        self.h_align = h_align;
-        self
-    }
-
-    pub fn v_align(mut self, v_align: VAlign) -> Self {
-        self.v_align = v_align;
-        self
-    }
-
-    pub fn width(mut self, width: f32) -> Self {
-        self.min.width = width;
-        self.max.width = width;
-        self
-    }
-
-    pub fn min_width(mut self, width: f32) -> Self {
-        self.min.width = width;
-        self
-    }
-
-    pub fn max_width(mut self, width: f32) -> Self {
-        self.max.width = width;
-        self
-    }
-
-    pub fn height(mut self, height: f32) -> Self {
-        self.min.height = height;
-        self.max.height = height;
-        self
-    }
-
-    pub fn min_height(mut self, height: f32) -> Self {
-        self.min.height = height;
-        self
-    }
-
-    pub fn max_height(mut self, height: f32) -> Self {
-        self.max.height = height;
-        self
+    pub fn build(id: Id) -> SizeBuilder {
+        SizeBuilder {
+            id,
+            socket: SocketName::default(),
+            element: Size::default(),
+        }
     }
 }
 
@@ -108,5 +74,71 @@ impl archetype::Wrap for Size {
     fn close_none(&self, _ctx: Context, _id: Id) -> LayoutObj {
         // Just take up space
         LayoutObj::new(self.min, ()).upcast()
+    }
+}
+
+pub struct SizeBuilder {
+    id: Id,
+    socket: SocketName,
+    element: Size,
+}
+
+impl SizeBuilder {
+    pub fn h_align(mut self, h_align: HAlign) -> Self {
+        self.element.h_align = h_align;
+        self
+    }
+
+    pub fn v_align(mut self, v_align: VAlign) -> Self {
+        self.element.v_align = v_align;
+        self
+    }
+
+    pub fn width(mut self, width: f32) -> Self {
+        self.element.min.width = width;
+        self.element.max.width = width;
+        self
+    }
+
+    pub fn min_width(mut self, width: f32) -> Self {
+        self.element.min.width = width;
+        self
+    }
+
+    pub fn max_width(mut self, width: f32) -> Self {
+        self.element.max.width = width;
+        self
+    }
+
+    pub fn height(mut self, height: f32) -> Self {
+        self.element.min.height = height;
+        self.element.max.height = height;
+        self
+    }
+
+    pub fn min_height(mut self, height: f32) -> Self {
+        self.element.min.height = height;
+        self
+    }
+
+    pub fn max_height(mut self, height: f32) -> Self {
+        self.element.max.height = height;
+        self
+    }
+}
+
+impl Builder for SizeBuilder {
+    type Element = Size;
+
+    fn get_id(&self) -> Id {
+        self.id
+    }
+
+    fn get_socket(&self) -> SocketName {
+        self.socket
+    }
+
+    fn get_element(self) -> Self::Element {
+        self.element
     }
 }

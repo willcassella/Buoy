@@ -16,10 +16,18 @@ impl Fill {
     pub fn new(color: color::RGBA8) -> Self {
         Fill { color }
     }
+
+    pub fn build(id: Id) -> FillBuilder {
+        FillBuilder {
+            id,
+            socket: SocketName::default(),
+            element: Fill::default(),
+        }
+    }
 }
 
 impl Element for Fill {
-    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
+    fn run(&self, _ctx: Context, _id: Id) -> LayoutObj {
         let color = self.color;
         LayoutObj::new(
             Area::zero(),
@@ -28,5 +36,39 @@ impl Element for Fill {
             },
         )
         .upcast()
+    }
+}
+
+pub struct FillBuilder {
+    id: Id,
+    socket: SocketName,
+    element: Fill,
+}
+
+impl FillBuilder {
+    pub fn socket(mut self, socket: SocketName) -> Self {
+        self.socket = socket;
+        self
+    }
+
+    pub fn color(mut self, color: color::RGBA8) -> Self {
+        self.element.color = color;
+        self
+    }
+}
+
+impl Builder for FillBuilder {
+    type Element = Fill;
+
+    fn get_id(&self) -> Id {
+        self.id
+    }
+
+    fn get_socket(&self) -> SocketName {
+        self.socket
+    }
+
+    fn get_element(self) -> Self::Element {
+        self.element
     }
 }

@@ -15,12 +15,6 @@ pub use self::socket::{Socket, SocketName};
 mod layout;
 pub use self::layout::{Layout, LayoutObj};
 
-pub struct Builder<T: Element> {
-    pub id: Id,
-    pub socket: SocketName,
-    pub e: T,
-}
-
 // An 'Element' is something run in the the context of a socket
 // This is the starting point for any UI tree
 pub trait Element {
@@ -33,22 +27,24 @@ impl Element for () {
     }
 }
 
-pub trait ElementExt: Element {
-    fn begin<'a, 'ctx, 'window>(
-        self,
-        sub_ctx: &'a mut SubContext<'ctx, 'window>,
-        socket: SocketName,
-        id: Id,
-    ) -> &'a mut SubContext<'ctx, 'window>;
-}
+pub trait Builder: Sized {
+    type Element: Element + 'static;
 
-impl<T: Element + 'static> ElementExt for T {
-    fn begin<'a, 'ctx, 'window>(
+    fn get_id(&self) -> Id;
+
+    fn get_socket(&self) -> SocketName;
+
+    fn get_element(self) -> Self::Element;
+
+    fn begin(self, sub_ctx: &mut SubContext) {
+        sub_ctx.begin(self.get_socket(), self.get_id(), self.get_element());
+    }
+
+    fn open<'ctx, 'window>(
         self,
-        sub_ctx: &'a mut SubContext<'ctx, 'window>,
-        socket: SocketName,
-        id: Id,
-    ) -> &'a mut SubContext<'ctx, 'window> {
-        sub_ctx.begin(socket, id, self)
+        ctx: &'ctx mut Context<'window>,
+        max_area: Area,
+    ) -> SubContext<'ctx, 'window> {
+        ctx.open_element(max_area, self.get_id(), self.get_element())
     }
 }

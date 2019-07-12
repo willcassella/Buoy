@@ -15,11 +15,11 @@ impl Id {
         Id(hasher.finish())
     }
 
-    pub fn str(self, id: &str) -> Self {
+    pub fn append_str(self, id: &str) -> Self {
         self.id(Id::from(id))
     }
 
-    pub fn num(self, id: u64) -> Self {
+    pub fn append_num(self, id: u64) -> Self {
         self.id(Id::from(id))
     }
 }

@@ -15,6 +15,24 @@ pub struct Border {
 }
 
 impl Border {
+    pub fn uniform(size: f32) -> Self {
+        Border {
+            left: size,
+            top: size,
+            right: size,
+            bottom: size,
+            color: color::constants::TRANSPARENT,
+        }
+    }
+
+    pub fn build(id: Id) -> BorderBuilder {
+        BorderBuilder {
+            id,
+            socket: SocketName::default(),
+            element: Default::default(),
+        }
+    }
+
     fn generate_commands(&self, region: Region, cmds: &mut CommandList) {
         let top_quad = ColoredQuad::new(
             Quad::new(region.pos.x, region.pos.y, region.area.width, self.top),
@@ -48,45 +66,6 @@ impl Border {
             self.color,
         );
         cmds.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
-    }
-}
-
-impl Border {
-    pub fn uniform(size: f32) -> Self {
-        Border {
-            left: size,
-            top: size,
-            right: size,
-            bottom: size,
-            color: color::constants::BLACK,
-        }
-    }
-}
-
-impl Border {
-    pub fn top(mut self, top: f32) -> Self {
-        self.top = top;
-        self
-    }
-
-    pub fn bottom(mut self, bottom: f32) -> Self {
-        self.bottom = bottom;
-        self
-    }
-
-    pub fn left(mut self, left: f32) -> Self {
-        self.left = left;
-        self
-    }
-
-    pub fn right(mut self, right: f32) -> Self {
-        self.right = right;
-        self
-    }
-
-    pub fn color(mut self, color: color::RGBA8) -> Self {
-        self.color = color;
-        self
     }
 }
 
@@ -161,5 +140,64 @@ impl archetype::Wrap for Border {
             })
             .upcast()
         }
+    }
+}
+
+pub struct BorderBuilder {
+    id: Id,
+    socket: SocketName,
+    element: Border,
+}
+
+impl BorderBuilder {
+    pub fn uniform(mut self, size: f32) -> Self {
+        self.element = Border::uniform(size);
+        self
+    }
+
+    pub fn socket(mut self, socket: SocketName) -> Self {
+        self.socket = socket;
+        self
+    }
+
+    pub fn top(mut self, top: f32) -> Self {
+        self.element.top = top;
+        self
+    }
+
+    pub fn bottom(mut self, bottom: f32) -> Self {
+        self.element.bottom = bottom;
+        self
+    }
+
+    pub fn left(mut self, left: f32) -> Self {
+        self.element.left = left;
+        self
+    }
+
+    pub fn right(mut self, right: f32) -> Self {
+        self.element.right = right;
+        self
+    }
+
+    pub fn color(mut self, color: color::RGBA8) -> Self {
+        self.element.color = color;
+        self
+    }
+}
+
+impl Builder for BorderBuilder {
+    type Element = Border;
+
+    fn get_id(&self) -> Id {
+        self.id
+    }
+
+    fn get_socket(&self) -> SocketName {
+        self.socket
+    }
+
+    fn get_element(self) -> Self::Element {
+        self.element
     }
 }
