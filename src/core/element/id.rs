@@ -1,14 +1,15 @@
-use std::collections::hash_map::DefaultHasher;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
+
+use fasthash::Murmur2Hasher as FastHasher;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Hash, Eq, PartialEq)]
 pub struct Id(u64);
 
 impl Id {
-    pub fn id(self, id: Id) -> Self {
-        let mut hasher = DefaultHasher::new();
+    pub fn append_id(self, id: Id) -> Self {
+        let mut hasher = FastHasher::default();
         self.hash(&mut hasher);
         id.hash(&mut hasher);
 
@@ -16,17 +17,17 @@ impl Id {
     }
 
     pub fn append_str(self, id: &str) -> Self {
-        self.id(Id::from(id))
+        self.append_id(Id::from(id))
     }
 
     pub fn append_num(self, id: u64) -> Self {
-        self.id(Id::from(id))
+        self.append_id(Id::from(id))
     }
 }
 
 impl<'a> From<&'a str> for Id {
     fn from(id: &'a str) -> Self {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FastHasher::default();
         id.hash(&mut hasher);
 
         Id(hasher.finish())
@@ -35,7 +36,7 @@ impl<'a> From<&'a str> for Id {
 
 impl From<u64> for Id {
     fn from(id: u64) -> Self {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FastHasher::default();
         id.hash(&mut hasher);
 
         Id(hasher.finish())
