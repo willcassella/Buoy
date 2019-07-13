@@ -77,4 +77,4 @@ impl<T: StateT> State<T> {
     }
 }
 
-pub type StateCache = HashMap<StateId, Box<Any>>;
+pub type StateCache = HashMap<StateId, Box<dyn Any>>;

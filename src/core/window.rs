@@ -6,6 +6,7 @@ use crate::core::element::*;
 use crate::core::filter::*;
 use crate::state::*;
 use crate::space::*;
+use crate::util::linear_buffer::LinearBuffer;
 
 #[derive(Default)]
 pub struct Window {
@@ -16,6 +17,7 @@ pub struct Window {
     cur_frame_state: StateCache,
 
     next_frame_filters: FilterStack,
+    buffer: LinearBuffer,
 }
 
 impl Window {
@@ -43,6 +45,7 @@ impl Window {
 
             prev_frame_state: &self.prev_frame_state,
             global_data: &mut global_data,
+            buffer: &self.buffer,
         };
 
         // Run the element

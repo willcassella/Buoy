@@ -5,28 +5,30 @@ use crate::core::element::*;
 use crate::core::filter::*;
 use crate::state::*;
 use crate::space::*;
+use crate::util::linear_buffer::{LinearBuffer, LinearBufferBox};
 
 pub struct Context<'window> {
     pub(crate) max_area: Area,
-    pub(crate) children: Children,
+    pub(crate) children: Children<'window>,
 
     pub(crate) prev_frame_state: &'window StateCache,
     pub(crate) global_data: &'window mut GlobalData,
+    pub(crate) buffer: &'window LinearBuffer,
 }
 
-pub(crate) struct Node {
+pub(crate) struct Node<'window> {
     id: Id,
-    elem: Box<dyn Element>,
-    children: Children,
+    elem: LinearBufferBox<'window, dyn Element>,
+    children: Children<'window>,
 }
 
-pub(crate) type Children = HashMap<SocketName, VecDeque<Node>>;
+pub(crate) type Children<'window> = HashMap<SocketName, VecDeque<Node<'window>>>;
 
 pub struct SubContext<'ctx, 'window> {
     pub(crate) ctx: &'ctx mut Context<'window>,
     pub(crate) max_area: Area,
-    pub(crate) root: Node,
-    pub(crate) stack: Vec<(Node, SocketName)>,
+    pub(crate) root: Node<'window>,
+    pub(crate) stack: Vec<(Node<'window>, SocketName)>,
 }
 
 impl<'ctx, 'window> SubContext<'ctx, 'window> {
@@ -42,6 +44,7 @@ impl<'ctx, 'window> SubContext<'ctx, 'window> {
 
             prev_frame_state: self.ctx.prev_frame_state,
             global_data: self.ctx.global_data,
+            buffer: self.ctx.buffer,
         };
 
         self.root.elem.run(sub_ctx, self.root.id)
@@ -68,7 +71,7 @@ impl<'ctx, 'window> SubContext<'ctx, 'window> {
     ) -> &'a mut SubContext<'ctx, 'window> {
         let node = Node {
             id,
-            elem: Box::new(elem),
+            elem: self.ctx.buffer.alloc(elem),
             children: Children::new(),
         };
 
@@ -122,12 +125,14 @@ impl<'window> Context<'window> {
         id: Id,
         elem: E,
     ) -> SubContext<'ctx, 'window> {
+        let elem = self.buffer.alloc(elem);
+
         SubContext {
             ctx: self,
             max_area,
             root: Node {
                 id,
-                elem: Box::new(elem),
+                elem,
                 children: Children::new(),
             },
             stack: Vec::new(),
@@ -153,6 +158,7 @@ impl<'window> Context<'window> {
                 children: child.children,
                 prev_frame_state: self.prev_frame_state,
                 global_data: self.global_data,
+                buffer: self.buffer,
             };
 
             socket.push(child.elem.run(sub_ctx, child.id));
