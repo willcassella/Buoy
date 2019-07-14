@@ -1,2 +1,3 @@
 pub mod fill;
-pub mod linear_buffer;
+pub mod linked_buffer;
+pub mod linked_queue;

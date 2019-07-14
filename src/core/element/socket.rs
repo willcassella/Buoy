@@ -24,6 +24,12 @@ impl<T: Fill<LayoutObj>> Socket for T {
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
 pub struct SocketName(pub u64);
 
+impl SocketName {
+    pub fn is_default(self) -> bool {
+        self.0 == 0
+    }
+}
+
 impl<'a> From<&'a str> for SocketName {
     fn from(s: &'a str) -> Self {
         let mut hasher = DefaultHasher::new();

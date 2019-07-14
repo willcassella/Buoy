@@ -6,7 +6,7 @@ use crate::core::element::*;
 use crate::core::filter::*;
 use crate::state::*;
 use crate::space::*;
-use crate::util::linear_buffer::LinearBuffer;
+use crate::util::linked_buffer::LinkedBuffer;
 
 #[derive(Default)]
 pub struct Window {
@@ -17,7 +17,7 @@ pub struct Window {
     cur_frame_state: StateCache,
 
     next_frame_filters: FilterStack,
-    buffer: LinearBuffer,
+    buffer: LinkedBuffer,
 }
 
 impl Window {
@@ -39,13 +39,15 @@ impl Window {
             next_frame_filters: FilterStack::default(),
         };
 
+        let mut subctx_stack = Vec::new();
         let ctx = Context {
             max_area,
-            children: Children::new(),
+            children: Children::default(),
 
             prev_frame_state: &self.prev_frame_state,
             global_data: &mut global_data,
             buffer: &self.buffer,
+            subctx_stack: &mut subctx_stack,
         };
 
         // Run the element

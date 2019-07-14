@@ -12,12 +12,12 @@ struct Node {
     prev: Option<Box<Node>>,
 }
 
-impl Default for Node {
-    fn default() -> Self {
-        Self {
+impl Node {
+    fn alloc() -> Box<Self> {
+        Box::new(Self {
             buf: unsafe { core::mem::MaybeUninit::uninit().assume_init() },
             prev: None,
-        }
+        })
     }
 }
 
@@ -30,14 +30,14 @@ impl Drop for Node {
     }
 }
 
-struct LinearBufferInner {
+struct LinkedBufferInner {
     head: Option<Box<Node>>,
     offset: usize,
 }
 
-impl LinearBufferInner {
+impl LinkedBufferInner {
     fn new() -> Self {
-        LinearBufferInner {
+        LinkedBufferInner {
             head: None,
             offset: 0,
         }
@@ -59,7 +59,7 @@ impl LinearBufferInner {
 
                 // If we've exceeded the bounds of our buffer, allocate into a new node
                 if dest_offset + std::mem::size_of::<T>() > BUFFER_SIZE {
-                    let (mut node, offset, ptr) = LinearBufferInner::alloc_new_node(value);
+                    let (mut node, offset, ptr) = LinkedBufferInner::alloc_new_node(value);
 
                     // Update self
                     node.prev = self.head.take();
@@ -78,7 +78,7 @@ impl LinearBufferInner {
                 dest
             },
             None => {
-                let (node, offset, ptr) = LinearBufferInner::alloc_new_node(value);
+                let (node, offset, ptr) = LinkedBufferInner::alloc_new_node(value);
 
                 // Update self
                 self.head = Some(node);
@@ -90,7 +90,7 @@ impl LinearBufferInner {
     }
 
     unsafe fn alloc_new_node<T>(value: T) -> (Box<Node>, usize, *mut T) {
-        let mut node = Box::new(Node::default());
+        let mut node = Node::alloc();
         let start = node.buf.as_mut_ptr();
 
         // Align the pointer for writing (assume it fits)
@@ -104,21 +104,21 @@ impl LinearBufferInner {
     }
 }
 
-impl Default for LinearBufferInner {
+impl Default for LinkedBufferInner {
     fn default() -> Self {
-        LinearBufferInner::new()
+        LinkedBufferInner::new()
     }
 }
 
 #[derive(Default)]
-pub struct LinearBuffer {
-    inner: UnsafeCell<LinearBufferInner>,
+pub struct LinkedBuffer {
+    inner: UnsafeCell<LinkedBufferInner>,
 }
 
-impl LinearBuffer {
+impl LinkedBuffer {
     pub fn new() -> Self {
-        LinearBuffer {
-            inner: UnsafeCell::new(LinearBufferInner::new()),
+        LinkedBuffer {
+            inner: UnsafeCell::new(LinkedBufferInner::new()),
         }
     }
 
@@ -126,34 +126,42 @@ impl LinearBuffer {
         unsafe { (*self.inner.get()).clear() }
     }
 
-    pub fn alloc<'a, T>(&'a self, value: T) -> LinearBufferBox<'a, T> {
+    pub fn alloc<'a, T>(&'a self, value: T) -> LinkedBufferBox<'a, T> {
         let ptr = unsafe { (*self.inner.get()).alloc(value) };
 
-        LinearBufferBox {
+        LinkedBufferBox {
             value: ptr,
             _phantom: PhantomData,
         }
     }
 }
 
-pub struct LinearBufferBox<'a, T: ?Sized> {
+pub struct LinkedBufferBox<'a, T: ?Sized> {
     value: *mut T,
     _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T, U: ?Sized> CoerceUnsized<LinearBufferBox<'a, U>> for LinearBufferBox<'a, T>
+impl<'a, T> LinkedBufferBox<'a, T> {
+    pub fn into_inner(b: Self) -> T {
+        let value = unsafe { std::ptr::read(b.value) };
+        std::mem::forget(b);
+        value
+    }
+}
+
+impl<'a, T, U: ?Sized> CoerceUnsized<LinkedBufferBox<'a, U>> for LinkedBufferBox<'a, T>
 where
     T: Unsize<U>
 {
 }
 
-impl<'a, T: ?Sized> Drop for LinearBufferBox<'a, T> {
+impl<'a, T: ?Sized> Drop for LinkedBufferBox<'a, T> {
     fn drop(&mut self) {
         unsafe { ptr::drop_in_place(self.value); }
     }
 }
 
-impl<'a, T: ?Sized> Deref for LinearBufferBox<'a, T> {
+impl<'a, T: ?Sized> Deref for LinkedBufferBox<'a, T> {
     type Target = T;
 
     fn deref<'b>(&'b self) -> &'b T {
@@ -161,7 +169,7 @@ impl<'a, T: ?Sized> Deref for LinearBufferBox<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for LinearBufferBox<'a, T> {
+impl<'a, T: ?Sized> DerefMut for LinkedBufferBox<'a, T> {
     fn deref_mut<'b>(&'b mut self) -> &'b mut T {
         unsafe { &mut *self.value }
     }
@@ -169,11 +177,11 @@ impl<'a, T: ?Sized> DerefMut for LinearBufferBox<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::LinearBuffer;
+    use super::LinkedBuffer;
 
     #[test]
     fn try_alloc() {
-        let mut buf = LinearBuffer::new();
+        let mut buf = LinkedBuffer::new();
 
         {
             let one = buf.alloc(1);

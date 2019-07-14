@@ -1,65 +1,101 @@
 use std::collections::HashMap;
-use std::collections::VecDeque;
 
 use crate::core::element::*;
 use crate::core::filter::*;
 use crate::state::*;
 use crate::space::*;
-use crate::util::linear_buffer::{LinearBuffer, LinearBufferBox};
+use crate::util::linked_buffer::{LinkedBuffer, LinkedBufferBox};
+use crate::util::linked_queue::{QueueBuilder};
 
-pub struct Context<'window> {
+pub struct Context<'slf, 'win> {
     pub(crate) max_area: Area,
-    pub(crate) children: Children<'window>,
+    pub(crate) children: Children<'win>,
 
-    pub(crate) prev_frame_state: &'window StateCache,
-    pub(crate) global_data: &'window mut GlobalData,
-    pub(crate) buffer: &'window LinearBuffer,
+    pub(crate) prev_frame_state: &'slf StateCache,
+    pub(crate) global_data: &'slf mut GlobalData,
+    pub(crate) buffer: &'win LinkedBuffer,
+    pub(crate) subctx_stack: &'slf mut SubContextStack<'win>,
 }
 
-pub(crate) struct Node<'window> {
+pub(crate) struct Node<'win> {
     id: Id,
-    elem: LinearBufferBox<'window, dyn Element>,
-    children: Children<'window>,
+    elem: LinkedBufferBox<'win, dyn Element>,
+    children: Children<'win>,
 }
 
-pub(crate) type Children<'window> = HashMap<SocketName, VecDeque<Node<'window>>>;
+#[derive(Default)]
+pub(crate) struct Children<'win> {
+    default_socket: QueueBuilder<'win, Node<'win>>,
+    other_sockets: Option<HashMap<SocketName, QueueBuilder<'win, Node<'win>>>>,
+}
 
-pub struct SubContext<'ctx, 'window> {
-    pub(crate) ctx: &'ctx mut Context<'window>,
+impl<'win> Children<'win> {
+    pub fn get_or_create(&mut self, socket: SocketName) -> &mut QueueBuilder<'win, Node<'win>> {
+        if socket.is_default() {
+            &mut self.default_socket
+        } else {
+            self.other_sockets
+                .get_or_insert_with(Default::default)
+                .entry(socket)
+                .or_default()
+        }
+    }
+
+    pub fn get(&mut self, socket: SocketName) -> Option<&mut QueueBuilder<'win, Node<'win>>> {
+        if socket.is_default() {
+            Some(&mut self.default_socket)
+        } else {
+            self.other_sockets.as_mut().and_then(|sockets| sockets.get_mut(&socket))
+        }
+    }
+
+    pub fn remove(&mut self, socket: SocketName) -> Option<QueueBuilder<'win, Node<'win>>> {
+        if socket.is_default() {
+            Some(std::mem::replace(&mut self.default_socket, QueueBuilder::default()))
+        } else {
+            self.other_sockets.as_mut().and_then(|sockets| sockets.remove(&socket))
+        }
+    }
+}
+
+pub(crate) type SubContextStack<'win> = Vec<(Node<'win>, SocketName)>;
+
+pub struct SubContext<'slf, 'ctx, 'win> {
     pub(crate) max_area: Area,
-    pub(crate) root: Node<'window>,
-    pub(crate) stack: Vec<(Node<'window>, SocketName)>,
+    pub(crate) root: Node<'win>,
+    pub(crate) ctx: &'slf mut Context<'ctx, 'win>,
 }
 
-impl<'ctx, 'window> SubContext<'ctx, 'window> {
+impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
     pub fn close(mut self) -> LayoutObj {
-        while !self.stack.is_empty() {
+        while !self.ctx.subctx_stack.is_empty() {
             self.end();
         }
 
-        // Need to create a context for this element
-        let sub_ctx = Context {
+        // Need to create a context for the root element
+        let ctx = Context {
             max_area: self.max_area,
             children: self.root.children,
 
-            prev_frame_state: self.ctx.prev_frame_state,
             global_data: self.ctx.global_data,
+            prev_frame_state: self.ctx.prev_frame_state,
             buffer: self.ctx.buffer,
+            subctx_stack: self.ctx.subctx_stack,
         };
 
-        self.root.elem.run(sub_ctx, self.root.id)
+        self.root.elem.run(ctx, self.root.id)
     }
 
-    pub fn end<'a>(&'a mut self) -> &'a mut SubContext<'ctx, 'window> {
-        let (node, socket) = self.stack.pop().expect("Bad call to 'end'");
+    pub fn end<'a>(&'a mut self) -> &'a mut Self {
+        let (node, socket) = self.ctx.subctx_stack.pop().expect("Bad call to 'end'");
 
         // Get the parent node
-        let parent = match self.stack.last_mut() {
+        let parent = match self.ctx.subctx_stack.last_mut() {
             Some(parent) => &mut parent.0,
             None => &mut self.root,
         };
 
-        parent.children.entry(socket).or_default().push_back(node);
+        parent.children.get_or_create(socket).push_back(self.ctx.buffer, node);
         self
     }
 
@@ -68,14 +104,14 @@ impl<'ctx, 'window> SubContext<'ctx, 'window> {
         socket: SocketName,
         id: Id,
         elem: E,
-    ) -> &'a mut SubContext<'ctx, 'window> {
+    ) -> &'a mut Self {
         let node = Node {
             id,
             elem: self.ctx.buffer.alloc(elem),
-            children: Children::new(),
+            children: Children::default(),
         };
 
-        self.stack.push((node, socket));
+        self.ctx.subctx_stack.push((node, socket));
         self
     }
 
@@ -83,25 +119,21 @@ impl<'ctx, 'window> SubContext<'ctx, 'window> {
         &'a mut self,
         target: SocketName,
         socket: SocketName,
-    ) -> &'a mut SubContext<'ctx, 'window> {
+    ) -> &'a mut Self {
         // Get the current children
-        let mut children = match self.ctx.children.remove_entry(&socket) {
-            Some((_, children)) => children,
+        let children = match self.ctx.children.remove(socket) {
+            Some(children) => children,
             None => return self,
         };
 
         // Get the parent
-        let parent = match self.stack.last_mut() {
+        let parent = match self.ctx.subctx_stack.last_mut() {
             Some(parent) => &mut parent.0,
             None => &mut self.root,
         };
 
         // Insert the children into the parent
-        parent
-            .children
-            .entry(target)
-            .or_default()
-            .append(&mut children);
+        parent.children.get_or_create(target).append(children);
         self
     }
 
@@ -114,34 +146,38 @@ impl<'ctx, 'window> SubContext<'ctx, 'window> {
     }
 }
 
-impl<'window> Context<'window> {
+impl<'slf, 'win> Context<'slf, 'win> {
     pub fn max_area(&self) -> Area {
         self.max_area
     }
 
-    pub fn open_element<'ctx, E: Element + 'static>(
-        &'ctx mut self,
+    pub fn open_element<'a, E: Element + 'static>(
+        &'a mut self,
         max_area: Area,
         id: Id,
         elem: E,
-    ) -> SubContext<'ctx, 'window> {
-        let elem = self.buffer.alloc(elem);
+    ) -> SubContext<'a, 'slf, 'win> {
+        let buf = self.buffer;
+
+        // Clear the subcontext stack before using it
+        self.subctx_stack.clear();
 
         SubContext {
-            ctx: self,
             max_area,
             root: Node {
                 id,
-                elem,
-                children: Children::new(),
+                elem: buf.alloc(elem),
+                children: Children::default(),
             },
-            stack: Vec::new(),
+
+            ctx: self,
         }
     }
 
     pub fn open_socket(&mut self, name: SocketName, max_area: Area, socket: &mut dyn Socket) {
-        let children = match self.children.get_mut(&name) {
-            Some(children) => children,
+        // TODO: This doesn't opening multiple times
+        let mut children = match self.children.remove(name) {
+            Some(children) => children.finish(),
             None => return,
         };
 
@@ -156,9 +192,11 @@ impl<'window> Context<'window> {
             let sub_ctx = Context {
                 max_area,
                 children: child.children,
+
                 prev_frame_state: self.prev_frame_state,
                 global_data: self.global_data,
                 buffer: self.buffer,
+                subctx_stack: self.subctx_stack,
             };
 
             socket.push(child.elem.run(sub_ctx, child.id));

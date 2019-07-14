@@ -22,7 +22,7 @@ pub trait Element {
 }
 
 impl Element for () {
-    fn run<'window>(&self, _ctx: Context<'window>, _id: Id) -> LayoutObj {
+    fn run(&self, _ctx: Context, _id: Id) -> LayoutObj {
         LayoutObj::new(Area::zero(), ()).upcast()
     }
 }
@@ -40,11 +40,11 @@ pub trait Builder: Sized {
         sub_ctx.begin(self.get_socket(), self.get_id(), self.get_element());
     }
 
-    fn open<'ctx, 'window>(
+    fn open<'a, 'slf, 'win>(
         self,
-        ctx: &'ctx mut Context<'window>,
+        ctx: &'a mut Context<'slf, 'win>,
         max_area: Area,
-    ) -> SubContext<'ctx, 'window> {
+    ) -> SubContext<'a, 'slf, 'win> {
         ctx.open_element(max_area, self.get_id(), self.get_element())
     }
 }
