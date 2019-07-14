@@ -2,7 +2,6 @@ use std::marker::{PhantomData, Unsize};
 use std::ptr;
 use std::ops::{Deref, DerefMut};
 use std::cell::UnsafeCell;
-use std::ops::CoerceUnsized;
 use std::mem::{size_of, align_of};
 
 use super::dst;
@@ -171,6 +170,31 @@ impl LinkedBuffer {
             _phantom: PhantomData,
         }
     }
+
+    // This allows you to initialize a composite structure of LBBox's with a single allocation
+    pub fn alloc_composite1<'a, T1, T2, I2>(
+        &'a self,
+        t1: T1,
+        i2: I2,
+    ) -> LBBox<'a, T2>
+    where
+        I2: FnOnce(LBBox<'a, T1>) -> T2
+    {
+        // FUTURE: Would like to use something like `type AllocT = (T2, T1,);` but apparently that's not allowed
+        // https://internals.rust-lang.org/t/cant-use-type-parameters-from-outer-function-why-not/3156/6
+        unsafe {
+            let inner = &mut *self.inner.get();
+            let dest = inner.alloc_raw(std::mem::size_of::<(T2, T1,)>(), std::mem::align_of::<(T2, T1,)>()) as *mut (T2, T1,);
+
+            // Write t1 into memory
+            std::ptr::write(&mut (*dest).1, t1);
+            let t1 = LBBox { value: &mut (*dest).1, _phantom: PhantomData };
+
+            // Initialize t2 with t1
+            std::ptr::write(&mut (*dest).0, i2(t1));
+            LBBox { value: &mut (*dest).0, _phantom: PhantomData }
+        }
+    }
 }
 
 pub struct LBBox<'a, T: ?Sized> {
@@ -186,10 +210,16 @@ impl<'a, T> LBBox<'a, T> {
     }
 }
 
-impl<'a, T, U: ?Sized> CoerceUnsized<LBBox<'a, U>> for LBBox<'a, T>
-where
-    T: Unsize<U>
-{
+impl<'a, T> LBBox<'a, T> {
+    pub fn unsize<U: ?Sized>(self) -> LBBox<'a, U>
+    where
+        T: Unsize<U>
+    {
+        LBBox {
+            value: unsafe { &mut *self.value as &mut U },
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<'a, T: ?Sized> Drop for LBBox<'a, T> {

@@ -6,7 +6,6 @@ use crate::state::*;
 use crate::space::*;
 use crate::util::linked_buffer::{LinkedBuffer, LBBox};
 use crate::util::linked_queue::{Queue, QNode};
-use crate::util::dst::{Dst, DstField};
 
 pub struct Context<'slf, 'win> {
     pub(crate) max_area: Area,
@@ -18,26 +17,19 @@ pub struct Context<'slf, 'win> {
     pub(crate) subctx_stack: &'slf mut SubContextStack<'win>,
 }
 
-#[repr(C)]
 pub(crate) struct Node<'win> {
     id: Id,
     children: Children<'win>,
-    elem: DstField<dyn Element>,
+    elem: LBBox<'win, dyn Element>,
 }
 
-unsafe impl<'win> Dst<dyn Element> for Node<'win> {
-    type InitArgs = (Id, Children<'win>);
-
-    unsafe fn init(args: Self::InitArgs) -> Self {
+impl<'win> Node<'win> {
+    pub(crate) fn new(id: Id, elem: LBBox<'win, dyn Element>) -> Self {
         Node {
-            id: args.0,
-            children: args.1,
-            elem: DstField::uninitialized(),
+            id,
+            children: Children::default(),
+            elem,
         }
-    }
-
-    fn get_dst_field(&mut self) -> &mut DstField<dyn Element> {
-        &mut self.elem
     }
 }
 
@@ -90,7 +82,7 @@ pub(crate) type SubContextStack<'win> = Vec<(ChildQNode<'win>, SocketName)>;
 
 pub struct SubContext<'slf, 'ctx, 'win> {
     pub(crate) max_area: Area,
-    pub(crate) root: ChildQNode<'win>,
+    pub(crate) root: Node<'win>,
     pub(crate) ctx: &'slf mut Context<'ctx, 'win>,
 }
 
@@ -133,7 +125,7 @@ impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
         id: Id,
         elem: E,
     ) -> &'a mut Self {
-        let node = self.ctx.buffer.alloc_dst((id, Children::default()), elem);
+        let node = self.ctx.buffer.alloc_composite1(elem, |elem| QNode::new(Node::new(id, elem.unsize())));
         self.ctx.subctx_stack.push((node, socket));
         self
     }
@@ -187,7 +179,7 @@ impl<'slf, 'win> Context<'slf, 'win> {
 
         SubContext {
             max_area,
-            root: buf.alloc_dst((id, Children::default()), elem),
+            root: Node::new(id, buf.alloc(elem).unsize()),
             ctx: self,
         }
     }

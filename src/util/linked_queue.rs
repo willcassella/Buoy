@@ -1,11 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
 use super::linked_buffer::{LinkedBuffer, LBBox};
-use super::dst;
 
 type Link<'buf, T> = LBBox<'buf, QNode<'buf, T>>;
 
-#[repr(C)]
 pub struct QNode<'buf, T> {
     next: Option<Link<'buf, T>>,
     value: T,
@@ -21,21 +19,6 @@ impl<'buf, T> QNode<'buf, T> {
 
     pub fn into_inner(x: Self) -> T {
         x.value
-    }
-}
-
-unsafe impl<'buf, F: ?Sized, T: dst::Dst<F>> dst::Dst<F> for QNode<'buf, T> {
-    type InitArgs = T::InitArgs;
-
-    unsafe fn init(args: Self::InitArgs) -> Self {
-        QNode {
-            next: None,
-            value: T::init(args),
-        }
-    }
-
-    fn get_dst_field(&mut self) -> &mut dst::DstField<F> {
-        self.value.get_dst_field()
     }
 }
 
