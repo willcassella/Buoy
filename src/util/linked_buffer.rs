@@ -1,5 +1,5 @@
 use std::marker::{PhantomData, Unsize};
-use std::ptr;
+use std::ptr::Unique;
 use std::ops::{Deref, DerefMut};
 use std::cell::UnsafeCell;
 use std::mem::{size_of, align_of};
@@ -138,7 +138,7 @@ impl LinkedBuffer {
         };
 
         LBBox {
-            value: ptr,
+            value: Unique::new(ptr).unwrap(),
             _phantom: PhantomData,
         }
     }
@@ -166,7 +166,7 @@ impl LinkedBuffer {
         };
 
         LBBox {
-            value: ptr,
+            value: Unique::new(ptr).unwrap(),
             _phantom: PhantomData,
         }
     }
@@ -188,35 +188,41 @@ impl LinkedBuffer {
 
             // Write t1 into memory
             std::ptr::write(&mut (*dest).1, t1);
-            let t1 = LBBox { value: &mut (*dest).1, _phantom: PhantomData };
+            let t1 = LBBox {
+                value: Unique::new(&mut (*dest).1).unwrap(),
+                _phantom: PhantomData
+            };
 
             // Initialize t2 with t1
             std::ptr::write(&mut (*dest).0, i2(t1));
-            LBBox { value: &mut (*dest).0, _phantom: PhantomData }
+            LBBox {
+                value: Unique::new(&mut (*dest).0).unwrap(),
+                _phantom: PhantomData
+            }
         }
     }
 }
 
 pub struct LBBox<'a, T: ?Sized> {
-    value: *mut T,
+    value: Unique<T>,
     _phantom: PhantomData<&'a ()>,
 }
 
 impl<'a, T> LBBox<'a, T> {
     pub fn into_inner(b: Self) -> T {
-        let value = unsafe { std::ptr::read(b.value) };
+        let value = unsafe { std::ptr::read(b.value.as_ptr()) };
         std::mem::forget(b);
         value
     }
 }
 
 impl<'a, T> LBBox<'a, T> {
-    pub fn unsize<U: ?Sized>(self) -> LBBox<'a, U>
+    pub fn unsize<U: ?Sized>(mut self) -> LBBox<'a, U>
     where
         T: Unsize<U>
     {
         let result = LBBox {
-            value: unsafe { &mut *self.value as &mut U },
+            value: unsafe { Unique::new_unchecked(self.value.as_mut() as &mut U) },
             _phantom: PhantomData,
         };
         std::mem::forget(self);
@@ -226,7 +232,7 @@ impl<'a, T> LBBox<'a, T> {
 
 impl<'a, T: ?Sized> Drop for LBBox<'a, T> {
     fn drop(&mut self) {
-        unsafe { ptr::drop_in_place(self.value); }
+        unsafe { std::ptr::drop_in_place(self.value.as_ptr()); }
     }
 }
 
@@ -234,13 +240,13 @@ impl<'a, T: ?Sized> Deref for LBBox<'a, T> {
     type Target = T;
 
     fn deref<'b>(&'b self) -> &'b T {
-        unsafe { &*self.value }
+        unsafe { self.value.as_ref() }
     }
 }
 
 impl<'a, T: ?Sized> DerefMut for LBBox<'a, T> {
     fn deref_mut<'b>(&'b mut self) -> &'b mut T {
-        unsafe { &mut *self.value }
+        unsafe { self.value.as_mut() }
     }
 }
 

@@ -1,4 +1,5 @@
 #![feature(unsize, coerce_unsized)]
+#![feature(ptr_internals)]
 
 pub mod state;
 pub mod render;
