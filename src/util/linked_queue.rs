@@ -1,6 +1,8 @@
 use std::ops::{Deref, DerefMut};
+use std::usize;
 
 use super::linked_buffer::{LinkedBuffer, LBBox};
+use super::fill::Fill;
 
 type Link<'buf, T> = LBBox<'buf, QNode<'buf, T>>;
 
@@ -115,6 +117,57 @@ impl<'buf, T> Queue<'buf, T> {
 
     pub fn pop_front(&mut self) -> Option<T> {
         self.pop_front_node().map(|node| QNode::into_inner(LBBox::into_inner(node)))
+    }
+}
+
+pub struct RefIter<'a, 'buf, T> {
+    next: &'a Option<Link<'buf, T>>,
+}
+
+impl<'a, 'buf, T> Iterator for RefIter<'a, 'buf, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next {
+            &Some(ref node) => {
+                self.next = &node.next;
+                Some(&**node)
+            },
+            &None => None,
+        }
+    }
+}
+
+impl<'a, 'buf, T> IntoIterator for &'a Queue<'buf, T> {
+    type Item = &'a T;
+    type IntoIter = RefIter<'a, 'buf, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        RefIter { next: &self.head }
+    }
+}
+
+pub struct QueueFiller<'a, 'buf, T> {
+    queue: &'a mut Queue<'buf, T>,
+    buf: &'buf LinkedBuffer,
+}
+
+impl<'a, 'buf, T> QueueFiller<'a, 'buf, T> {
+    pub fn new(queue: &'a mut Queue<'buf, T>, buf: &'buf LinkedBuffer) -> Self {
+        QueueFiller {
+            queue,
+            buf,
+        }
+    }
+}
+
+impl<'a, 'buf, T> Fill<T> for QueueFiller<'a, 'buf, T> {
+    fn remaining_capacity(&self) -> usize {
+        usize::MAX
+    }
+
+    fn push(&mut self, value: T) {
+        self.queue.push_back(self.buf, value)
     }
 }
 

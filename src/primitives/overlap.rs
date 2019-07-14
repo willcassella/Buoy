@@ -2,7 +2,19 @@ use crate::prelude::*;
 use crate::render::CommandList;
 use super::archetype;
 
+use crate::util::linked_queue::Queue;
+
 pub struct Overlap;
+
+impl Overlap {
+    pub fn build(id: Id) -> OverlapBuilder {
+        OverlapBuilder {
+            id,
+            socket: SocketName::default(),
+            element: Overlap,
+        }
+    }
+}
 
 impl Element for Overlap {
     fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
@@ -15,9 +27,9 @@ impl archetype::Panel for Overlap {
         child_max_area
     }
 
-    fn close<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, children: Vec<LayoutNode<'win>>) -> LayoutNode<'win> {
+    fn close<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, children: Queue<'win, LayoutNode<'win>>) -> LayoutNode<'win> {
         // Get the max size required among all children
-        let max_area = children.iter().fold(Area::zero(), |max, child| max.stretch(&child.min_area));
+        let max_area = (&children).into_iter().fold(Area::zero(), |max, child| max.stretch(&child.min_area));
 
         // Use that as the min required space for this element
         ctx.new_layout(
@@ -29,5 +41,34 @@ impl archetype::Panel for Overlap {
                 }
             },
         )
+    }
+}
+
+pub struct OverlapBuilder {
+    id: Id,
+    socket: SocketName,
+    element: Overlap,
+}
+
+impl OverlapBuilder {
+    pub fn socket(mut self, socket: SocketName) -> Self {
+        self.socket = socket;
+        self
+    }
+}
+
+impl Builder for OverlapBuilder {
+    type Element = Overlap;
+
+    fn get_id(&self) -> Id {
+        self.id
+    }
+
+    fn get_socket(&self) -> SocketName {
+        self.socket
+    }
+
+    fn get_element(self) -> Self::Element {
+        self.element
     }
 }

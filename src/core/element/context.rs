@@ -166,6 +166,11 @@ impl<'slf, 'win> Context<'slf, 'win> {
         self.max_area
     }
 
+    // TODO: It would be nice if I didn't have to expose this
+    pub fn buffer(&self) -> &'win LinkedBuffer {
+        self.buffer
+    }
+
     pub fn open_element<'a, E: Element + 'static>(
         &'a mut self,
         max_area: Area,
