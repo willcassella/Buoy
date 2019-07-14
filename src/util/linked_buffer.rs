@@ -3,6 +3,9 @@ use std::ptr;
 use std::ops::{Deref, DerefMut};
 use std::cell::UnsafeCell;
 use std::ops::CoerceUnsized;
+use std::mem::{size_of, align_of};
+
+use super::dst;
 
 const BUFFER_SIZE: usize = 1_usize << 16;
 
@@ -50,16 +53,16 @@ impl LinkedBufferInner {
         self.offset = 0;
     }
 
-    unsafe fn alloc<T>(&mut self, value: T) -> *mut T {
+    unsafe fn alloc_raw(&mut self, size: usize, align: usize) -> *mut () {
         match self.head {
             Some(ref mut node) => {
                 // Get the destination offset
                 let start = node.buf.as_mut_ptr();
-                let dest_offset = self.offset + start.add(self.offset).align_offset(std::mem::align_of::<T>());
+                let dest_offset = self.offset + start.add(self.offset).align_offset(align);
 
                 // If we've exceeded the bounds of our buffer, allocate into a new node
-                if dest_offset + std::mem::size_of::<T>() > BUFFER_SIZE {
-                    let (mut node, offset, ptr) = LinkedBufferInner::alloc_new_node(value);
+                if dest_offset + size > BUFFER_SIZE {
+                    let (mut node, offset, ptr) = LinkedBufferInner::alloc_new_node(size, align);
 
                     // Update self
                     node.prev = self.head.take();
@@ -69,38 +72,36 @@ impl LinkedBufferInner {
                     return ptr;
                 }
 
-                let dest = start.add(dest_offset) as *mut T;
-                dest.write(value);
+                let dest = start.add(dest_offset) as *mut ();
 
                 // Update self
-                self.offset = dest_offset + std::mem::size_of::<T>();
+                self.offset = dest_offset + size;
 
                 dest
             },
             None => {
-                let (node, offset, ptr) = LinkedBufferInner::alloc_new_node(value);
+                let (node, offset, dest) = LinkedBufferInner::alloc_new_node(size, align);
 
                 // Update self
                 self.head = Some(node);
                 self.offset = offset;
 
-                ptr
+                dest
             }
         }
     }
 
-    unsafe fn alloc_new_node<T>(value: T) -> (Box<Node>, usize, *mut T) {
+    unsafe fn alloc_new_node(size: usize, align: usize) -> (Box<Node>, usize, *mut ()) {
         let mut node = Node::alloc();
         let start = node.buf.as_mut_ptr();
 
-        // Align the pointer for writing (assume it fits)
-        let dest_offset = start.align_offset(std::mem::align_of::<T>());
-        let dest = start.add(dest_offset) as *mut T;
+        // Align the pointer for writing
+        let dest_offset = start.align_offset(align);
+        let new_offset = dest_offset + size;
+        debug_assert!(new_offset <= BUFFER_SIZE);
 
-        // Write the value into the pointer
-        dest.write(value);
-
-        (node, dest_offset + std::mem::size_of::<T>(), dest)
+        let dest = start.add(dest_offset) as *mut ();
+        (node, new_offset, dest)
     }
 }
 
@@ -123,25 +124,61 @@ impl LinkedBuffer {
     }
 
     pub fn clear(&mut self) {
-        unsafe { (*self.inner.get()).clear() }
+        unsafe {
+            let inner = &mut *self.inner.get();
+            inner.clear();
+        }
     }
 
-    pub fn alloc<'a, T>(&'a self, value: T) -> LinkedBufferBox<'a, T> {
-        let ptr = unsafe { (*self.inner.get()).alloc(value) };
+    pub fn alloc<'a, T>(&'a self, value: T) -> LBBox<'a, T> {
+        let ptr = unsafe {
+            let inner = &mut *self.inner.get();
+            let dest = inner.alloc_raw(size_of::<T>(), align_of::<T>()) as *mut T;
+            std::ptr::write(dest, value);
+            dest
+        };
 
-        LinkedBufferBox {
+        LBBox {
+            value: ptr,
+            _phantom: PhantomData,
+        }
+    }
+
+    // TODO: Figure out how Pin fits into this
+    pub fn alloc_dst<'a, F: ?Sized, T: dst::Dst<F>, U: Unsize<F>>(
+        &'a self,
+        args: T::InitArgs,
+        value: U,
+    ) -> LBBox<'a, T> {
+        let ptr = unsafe {
+            let inner = &mut *self.inner.get();
+
+            // Allocate memory for the dst
+            let dest = inner.alloc_raw(dst::alloc_size::<F, T, U>(), std::mem::align_of::<T>()) as *mut T;
+
+            // Construct the dst
+            std::ptr::write(dest, T::init(args));
+
+            // Initialize the dst field
+            let dst_field = (*dest).get_dst_field();
+            dst_field.init(value);
+
+            dest
+        };
+
+        LBBox {
             value: ptr,
             _phantom: PhantomData,
         }
     }
 }
 
-pub struct LinkedBufferBox<'a, T: ?Sized> {
+pub struct LBBox<'a, T: ?Sized> {
     value: *mut T,
     _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T> LinkedBufferBox<'a, T> {
+impl<'a, T> LBBox<'a, T> {
     pub fn into_inner(b: Self) -> T {
         let value = unsafe { std::ptr::read(b.value) };
         std::mem::forget(b);
@@ -149,19 +186,19 @@ impl<'a, T> LinkedBufferBox<'a, T> {
     }
 }
 
-impl<'a, T, U: ?Sized> CoerceUnsized<LinkedBufferBox<'a, U>> for LinkedBufferBox<'a, T>
+impl<'a, T, U: ?Sized> CoerceUnsized<LBBox<'a, U>> for LBBox<'a, T>
 where
     T: Unsize<U>
 {
 }
 
-impl<'a, T: ?Sized> Drop for LinkedBufferBox<'a, T> {
+impl<'a, T: ?Sized> Drop for LBBox<'a, T> {
     fn drop(&mut self) {
         unsafe { ptr::drop_in_place(self.value); }
     }
 }
 
-impl<'a, T: ?Sized> Deref for LinkedBufferBox<'a, T> {
+impl<'a, T: ?Sized> Deref for LBBox<'a, T> {
     type Target = T;
 
     fn deref<'b>(&'b self) -> &'b T {
@@ -169,7 +206,7 @@ impl<'a, T: ?Sized> Deref for LinkedBufferBox<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for LinkedBufferBox<'a, T> {
+impl<'a, T: ?Sized> DerefMut for LBBox<'a, T> {
     fn deref_mut<'b>(&'b mut self) -> &'b mut T {
         unsafe { &mut *self.value }
     }

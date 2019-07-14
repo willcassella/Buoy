@@ -1,45 +1,74 @@
-use super::linked_buffer::{
-    LinkedBuffer,
-    LinkedBufferBox
-};
+use std::ops::{Deref, DerefMut};
 
-type Link<'buf, T> = LinkedBufferBox<'buf, Node<'buf, T>>;
+use super::linked_buffer::{LinkedBuffer, LBBox};
+use super::dst;
 
-pub struct Node<'buf, T> {
+type Link<'buf, T> = LBBox<'buf, QNode<'buf, T>>;
+
+#[repr(C)]
+pub struct QNode<'buf, T> {
     next: Option<Link<'buf, T>>,
     value: T,
 }
 
-impl<'buf, T> Node<'buf, T> {
+impl<'buf, T> QNode<'buf, T> {
     pub fn new(value: T) -> Self {
-        Node {
+        QNode {
             next: None,
             value,
         }
     }
+
+    pub fn into_inner(x: Self) -> T {
+        x.value
+    }
 }
 
-pub struct QueueBuilder<'buf, T> {
+unsafe impl<'buf, F: ?Sized, T: dst::Dst<F>> dst::Dst<F> for QNode<'buf, T> {
+    type InitArgs = T::InitArgs;
+
+    unsafe fn init(args: Self::InitArgs) -> Self {
+        QNode {
+            next: None,
+            value: T::init(args),
+        }
+    }
+
+    fn get_dst_field(&mut self) -> &mut dst::DstField<F> {
+        self.value.get_dst_field()
+    }
+}
+
+impl<'buf, T> Deref for QNode<'buf, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<'buf, T> DerefMut for QNode<'buf, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
+    }
+}
+
+pub struct Queue<'buf, T> {
     head: Option<Link<'buf, T>>,
     tail_next: *mut Option<Link<'buf, T>>,
 }
 
-impl<'buf, T> Default for QueueBuilder<'buf, T> {
+impl<'buf, T> Default for Queue<'buf, T> {
     fn default() -> Self {
-        QueueBuilder {
+        Queue {
             head: None,
             tail_next: std::ptr::null_mut(),
         }
     }
 }
 
-impl<'buf, T> QueueBuilder<'buf, T> {
-    pub fn push_back(&mut self, buf: &'buf LinkedBuffer, value: T) {
-        let node = buf.alloc(Node{ value, next: None });
-        self.push_back_node(node);
-    }
-
-    pub fn push_back_node(&mut self, mut node: LinkedBufferBox<'buf, Node<'buf, T>>) {
+impl<'buf, T> Queue<'buf, T> {
+    pub fn push_back_node(&mut self, mut node: LBBox<'buf, QNode<'buf, T>>) {
         // If self.tail_next is null, then the tail_next pointer should be the head link
         let tail_next = if self.tail_next.is_null() {
             &mut self.head
@@ -72,23 +101,57 @@ impl<'buf, T> QueueBuilder<'buf, T> {
         self.tail_next = other.tail_next;
     }
 
-    pub fn finish(self) -> Queue<'buf, T> {
-        Queue{ next: self.head }
-    }
-}
-
-pub struct Queue<'buf, T> {
-    next: Option<Link<'buf, T>>,
-}
-
-impl<'buf, T> Queue<'buf, T> {
-    pub fn pop_front(&mut self) -> Option<T> {
-        let node = match self.next.take() {
-            Some(node) => LinkedBufferBox::into_inner(node),
+    pub fn pop_front_node(&mut self) -> Option<LBBox<QNode<'buf, T>>> {
+        let mut node = match self.head.take() {
+            Some(node) => node,
             None => return None,
         };
 
-        self.next = node.next;
-        Some(node.value)
+        // Update head and tail pointer
+        self.head = node.next.take();
+        if self.head.is_none() {
+            self.tail_next = std::ptr::null_mut();
+        }
+
+        Some(node)
+    }
+
+    pub fn take(&mut self) -> Queue<'buf, T> {
+        let result = Queue {
+            head: self.head.take(),
+            tail_next: self.tail_next,
+        };
+        self.tail_next = std::ptr::null_mut();
+        result
+    }
+
+    pub fn push_back(&mut self, buf: &'buf LinkedBuffer, value: T) {
+        let node = buf.alloc(QNode{ value, next: None });
+        self.push_back_node(node);
+    }
+
+    pub fn pop_front(&mut self) -> Option<T> {
+        self.pop_front_node().map(|node| QNode::into_inner(LBBox::into_inner(node)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Queue;
+    use super::super::linked_buffer::LinkedBuffer;
+
+    #[test]
+    fn test_order() {
+        let buf = LinkedBuffer::default();
+        let mut queue = Queue::default();
+
+        queue.push_back(&buf, 1);
+        queue.push_back(&buf, 2);
+        queue.push_back(&buf, 3);
+
+        assert_eq!(queue.pop_front(), Some(1));
+        assert_eq!(queue.pop_front(), Some(2));
+        assert_eq!(queue.pop_front(), Some(3));
+        assert_eq!(queue.pop_front(), None);
     }
 }
