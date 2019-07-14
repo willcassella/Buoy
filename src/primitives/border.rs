@@ -82,7 +82,7 @@ impl Default for Border {
 }
 
 impl Element for Border {
-    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
+    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
         archetype::wrap(ctx, id, self)
     }
 }
@@ -95,7 +95,7 @@ impl archetype::Wrap for Border {
         max_area
     }
 
-    fn close_some<L: Layout>(&self, _ctx: Context, _id: Id, child: LayoutObj<L>) -> LayoutObj {
+    fn close_some<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, child: LayoutNode<'win>) -> LayoutNode<'win> {
         let mut min_area = child.min_area;
 
         // Add to width/height to account for border
@@ -103,7 +103,7 @@ impl archetype::Wrap for Border {
         min_area.height += self.top + self.bottom;
 
         let this = *self;
-        LayoutObj::new(
+        ctx.new_layout(
             min_area,
             move |mut region: Region, cmds: &mut CommandList| {
                 // Unless we're fully transparent, render the border
@@ -118,13 +118,12 @@ impl archetype::Wrap for Border {
                 region.area.height -= this.top + this.bottom;
 
                 // Render the child
-                child.imp.render(region, cmds);
+                child.layout.render(region, cmds);
             },
         )
-        .upcast()
     }
 
-    fn close_none(&self, _ctx: Context, _id: Id) -> LayoutObj {
+    fn close_none<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
         // Since we don't have a child, min area is just size of border
         let min_area = Area {
             width: self.left + self.right,
@@ -132,13 +131,12 @@ impl archetype::Wrap for Border {
         };
 
         if self.color == color::constants::TRANSPARENT {
-            LayoutObj::new(min_area, ()).upcast()
+            ctx.new_layout(min_area, ())
         } else {
             let this = *self;
-            LayoutObj::new(min_area, move |region: Region, cmds: &mut CommandList| {
+            ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
                 this.generate_commands(region, cmds);
             })
-            .upcast()
         }
     }
 }

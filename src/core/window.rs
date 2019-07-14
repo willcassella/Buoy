@@ -21,7 +21,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn run<E: Element>(&mut self, max_area: Area, root: E) -> LayoutObj {
+    pub fn run<'frame, E: Element>(&'frame mut self, max_area: Area, root: E) -> LayoutNode<'frame> {
         // Increment frame id
         self.frame_id = self.frame_id.next();
         self.next_context_id = Default::default();

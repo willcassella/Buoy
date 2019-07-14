@@ -36,7 +36,7 @@ impl Default for Size {
 }
 
 impl Element for Size {
-    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
+    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
         archetype::wrap(ctx, id, self)
     }
 }
@@ -48,10 +48,10 @@ impl archetype::Wrap for Size {
         max_area
     }
 
-    fn close_some<L: Layout>(&self, _ctx: Context, _id: Id, child: LayoutObj<L>) -> LayoutObj {
+    fn close_some<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, child: LayoutNode<'win>) -> LayoutNode<'win> {
         let this = *self;
 
-        LayoutObj::new(
+        ctx.new_layout(
             child.min_area.stretch(&this.min), // TODO: Handle if child is too big (will require clipping/scrolling)
             move |mut region: Region, cmds: &mut CommandList| {
                 if this.max.width < region.area.width {
@@ -65,15 +65,14 @@ impl archetype::Wrap for Size {
                     region.area.height = this.min.height;
                 }
 
-                child.imp.render(region, cmds);
+                child.layout.render(region, cmds);
             },
         )
-        .upcast()
     }
 
-    fn close_none(&self, _ctx: Context, _id: Id) -> LayoutObj {
+    fn close_none<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
         // Just take up space
-        LayoutObj::new(self.min, ()).upcast()
+        ctx.new_layout(self.min, ())
     }
 }
 

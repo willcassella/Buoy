@@ -5,12 +5,12 @@ pub trait Wrap {
         max_area
     }
 
-    fn close_some<L: Layout>(&self, ctx: Context, id: Id, child: LayoutObj<L>) -> LayoutObj;
+    fn close_some<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id, child: LayoutNode<'win>) -> LayoutNode<'win>;
 
-    fn close_none(&self, ctx: Context, id: Id) -> LayoutObj;
+    fn close_none<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win>;
 }
 
-pub fn wrap<W: Wrap>(mut ctx: Context, id: Id, wrap: &W) -> LayoutObj {
+pub fn wrap<'ctx, 'win, W: Wrap>(mut ctx: Context<'ctx, 'win>, id: Id, wrap: &W) -> LayoutNode<'win> {
     let child_max_area = wrap.open(ctx.max_area());
 
     let mut child = None;

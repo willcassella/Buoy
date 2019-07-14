@@ -215,10 +215,12 @@ impl<'a, T> LBBox<'a, T> {
     where
         T: Unsize<U>
     {
-        LBBox {
+        let result = LBBox {
             value: unsafe { &mut *self.value as &mut U },
             _phantom: PhantomData,
-        }
+        };
+        std::mem::forget(self);
+        result
     }
 }
 
@@ -269,6 +271,7 @@ mod tests {
             let four = buf.alloc("four");
             let five = buf.alloc(Box::new(5_usize));
             let six = buf.alloc([6; 3]);
+            let seven = buf.alloc(());
 
             dbg!(*four);
             assert_eq!(*four, "four");
@@ -276,6 +279,8 @@ mod tests {
             assert_eq!(*five, Box::new(5_usize));
             dbg!(*six);
             assert_eq!(*six, [6; 3]);
+            dbg!(*seven);
+            assert_eq!(*seven, ());
         }
     }
 }

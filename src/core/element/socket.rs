@@ -4,20 +4,10 @@ use std::hash::{Hash, Hasher};
 use crate::core::element::*;
 use crate::util::fill::Fill;
 
-pub trait Socket: Fill<LayoutObj> {
-    fn upcast(&self) -> &dyn Socket;
-
-    fn upcast_mut(&mut self) -> &mut dyn Socket;
+pub trait Socket<'buf>: Fill<LayoutNode<'buf>> {
 }
 
-impl<T: Fill<LayoutObj>> Socket for T {
-    fn upcast(&self) -> &dyn Socket {
-        self
-    }
-
-    fn upcast_mut(&mut self) -> &mut dyn Socket {
-        self
-    }
+impl<'buf, T: Fill<LayoutNode<'buf>>> Socket<'buf> for T {
 }
 
 // TODO: Should this be an arrayvec::ArrayString instead?

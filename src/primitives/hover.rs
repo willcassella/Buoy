@@ -26,10 +26,10 @@ impl Hover {
 }
 
 impl Element for Hover {
-    fn run(&self, _ctx: Context, _id: Id) -> LayoutObj {
+    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
         let state = self.state.clone();
 
-        LayoutObj::new(
+        ctx.new_layout(
             Area::zero(),
             move |region: Region, cmds: &mut CommandList| {
                 // Create the hover boundary
@@ -39,7 +39,7 @@ impl Element for Hover {
                 };
                 cmds.add_hover_quads(&[quad]);
             },
-        ).upcast()
+        )
     }
 }
 

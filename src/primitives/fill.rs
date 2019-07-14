@@ -27,15 +27,14 @@ impl Fill {
 }
 
 impl Element for Fill {
-    fn run(&self, _ctx: Context, _id: Id) -> LayoutObj {
+    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
         let color = self.color;
-        LayoutObj::new(
+        ctx.new_layout(
             Area::zero(),
             move |region: Region, cmds: &mut CommandList| {
                 generate_quad(color, region, cmds);
             },
         )
-        .upcast()
     }
 }
 

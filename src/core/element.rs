@@ -13,17 +13,17 @@ mod socket;
 pub use self::socket::{Socket, SocketName};
 
 mod layout;
-pub use self::layout::{Layout, LayoutObj};
+pub use self::layout::{Layout, LayoutNode};
 
 // An 'Element' is something run in the the context of a socket
 // This is the starting point for any UI tree
 pub trait Element {
-    fn run(&self, ctx: Context, id: Id) -> LayoutObj;
+    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win>;
 }
 
 impl Element for () {
-    fn run(&self, _ctx: Context, _id: Id) -> LayoutObj {
-        LayoutObj::new(Area::zero(), ()).upcast()
+    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
+        ctx.new_layout_null()
     }
 }
 

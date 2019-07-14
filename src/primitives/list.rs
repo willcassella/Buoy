@@ -43,7 +43,7 @@ impl List {
 }
 
 impl Element for List {
-    fn run(&self, ctx: Context, id: Id) -> LayoutObj {
+    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
         archetype::panel(ctx, id, self)
     }
 }
@@ -58,7 +58,7 @@ impl archetype::Panel for List {
         max_area
     }
 
-    fn close(&self, _ctx: Context, _id: Id, children: Vec<LayoutObj>) -> LayoutObj {
+    fn close<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, children: Vec<LayoutNode<'win>>) -> LayoutNode<'win> {
         let mut min_area = Area::zero();
 
         // Figure out height and width for the stack
@@ -77,68 +77,66 @@ impl archetype::Panel for List {
             }
         }
 
-        let layout_func: Box<dyn Layout> = match self.dir {
-            ListDir::LeftToRight => Box::new(move |region: Region, cmds: &mut CommandList| {
+        match self.dir {
+            ListDir::LeftToRight => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
                 render_left_to_right(children.as_slice(), region, cmds);
             }),
-            ListDir::RightToLeft => Box::new(move |region: Region, cmds: &mut CommandList| {
+            ListDir::RightToLeft => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
                 render_right_to_left(children.as_slice(), region, cmds);
             }),
-            ListDir::TopToBottom => Box::new(move |region: Region, cmds: &mut CommandList| {
+            ListDir::TopToBottom => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
                 render_top_to_bottom(children.as_slice(), region, cmds);
             }),
-            ListDir::BottomToTop => Box::new(move |region: Region, cmds: &mut CommandList| {
+            ListDir::BottomToTop => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
                 render_bottom_to_top(children.as_slice(), region, cmds);
             }),
-        };
-
-        LayoutObj::new(min_area, layout_func)
+        }
     }
 }
 
-fn render_left_to_right(children: &[LayoutObj], mut region: Region, cmds: &mut CommandList) {
+fn render_left_to_right(children: &[LayoutNode], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.width = child.min_area.width;
 
-        child.imp.render(child_region, cmds);
+        child.layout.render(child_region, cmds);
 
         region.pos.x += child.min_area.width;
         region.area.width -= child.min_area.width;
     }
 }
 
-fn render_right_to_left(children: &[LayoutObj], mut region: Region, out: &mut CommandList) {
+fn render_right_to_left(children: &[LayoutNode], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.x = child_region.pos.x + child_region.area.width - child.min_area.width;
         child_region.area.width = child.min_area.width;
 
-        child.imp.render(child_region, out);
+        child.layout.render(child_region, out);
 
         region.area.width -= child.min_area.width;
     }
 }
 
-fn render_top_to_bottom(children: &[LayoutObj], mut region: Region, cmds: &mut CommandList) {
+fn render_top_to_bottom(children: &[LayoutNode], mut region: Region, cmds: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.area.height = child.min_area.height;
 
-        child.imp.render(child_region, cmds);
+        child.layout.render(child_region, cmds);
 
         region.pos.y += child.min_area.height;
         region.area.height -= child.min_area.height;
     }
 }
 
-fn render_bottom_to_top(children: &[LayoutObj], mut region: Region, out: &mut CommandList) {
+fn render_bottom_to_top(children: &[LayoutNode], mut region: Region, out: &mut CommandList) {
     for child in children {
         let mut child_region = region;
         child_region.pos.y = region.pos.y + region.area.height - child.min_area.height;
         child_region.area.height = child.min_area.height;
 
-        child.imp.render(child_region, out);
+        child.layout.render(child_region, out);
 
         region.area.height -= child.min_area.height;
     }

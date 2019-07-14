@@ -1,15 +1,9 @@
 use crate::render::CommandList;
 use crate::space::*;
+use crate::util::linked_buffer::{LinkedBuffer, LBBox};
 
-pub trait Layout: 'static {
+pub trait Layout {
     fn render(&self, region: Region, cmds: &mut CommandList);
-
-    fn box_upcast(self) -> Box<dyn Layout>
-    where
-        Self: Sized,
-    {
-        Box::new(self)
-    }
 }
 
 impl Layout for () {
@@ -18,51 +12,25 @@ impl Layout for () {
     }
 }
 
-impl Layout for Box<dyn Layout> {
-    fn render(&self, region: Region, cmds: &mut CommandList) {
-        self.as_ref().render(region, cmds)
-    }
-
-    fn box_upcast(self) -> Box<dyn Layout> {
-        self
-    }
-}
-
-pub struct LayoutObj<T: Layout = Box<dyn Layout>> {
-    pub min_area: Area,
-    pub imp: T,
-}
-
-impl<L: Layout> LayoutObj<L> {
-    pub fn new(min_area: Area, layout: L) -> Self {
-        LayoutObj {
-            min_area,
-            imp: layout,
-        }
-    }
-
-    pub fn upcast(self) -> LayoutObj {
-        LayoutObj {
-            min_area: self.min_area,
-            imp: self.imp.box_upcast(),
-        }
-    }
-}
-
-impl LayoutObj<()> {
-    pub fn null() -> Self {
-        LayoutObj {
-            min_area: Area::zero(),
-            imp: (),
-        }
-    }
-}
-
 impl<T> Layout for T
 where
-    T: Fn(Region, &mut CommandList) + 'static,
+    T: Fn(Region, &mut CommandList)
 {
     fn render(&self, region: Region, cmds: &mut CommandList) {
         self(region, cmds);
+    }
+}
+
+pub struct LayoutNode<'win> {
+    pub min_area: Area,
+    pub layout: LBBox<'win, dyn Layout + 'win>,
+}
+
+impl<'win> LayoutNode<'win> {
+    pub fn null(buf: &'win LinkedBuffer) -> Self {
+        LayoutNode {
+            min_area: Area::zero(),
+            layout: buf.alloc(()).unsize(),
+        }
     }
 }

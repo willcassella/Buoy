@@ -17,15 +17,15 @@ pub struct Context<'slf, 'win> {
     pub(crate) subctx_stack: &'slf mut SubContextStack<'win>,
 }
 
-pub(crate) struct Node<'win> {
+pub(crate) struct ElementNode<'win> {
     id: Id,
     children: Children<'win>,
     elem: LBBox<'win, dyn Element>,
 }
 
-impl<'win> Node<'win> {
+impl<'win> ElementNode<'win> {
     pub(crate) fn new(id: Id, elem: LBBox<'win, dyn Element>) -> Self {
-        Node {
+        ElementNode {
             id,
             children: Children::default(),
             elem,
@@ -33,12 +33,12 @@ impl<'win> Node<'win> {
     }
 }
 
-pub(crate) type ChildQueue<'win> = Queue<'win, Node<'win>>;
-pub(crate) type ChildQNode<'win> = LBBox<'win, QNode<'win, Node<'win>>>;
+pub(crate) type ChildQueue<'win> = Queue<'win, ElementNode<'win>>;
+pub(crate) type ChildQNode<'win> = LBBox<'win, QNode<'win, ElementNode<'win>>>;
 
 #[derive(Default)]
 pub(crate) struct Children<'win> {
-    default_socket: Queue<'win, Node<'win>>,
+    default_socket: Queue<'win, ElementNode<'win>>,
     other_sockets: Option<HashMap<SocketName, ChildQueue<'win>>>,
 }
 
@@ -82,12 +82,12 @@ pub(crate) type SubContextStack<'win> = Vec<(ChildQNode<'win>, SocketName)>;
 
 pub struct SubContext<'slf, 'ctx, 'win> {
     pub(crate) max_area: Area,
-    pub(crate) root: Node<'win>,
+    pub(crate) root: ElementNode<'win>,
     pub(crate) ctx: &'slf mut Context<'ctx, 'win>,
 }
 
 impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
-    pub fn close(mut self) -> LayoutObj {
+    pub fn close(mut self) -> LayoutNode<'win> {
         while !self.ctx.subctx_stack.is_empty() {
             self.end();
         }
@@ -97,8 +97,8 @@ impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
             max_area: self.max_area,
             children: self.root.children.take(),
 
-            global_data: self.ctx.global_data,
             prev_frame_state: self.ctx.prev_frame_state,
+            global_data: self.ctx.global_data,
             buffer: self.ctx.buffer,
             subctx_stack: self.ctx.subctx_stack,
         };
@@ -125,7 +125,7 @@ impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
         id: Id,
         elem: E,
     ) -> &'a mut Self {
-        let node = self.ctx.buffer.alloc_composite1(elem, |elem| QNode::new(Node::new(id, elem.unsize())));
+        let node = self.ctx.buffer.alloc_composite1(elem, |elem| QNode::new(ElementNode::new(id, elem.unsize())));
         self.ctx.subctx_stack.push((node, socket));
         self
     }
@@ -179,12 +179,12 @@ impl<'slf, 'win> Context<'slf, 'win> {
 
         SubContext {
             max_area,
-            root: Node::new(id, buf.alloc(elem).unsize()),
+            root: ElementNode::new(id, buf.alloc(elem).unsize()),
             ctx: self,
         }
     }
 
-    pub fn open_socket(&mut self, name: SocketName, max_area: Area, socket: &mut dyn Socket) {
+    pub fn open_socket(&mut self, name: SocketName, max_area: Area, socket: &mut dyn Socket<'win>) {
         let children = match self.children.get(name) {
             Some(children) => children,
             None => return,
@@ -210,6 +210,17 @@ impl<'slf, 'win> Context<'slf, 'win> {
 
             socket.push(child.elem.run(sub_ctx, child.id));
         }
+    }
+
+    pub fn new_layout<L: Layout + 'win>(&self, min_area: Area, layout: L) -> LayoutNode<'win> {
+        LayoutNode {
+            min_area,
+            layout: self.buffer.alloc(layout).unsize(),
+        }
+    }
+
+    pub fn new_layout_null(&self) -> LayoutNode<'win> {
+        LayoutNode::null(self.buffer)
     }
 
     pub fn next_frame_pre_filter<F: Filter>(&mut self, _filter: F) {

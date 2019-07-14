@@ -3,10 +3,10 @@ use crate::prelude::*;
 pub trait Panel {
     fn open(&self, max_area: Area) -> Area;
 
-    fn close(&self, ctx: Context, id: Id, children: Vec<LayoutObj>) -> LayoutObj;
+    fn close<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id, children: Vec<LayoutNode<'win>>) -> LayoutNode<'win>;
 }
 
-pub fn panel<T: Panel>(mut ctx: Context, id: Id, panel: &T) -> LayoutObj {
+pub fn panel<'ctx, 'win, T: Panel>(mut ctx: Context<'ctx, 'win>, id: Id, panel: &T) -> LayoutNode<'win> {
     let child_max_area = panel.open(ctx.max_area());
 
     let mut children = Vec::new();
