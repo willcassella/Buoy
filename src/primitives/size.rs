@@ -27,8 +27,8 @@ impl Size {
 impl Default for Size {
     fn default() -> Self {
         Size {
-            h_align: HAlign::Left,
-            v_align: VAlign::Top,
+            h_align: HAlign::Center,
+            v_align: VAlign::Center,
             min: Area::zero(),
             max: Area::infinite(),
         }

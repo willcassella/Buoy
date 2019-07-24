@@ -59,9 +59,9 @@ impl Default for Area {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub enum HAlign {
+    Center,
     Left,
     Right,
-    Center,
 }
 
 impl HAlign {
@@ -93,9 +93,9 @@ impl Default for HAlign {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub enum VAlign {
+    Center,
     Top,
     Bottom,
-    Center,
 }
 
 impl VAlign {
