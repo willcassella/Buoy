@@ -1,93 +1,48 @@
-use std::collections::HashMap;
-
 use crate::core::element::*;
 use crate::core::filter::*;
 use crate::state::*;
 use crate::space::*;
 use crate::util::linked_buffer::{LinkedBuffer, LBBox};
-use crate::util::linked_queue::{Queue, QNode};
+use crate::util::linked_queue::{QNode};
 
-pub struct Context<'slf, 'win> {
+use super::children::{Children, ChildQNode};
+
+pub struct Context<'slf, 'frm> {
     pub(crate) max_area: Area,
-    pub(crate) children: Children<'win>,
+    pub(crate) children: Children<'frm>,
 
     pub(crate) prev_frame_state: &'slf StateCache,
     pub(crate) global_data: &'slf mut GlobalData,
-    pub(crate) buffer: &'win LinkedBuffer,
-    pub(crate) subctx_stack: &'slf mut SubContextStack<'win>,
+    pub(crate) buffer: &'frm LinkedBuffer,
+    pub(crate) subctx_stack: &'slf mut SubContextStack<'frm>,
 }
 
-pub(crate) struct ElementNode<'win> {
+pub(crate) struct ElementNode<'frm> {
     id: Id,
-    children: Children<'win>,
-    elem: LBBox<'win, dyn Element>,
+    elem: LBBox<'frm, dyn Element>,
+    children: Children<'frm>,
 }
 
-impl<'win> ElementNode<'win> {
-    pub(crate) fn new(id: Id, elem: LBBox<'win, dyn Element>) -> Self {
+impl<'frm> ElementNode<'frm> {
+    pub(crate) fn new(id: Id, elem: LBBox<'frm, dyn Element>) -> Self {
         ElementNode {
             id,
-            children: Children::default(),
             elem,
+            children: Children::default(),
         }
     }
 }
 
-pub(crate) type ChildQueue<'win> = Queue<'win, ElementNode<'win>>;
-pub(crate) type ChildQNode<'win> = LBBox<'win, QNode<'win, ElementNode<'win>>>;
+pub(crate) type SubContextStack<'frm> = Vec<(ChildQNode<'frm>, SocketName)>;
 
-#[derive(Default)]
-pub(crate) struct Children<'win> {
-    default_socket: Queue<'win, ElementNode<'win>>,
-    other_sockets: Option<HashMap<SocketName, ChildQueue<'win>>>,
-}
-
-impl<'win> Children<'win> {
-    pub fn get_or_create(&mut self, socket: SocketName) -> &mut ChildQueue<'win> {
-        if socket.is_default() {
-            &mut self.default_socket
-        } else {
-            self.other_sockets
-                .get_or_insert_with(Default::default)
-                .entry(socket)
-                .or_default()
-        }
-    }
-
-    pub fn get(&mut self, socket: SocketName) -> Option<&mut ChildQueue<'win>> {
-        if socket.is_default() {
-            Some(&mut self.default_socket)
-        } else {
-            self.other_sockets.as_mut().and_then(|sockets| sockets.get_mut(&socket))
-        }
-    }
-
-    pub fn remove(&mut self, socket: SocketName) -> Option<ChildQueue<'win>> {
-        if socket.is_default() {
-            Some(std::mem::replace(&mut self.default_socket, Queue::default()))
-        } else {
-            self.other_sockets.as_mut().and_then(|sockets| sockets.remove(&socket))
-        }
-    }
-
-    pub fn take(&mut self) -> Children<'win> {
-        Children {
-            default_socket: self.default_socket.take(),
-            other_sockets: self.other_sockets.take(),
-        }
-    }
-}
-
-pub(crate) type SubContextStack<'win> = Vec<(ChildQNode<'win>, SocketName)>;
-
-pub struct SubContext<'slf, 'ctx, 'win> {
+pub struct SubContext<'slf, 'ctx, 'frm> {
     pub(crate) max_area: Area,
-    pub(crate) root: ElementNode<'win>,
-    pub(crate) ctx: &'slf mut Context<'ctx, 'win>,
+    pub(crate) root: ElementNode<'frm>,
+    pub(crate) ctx: &'slf mut Context<'ctx, 'frm>,
 }
 
-impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
-    pub fn close(mut self) -> LayoutNode<'win> {
+impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
+    pub fn close(mut self) -> LayoutNode<'frm> {
         while !self.ctx.subctx_stack.is_empty() {
             self.end();
         }
@@ -106,7 +61,7 @@ impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
         self.root.elem.run(ctx, self.root.id)
     }
 
-    pub fn end<'a>(&'a mut self) -> &'a mut Self {
+    pub fn end(&mut self) -> &mut Self {
         let (node, socket) = self.ctx.subctx_stack.pop().expect("Bad call to 'end'");
 
         // Get the parent node
@@ -119,13 +74,16 @@ impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
         self
     }
 
-    pub fn begin<'a, E: Element + 'static>(
+    pub fn begin<'a, E: AllocElement<'frm>>(
         &'a mut self,
         socket: SocketName,
         id: Id,
         elem: E,
     ) -> &'a mut Self {
-        let node = self.ctx.buffer.alloc_composite1(elem, |elem| QNode::new(ElementNode::new(id, elem.unsize())));
+        // TODO(perf) - Could potentially do this as a single allocation
+        let node = QNode::new(ElementNode::new(id, elem.alloc(self.ctx.buffer)));
+        let node = self.ctx.buffer.alloc(node);
+
         self.ctx.subctx_stack.push((node, socket));
         self
     }
@@ -152,6 +110,23 @@ impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
         self
     }
 
+    pub fn connect_all_sockets<'a>(
+        &'a mut self,
+    ) -> &'a mut Self {
+        // Get the current children
+        let children = self.ctx.children.take();
+
+        // Get the parent
+        let parent = match self.ctx.subctx_stack.last_mut() {
+            Some(parent) => &mut parent.0,
+            None => &mut self.root,
+        };
+
+        parent.children.append(children);
+
+        self
+    }
+
     pub fn new_state<T: StateT>(&mut self) -> State<T> {
         self.ctx.new_state()
     }
@@ -161,22 +136,22 @@ impl<'slf, 'ctx, 'win> SubContext<'slf, 'ctx, 'win> {
     }
 }
 
-impl<'slf, 'win> Context<'slf, 'win> {
+impl<'slf, 'frm> Context<'slf, 'frm> {
     pub fn max_area(&self) -> Area {
         self.max_area
     }
 
     // TODO: It would be nice if I didn't have to expose this
-    pub fn buffer(&self) -> &'win LinkedBuffer {
+    pub fn buffer(&self) -> &'frm LinkedBuffer {
         self.buffer
     }
 
-    pub fn open_element<'a, E: Element + 'static>(
+    pub fn open_element<'a, E: AllocElement<'frm>>(
         &'a mut self,
         max_area: Area,
         id: Id,
         elem: E,
-    ) -> SubContext<'a, 'slf, 'win> {
+    ) -> SubContext<'a, 'slf, 'frm> {
         let buf = self.buffer;
 
         // Clear the subcontext stack before using it
@@ -184,12 +159,12 @@ impl<'slf, 'win> Context<'slf, 'win> {
 
         SubContext {
             max_area,
-            root: ElementNode::new(id, buf.alloc(elem).unsize()),
+            root: ElementNode::new(id, elem.alloc(buf)),
             ctx: self,
         }
     }
 
-    pub fn open_socket(&mut self, name: SocketName, max_area: Area, socket: &mut dyn Socket<'win>) {
+    pub fn open_socket<S: Socket<'frm>>(&mut self, name: SocketName, max_area: Area, socket: &mut S) {
         let children = match self.children.get(name) {
             Some(children) => children,
             None => return,
@@ -217,14 +192,14 @@ impl<'slf, 'win> Context<'slf, 'win> {
         }
     }
 
-    pub fn new_layout<L: Layout + 'win>(&self, min_area: Area, layout: L) -> LayoutNode<'win> {
+    pub fn new_layout<L: Layout + 'frm>(&self, min_area: Area, layout: L) -> LayoutNode<'frm> {
         LayoutNode {
             min_area,
             layout: self.buffer.alloc(layout).unsize(),
         }
     }
 
-    pub fn new_layout_null(&self) -> LayoutNode<'win> {
+    pub fn new_layout_null(&self) -> LayoutNode<'frm> {
         LayoutNode::null(self.buffer)
     }
 

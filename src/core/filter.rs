@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::core::element::*;
+use crate::util::linked_buffer::LBBox;
 
 #[derive(Clone, Default)]
 pub struct FilterStack {
@@ -19,5 +20,16 @@ impl FilterStack {
 }
 
 pub trait Filter {
-    fn element(&self, id: Id, element: &dyn Element, filters: &mut FilterStack);
+    fn element<'ctx, 'frm>(
+        &self,
+        mut ctx: Context<'ctx, 'frm>,
+        id: Id,
+        element: LBBox<'frm, dyn Element>,
+        _filters: &mut FilterStack
+    ) -> LayoutNode<'frm> {
+        // Default implementation just uses the element as a sub-element (no-op)
+        let mut sub = ctx.open_element(ctx.max_area(), id, element);
+        sub.connect_all_sockets();
+        sub.close()
+    }
 }

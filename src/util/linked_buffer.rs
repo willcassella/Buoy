@@ -3,8 +3,10 @@ use std::ptr::Unique;
 use std::ops::{Deref, DerefMut};
 use std::cell::UnsafeCell;
 use std::mem::{size_of, align_of};
+use std::any::Any;
 
 use super::dst;
+use super::into_any::IntoAny;
 
 const BUFFER_SIZE: usize = 1_usize << 16;
 
@@ -227,6 +229,22 @@ impl<'a, T> LBBox<'a, T> {
         };
         std::mem::forget(self);
         result
+    }
+}
+
+impl<'buf, T: ?Sized + IntoAny> LBBox<'buf, T> {
+    pub fn downcast<U: Any>(mut self) -> Result<LBBox<'buf, U>, Self> {
+        match (*self).into_any_mut().downcast_mut::<U>() {
+            Some(u) => {
+                let result = LBBox {
+                    value: Unique::from(u),
+                    _phantom: PhantomData,
+                };
+                std::mem::forget(self);
+                Ok(result)
+            },
+            None => Err(self),
+        }
     }
 }
 

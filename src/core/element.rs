@@ -1,10 +1,14 @@
 use crate::core::common::*;
+use crate::util::linked_buffer::{LinkedBuffer, LBBox};
+use crate::util::into_any::IntoAny;
 
 use crate::space::Area;
 
 mod context;
-pub(crate) use self::context::Children;
 pub use self::context::{Context, SubContext};
+
+mod children;
+pub(crate) use self::children::Children;
 
 mod id;
 pub use self::id::Id;
@@ -17,13 +21,29 @@ pub use self::layout::{Layout, LayoutNode};
 
 // An 'Element' is something run in the the context of a socket
 // This is the starting point for any UI tree
-pub trait Element {
+pub trait Element: IntoAny {
     fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win>;
 }
 
 impl Element for () {
     fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
         ctx.new_layout_null()
+    }
+}
+
+pub trait AllocElement<'frm> {
+    fn alloc(self, buf: &'frm LinkedBuffer) -> LBBox<'frm, dyn Element>;
+}
+
+impl<'frm> AllocElement<'frm> for LBBox<'frm, dyn Element> {
+    fn alloc(self, _buf: &'frm LinkedBuffer) -> LBBox<'frm, dyn Element> {
+        self
+    }
+}
+
+impl<'frm, T: Element + 'static> AllocElement<'frm> for T {
+    fn alloc(self, buf: &'frm LinkedBuffer) -> LBBox<'frm, dyn Element> {
+        buf.alloc(self).unsize()
     }
 }
 

@@ -118,6 +118,10 @@ impl<'buf, T> Queue<'buf, T> {
     pub fn pop_front(&mut self) -> Option<T> {
         self.pop_front_node().map(|node| QNode::into_inner(LBBox::into_inner(node)))
     }
+
+    pub fn iter<'a>(&'a self) -> RefIter<'a, 'buf, T> {
+        RefIter{ next: &self.head }
+    }
 }
 
 pub struct RefIter<'a, 'buf, T> {
