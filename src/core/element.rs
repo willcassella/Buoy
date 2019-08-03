@@ -65,6 +65,6 @@ pub trait Builder: Sized {
         ctx: &'a mut Context<'slf, 'win>,
         max_area: Area,
     ) -> SubContext<'a, 'slf, 'win> {
-        ctx.open_element(max_area, self.get_id(), self.get_element())
+        ctx.open_sub(max_area, self.get_id(), self.get_element())
     }
 }

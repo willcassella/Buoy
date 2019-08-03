@@ -21,7 +21,12 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn run<'frame, E: Element>(&'frame mut self, max_area: Area, root: E) -> LayoutNode<'frame> {
+    pub fn run<'frame, E: Element>(
+        &'frame mut self,
+        max_area: Area,
+        root: E,
+        filter_stack: FilterStackBuilder
+    ) -> LayoutNode<'frame> {
         // Increment frame id
         self.frame_id = self.frame_id.next();
         self.next_context_id = Default::default();
@@ -31,7 +36,8 @@ impl Window {
         self.cur_frame_state.clear();
 
         // Get filters for the next frame
-        let frame_filters = replace(&mut self.next_frame_filters, FilterStack::default());
+        let mut frame_filters = replace(&mut self.next_frame_filters, FilterStack::default());
+        frame_filters = filter_stack.append_to(frame_filters);
 
         // Create a context for running
         let mut global_data = GlobalData {
@@ -43,6 +49,7 @@ impl Window {
         let ctx = Context {
             max_area,
             children: Children::default(),
+            filter_stack: frame_filters,
 
             prev_frame_state: &self.prev_frame_state,
             global_data: &mut global_data,
@@ -51,15 +58,16 @@ impl Window {
         };
 
         // Run the element
-        root.run(ctx, Id::default())
+        let result = root.run(ctx, Id::default());
+
+        // TODO: Should do this more elegantly
+        self.next_frame_filters = global_data.next_frame_filters;
+
+        result
     }
 
     pub fn filter(&mut self, filter: Rc<dyn Filter>) {
-        self.next_frame_filters.add_filter(filter);
-    }
-
-    pub fn filter_late(&mut self, filter: Rc<dyn Filter>) {
-        self.next_frame_filters.add_filter_late(filter);
+        self.next_frame_filters.append(filter);
     }
 
    pub fn write_state<T: StateT>(&mut self, state: State<T>, value: T) {
