@@ -1,13 +1,12 @@
 #![feature(unsize, coerce_unsized)]
 #![feature(ptr_internals)]
 
-pub mod state;
 pub mod render;
 pub mod space;
 pub mod util;
 
 mod core;
-pub use self::core::{element, filter, Window};
+pub use self::core::{state, element, filter, Window};
 
 pub mod primitives;
 

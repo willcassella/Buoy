@@ -25,7 +25,7 @@ pub struct GridRegion {
 }
 
 impl Element for Grid {
-    fn run<'ctx, 'win>(&self, mut _ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
+    fn run<'ctx, 'frm>(&self, mut _ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
         unimplemented!()
     }
 }

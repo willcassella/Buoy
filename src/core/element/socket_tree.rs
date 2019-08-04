@@ -1,23 +1,40 @@
 use std::collections::HashMap;
 
 use crate::core::element::*;
+use crate::core::filter::*;
 
-use crate::util::linked_buffer::LBBox;
-use crate::util::linked_queue::{Queue, QNode};
+use crate::util::arena::ABox;
+use crate::util::queue::{Queue, QNode};
 
-use super::context::ElementNode;
+pub type ElementQNode<'frm> = ABox<'frm, QNode<'frm, ElementNode<'frm>>>;
+pub type ElementQueue<'frm> = Queue<'frm, ElementNode<'frm>>;
 
-pub(crate) type ChildQNode<'frm> = LBBox<'frm, QNode<'frm, ElementNode<'frm>>>;
-pub(crate) type ChildQueue<'frm> = Queue<'frm, ElementNode<'frm>>;
-
-#[derive(Default)]
-pub(crate) struct Children<'frm> {
-    default_socket: ChildQueue<'frm>,
-    other_sockets: Option<HashMap<SocketName, ChildQueue<'frm>>>,
+pub struct ElementNode<'frm> {
+    pub id: Id,
+    pub elem: ABox<'frm, dyn Element>,
+    pub filter_stack: FilterStack,
+    pub children: SocketTree<'frm>,
 }
 
-impl<'frm> Children<'frm> {
-    pub fn get_or_create(&mut self, socket: SocketName) -> &mut ChildQueue<'frm> {
+impl<'frm> ElementNode<'frm> {
+    pub fn new(id: Id, elem: ABox<'frm, dyn Element>, filter_stack: FilterStack) -> Self {
+        ElementNode {
+            id,
+            elem,
+            filter_stack,
+            children: SocketTree::default(),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct SocketTree<'frm> {
+    default_socket: ElementQueue<'frm>,
+    other_sockets: Option<HashMap<SocketName, ElementQueue<'frm>>>,
+}
+
+impl<'frm> SocketTree<'frm> {
+    pub fn get_or_create(&mut self, socket: SocketName) -> &mut ElementQueue<'frm> {
         if socket.is_default() {
             &mut self.default_socket
         } else {
@@ -28,7 +45,7 @@ impl<'frm> Children<'frm> {
         }
     }
 
-    pub fn get(&mut self, socket: SocketName) -> Option<&mut ChildQueue<'frm>> {
+    pub fn get(&mut self, socket: SocketName) -> Option<&mut ElementQueue<'frm>> {
         if socket.is_default() {
             Some(&mut self.default_socket)
         } else {
@@ -36,7 +53,7 @@ impl<'frm> Children<'frm> {
         }
     }
 
-    pub fn remove(&mut self, socket: SocketName) -> Option<ChildQueue<'frm>> {
+    pub fn remove(&mut self, socket: SocketName) -> Option<ElementQueue<'frm>> {
         if socket.is_default() {
             Some(std::mem::replace(&mut self.default_socket, Queue::default()))
         } else {
@@ -44,8 +61,8 @@ impl<'frm> Children<'frm> {
         }
     }
 
-    pub fn take(&mut self) -> Children<'frm> {
-        Children {
+    pub fn take(&mut self) -> SocketTree<'frm> {
+        SocketTree {
             default_socket: self.default_socket.take(),
             other_sockets: self.other_sockets.take(),
         }

@@ -4,65 +4,116 @@ use crate::core::element::*;
 use crate::core::filter::*;
 use crate::state::*;
 use crate::space::*;
-use crate::util::linked_buffer::{LinkedBuffer, LBBox};
-use crate::util::linked_queue::{QNode};
+use crate::util::arena::{Arena, ABox};
+use crate::util::queue::QNode;
 
-use super::children::{Children, ChildQNode};
+pub struct Context<'slf, 'frm> {
+    pub(in crate::core) max_area: Area,
+    pub(in crate::core) children: SocketTree<'frm>,
+    pub(in crate::core) filter_stack: FilterStack,
 
-pub(crate) struct ElementNode<'frm> {
-    id: Id,
-    elem: LBBox<'frm, dyn Element>,
-    filter_stack: FilterStack,
-    children: Children<'frm>,
+    pub(in crate::core) prev_frame_state: &'slf StateCache,
+    pub(in crate::core) global_data: &'slf mut GlobalData,
+    pub(in crate::core) buffer: &'frm Arena,
+    pub(in crate::core) subctx_stack: &'slf mut SubContextStack<'frm>,
 }
 
-impl<'frm> ElementNode<'frm> {
-    pub(crate) fn new(id: Id, elem: LBBox<'frm, dyn Element>, filter_stack: FilterStack) -> Self {
-        ElementNode {
-            id,
-            elem,
-            filter_stack,
-            children: Children::default(),
+impl<'slf, 'frm> Context<'slf, 'frm> {
+    pub fn max_area(&self) -> Area {
+        self.max_area
+    }
+
+    // TODO: It would be nice if I didn't have to expose this
+    pub fn buffer(&self) -> &'frm Arena {
+        self.buffer
+    }
+
+    pub fn open_sub<'a, E: AllocElement<'frm>>(
+        &'a mut self,
+        max_area: Area,
+        id: Id,
+        elem: E,
+    ) -> SubContext<'a, 'slf, 'frm> {
+        let buf = self.buffer;
+
+        // Clear the subcontext stack before using it
+        self.subctx_stack.clear();
+
+        SubContext {
+            max_area,
+            root: ElementNode::new(id, elem.alloc(buf), self.filter_stack.clone()),
+            ctx: self,
+        }
+    }
+
+    pub fn open_socket<S: Socket<'frm>>(&mut self, name: SocketName, max_area: Area, socket: &mut S) {
+        let children = match self.children.get(name) {
+            Some(children) => children,
+            None => return,
+        };
+
+        // Fill the socket
+        while socket.remaining_capacity() != 0 {
+            let mut child = match children.pop_front_node() {
+                Some(child) => QNode::into_inner(ABox::into_inner(child)),
+                None => break,
+            };
+
+            // Run the child
+            let sub_ctx = Context {
+                max_area,
+                children: child.children.take(),
+                filter_stack: FilterStack::default(),
+
+                prev_frame_state: self.prev_frame_state,
+                global_data: self.global_data,
+                buffer: self.buffer,
+                subctx_stack: self.subctx_stack,
+            };
+
+            socket.push(run_element(sub_ctx, child.id, child.elem, child.filter_stack));
+        }
+    }
+
+    pub fn new_layout<L: Layout + 'frm>(&self, min_area: Area, layout: L) -> LayoutNode<'frm> {
+        LayoutNode {
+            min_area,
+            layout: self.buffer.alloc(layout).unsize(),
+        }
+    }
+
+    pub fn new_layout_null(&self) -> LayoutNode<'frm> {
+        LayoutNode::null(self.buffer)
+    }
+
+    pub fn next_frame_filter(&mut self, filter: Rc<dyn Filter>) {
+        self.global_data.next_frame_filters.append(filter);
+    }
+
+    pub fn new_state<T: StateT>(&mut self) -> State<T> {
+        let id = self.global_data.next_state_id.increment();
+        State::new(id)
+    }
+
+    pub fn read_state<T: StateT>(&self, state: State<T>) -> T {
+        if state.id.frame_id != self.global_data.next_state_id.frame_id.prev() {
+            panic!("Attempt to read state from wrong frame");
+        }
+
+        if let Some(v) = self.prev_frame_state.get(&state.id) {
+            v.downcast_ref::<T>().expect("Mismatched types").clone()
+        } else {
+            Default::default()
         }
     }
 }
 
-pub(crate) type SubContextStack<'frm> = Vec<(ChildQNode<'frm>, SocketName)>;
-
-pub(crate) fn run_element<'ctx, 'frm>(
-    mut ctx: Context<'ctx, 'frm>,
-    id: Id,
-    element: LBBox<'frm, dyn Element>,
-    mut filters: FilterStack,
-) -> LayoutNode<'frm> {
-    debug_assert!(ctx.filter_stack.is_empty());
-
-    // Run the element against the given filter stack
-    let mut sub_filters = FilterStackBuilder::default();
-
-    while let Some(filter) = filters.pop() {
-        match filter.predicate(id, &*element) {
-            PredicateResult::RunFilter => {
-                ctx.filter_stack = sub_filters.append_to(filters);
-                return filter.element(ctx, id, element);
-            },
-            PredicateResult::Pass => {
-                // Continue popping filter stack
-            },
-            PredicateResult::PassRecurse => {
-                sub_filters.append(filter);
-            }
-        }
-    }
-
-    ctx.filter_stack = sub_filters.into_stack();
-    element.run(ctx, id)
-}
+pub type SubContextStack<'frm> = Vec<(ElementQNode<'frm>, SocketName)>;
 
 pub struct SubContext<'slf, 'ctx, 'frm> {
-    pub(crate) max_area: Area,
-    pub(crate) root: ElementNode<'frm>,
-    pub(crate) ctx: &'slf mut Context<'ctx, 'frm>,
+    max_area: Area,
+    root: ElementNode<'frm>,
+    ctx: &'slf mut Context<'ctx, 'frm>,
 }
 
 impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
@@ -161,103 +212,32 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
     }
 }
 
-pub struct Context<'slf, 'frm> {
-    pub(crate) max_area: Area,
-    pub(crate) children: Children<'frm>,
-    pub(crate) filter_stack: FilterStack,
+pub fn run_element<'ctx, 'frm>(
+    mut ctx: Context<'ctx, 'frm>,
+    id: Id,
+    element: ABox<'frm, dyn Element>,
+    mut filters: FilterStack,
+) -> LayoutNode<'frm> {
+    debug_assert!(ctx.filter_stack.is_empty());
 
-    pub(crate) prev_frame_state: &'slf StateCache,
-    pub(crate) global_data: &'slf mut GlobalData,
-    pub(crate) buffer: &'frm LinkedBuffer,
-    pub(crate) subctx_stack: &'slf mut SubContextStack<'frm>,
-}
+    // Run the element against the given filter stack
+    let mut sub_filters = FilterStackBuilder::default();
 
-impl<'slf, 'frm> Context<'slf, 'frm> {
-    pub fn max_area(&self) -> Area {
-        self.max_area
-    }
-
-    // TODO: It would be nice if I didn't have to expose this
-    pub fn buffer(&self) -> &'frm LinkedBuffer {
-        self.buffer
-    }
-
-    pub fn open_sub<'a, E: AllocElement<'frm>>(
-        &'a mut self,
-        max_area: Area,
-        id: Id,
-        elem: E,
-    ) -> SubContext<'a, 'slf, 'frm> {
-        let buf = self.buffer;
-
-        // Clear the subcontext stack before using it
-        self.subctx_stack.clear();
-
-        SubContext {
-            max_area,
-            root: ElementNode::new(id, elem.alloc(buf), self.filter_stack.clone()),
-            ctx: self,
+    while let Some(filter) = filters.pop() {
+        match filter.predicate(id, &*element) {
+            PredicateResult::RunFilter => {
+                ctx.filter_stack = sub_filters.append_to(filters);
+                return filter.element(ctx, id, element);
+            },
+            PredicateResult::Pass => {
+                // Continue popping filter stack
+            },
+            PredicateResult::PassRecurse => {
+                sub_filters.append(filter);
+            }
         }
     }
 
-    pub fn open_socket<S: Socket<'frm>>(&mut self, name: SocketName, max_area: Area, socket: &mut S) {
-        let children = match self.children.get(name) {
-            Some(children) => children,
-            None => return,
-        };
-
-        // Fill the socket
-        while socket.remaining_capacity() != 0 {
-            let mut child = match children.pop_front_node() {
-                Some(child) => QNode::into_inner(LBBox::into_inner(child)),
-                None => break,
-            };
-
-            // Run the child
-            let sub_ctx = Context {
-                max_area,
-                children: child.children.take(),
-                filter_stack: FilterStack::default(),
-
-                prev_frame_state: self.prev_frame_state,
-                global_data: self.global_data,
-                buffer: self.buffer,
-                subctx_stack: self.subctx_stack,
-            };
-
-            socket.push(run_element(sub_ctx, child.id, child.elem, child.filter_stack));
-        }
-    }
-
-    pub fn new_layout<L: Layout + 'frm>(&self, min_area: Area, layout: L) -> LayoutNode<'frm> {
-        LayoutNode {
-            min_area,
-            layout: self.buffer.alloc(layout).unsize(),
-        }
-    }
-
-    pub fn new_layout_null(&self) -> LayoutNode<'frm> {
-        LayoutNode::null(self.buffer)
-    }
-
-    pub fn next_frame_filter(&mut self, filter: Rc<dyn Filter>) {
-        self.global_data.next_frame_filters.append(filter);
-    }
-
-    pub fn new_state<T: StateT>(&mut self) -> State<T> {
-        let id = self.global_data.next_state_id.increment();
-        State::new(id)
-    }
-
-    pub fn read_state<T: StateT>(&self, state: State<T>) -> T {
-        if state.id.frame_id != self.global_data.next_state_id.frame_id.prev() {
-            panic!("Attempt to read state from wrong frame");
-        }
-
-        if let Some(v) = self.prev_frame_state.get(&state.id) {
-            v.downcast_ref::<T>().expect("Mismatched types").clone()
-        } else {
-            Default::default()
-        }
-    }
+    ctx.filter_stack = sub_filters.into_stack();
+    element.run(ctx, id)
 }

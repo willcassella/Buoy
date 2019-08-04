@@ -36,7 +36,7 @@ impl Default for Size {
 }
 
 impl Element for Size {
-    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
+    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
         archetype::wrap(ctx, id, self)
     }
 }
@@ -48,7 +48,7 @@ impl archetype::Wrap for Size {
         max_area
     }
 
-    fn close_some<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, child: LayoutNode<'win>) -> LayoutNode<'win> {
+    fn close_some<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id, child: LayoutNode<'frm>) -> LayoutNode<'frm> {
         let this = *self;
 
         ctx.new_layout(
@@ -70,7 +70,7 @@ impl archetype::Wrap for Size {
         )
     }
 
-    fn close_none<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
+    fn close_none<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
         // Just take up space
         ctx.new_layout(self.min, ())
     }

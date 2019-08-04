@@ -1,6 +1,6 @@
 use crate::render::CommandList;
 use crate::space::*;
-use crate::util::linked_buffer::{LinkedBuffer, LBBox};
+use crate::util::arena::{Arena, ABox};
 
 pub trait Layout {
     fn render(&self, region: Region, cmds: &mut CommandList);
@@ -21,13 +21,13 @@ where
     }
 }
 
-pub struct LayoutNode<'win> {
+pub struct LayoutNode<'frm> {
     pub min_area: Area,
-    pub layout: LBBox<'win, dyn Layout + 'win>,
+    pub layout: ABox<'frm, dyn Layout + 'frm>,
 }
 
-impl<'win> LayoutNode<'win> {
-    pub fn null(buf: &'win LinkedBuffer) -> Self {
+impl<'frm> LayoutNode<'frm> {
+    pub fn null(buf: &'frm Arena) -> Self {
         LayoutNode {
             min_area: Area::zero(),
             layout: buf.alloc(()).unsize(),

@@ -82,7 +82,7 @@ impl Default for Border {
 }
 
 impl Element for Border {
-    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
+    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
         archetype::wrap(ctx, id, self)
     }
 }
@@ -95,7 +95,7 @@ impl archetype::Wrap for Border {
         max_area
     }
 
-    fn close_some<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, child: LayoutNode<'win>) -> LayoutNode<'win> {
+    fn close_some<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id, child: LayoutNode<'frm>) -> LayoutNode<'frm> {
         let mut min_area = child.min_area;
 
         // Add to width/height to account for border
@@ -123,7 +123,7 @@ impl archetype::Wrap for Border {
         )
     }
 
-    fn close_none<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
+    fn close_none<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
         // Since we don't have a child, min area is just size of border
         let min_area = Area {
             width: self.left + self.right,

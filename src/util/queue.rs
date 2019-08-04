@@ -1,10 +1,10 @@
 use std::ops::{Deref, DerefMut};
 use std::usize;
 
-use super::linked_buffer::{LinkedBuffer, LBBox};
+use super::arena::{Arena, ABox};
 use super::fill::Fill;
 
-type Link<'buf, T> = LBBox<'buf, QNode<'buf, T>>;
+type Link<'buf, T> = ABox<'buf, QNode<'buf, T>>;
 
 pub struct QNode<'buf, T> {
     next: Option<Link<'buf, T>>,
@@ -53,7 +53,7 @@ impl<'buf, T> Default for Queue<'buf, T> {
 }
 
 impl<'buf, T> Queue<'buf, T> {
-    pub fn push_back_node(&mut self, mut node: LBBox<'buf, QNode<'buf, T>>) {
+    pub fn push_back_node(&mut self, mut node: ABox<'buf, QNode<'buf, T>>) {
         // If self.tail_next is null, then the tail_next pointer should be the head link
         let tail_next = if self.tail_next.is_null() {
             &mut self.head
@@ -86,7 +86,7 @@ impl<'buf, T> Queue<'buf, T> {
         self.tail_next = other.tail_next;
     }
 
-    pub fn pop_front_node(&mut self) -> Option<LBBox<QNode<'buf, T>>> {
+    pub fn pop_front_node(&mut self) -> Option<ABox<QNode<'buf, T>>> {
         let mut node = match self.head.take() {
             Some(node) => node,
             None => return None,
@@ -110,13 +110,13 @@ impl<'buf, T> Queue<'buf, T> {
         result
     }
 
-    pub fn push_back(&mut self, buf: &'buf LinkedBuffer, value: T) {
+    pub fn push_back(&mut self, buf: &'buf Arena, value: T) {
         let node = buf.alloc(QNode{ value, next: None });
         self.push_back_node(node);
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
-        self.pop_front_node().map(|node| QNode::into_inner(LBBox::into_inner(node)))
+        self.pop_front_node().map(|node| QNode::into_inner(ABox::into_inner(node)))
     }
 
     pub fn iter<'a>(&'a self) -> RefIter<'a, 'buf, T> {
@@ -153,11 +153,11 @@ impl<'a, 'buf, T> IntoIterator for &'a Queue<'buf, T> {
 
 pub struct QueueFiller<'a, 'buf, T> {
     queue: &'a mut Queue<'buf, T>,
-    buf: &'buf LinkedBuffer,
+    buf: &'buf Arena,
 }
 
 impl<'a, 'buf, T> QueueFiller<'a, 'buf, T> {
-    pub fn new(queue: &'a mut Queue<'buf, T>, buf: &'buf LinkedBuffer) -> Self {
+    pub fn new(queue: &'a mut Queue<'buf, T>, buf: &'buf Arena) -> Self {
         QueueFiller {
             queue,
             buf,
@@ -177,12 +177,12 @@ impl<'a, 'buf, T> Fill<T> for QueueFiller<'a, 'buf, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Queue;
-    use super::super::linked_buffer::LinkedBuffer;
+    use crate::util::queue::Queue;
+    use crate::util::arena::Arena;
 
     #[test]
     fn test_order() {
-        let buf = LinkedBuffer::default();
+        let buf = Arena::default();
         let mut queue = Queue::default();
 
         queue.push_back(&buf, 1);

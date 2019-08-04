@@ -6,7 +6,7 @@ use crate::core::element::*;
 use crate::core::filter::*;
 use crate::state::*;
 use crate::space::*;
-use crate::util::linked_buffer::LinkedBuffer;
+use crate::util::arena::Arena;
 
 #[derive(Default)]
 pub struct Window {
@@ -17,16 +17,16 @@ pub struct Window {
     cur_frame_state: StateCache,
 
     next_frame_filters: FilterStack,
-    buffer: LinkedBuffer,
+    buffer: Arena,
 }
 
 impl Window {
-    pub fn run<'frame, E: Element>(
-        &'frame mut self,
+    pub fn run<'frm, E: Element>(
+        &'frm mut self,
         max_area: Area,
         root: E,
         filter_stack: FilterStackBuilder
-    ) -> LayoutNode<'frame> {
+    ) -> LayoutNode<'frm> {
         // Increment frame id
         self.frame_id = self.frame_id.next();
         self.next_context_id = Default::default();
@@ -48,7 +48,7 @@ impl Window {
         let mut subctx_stack = Vec::new();
         let ctx = Context {
             max_area,
-            children: Children::default(),
+            children: SocketTree::default(),
             filter_stack: frame_filters,
 
             prev_frame_state: &self.prev_frame_state,

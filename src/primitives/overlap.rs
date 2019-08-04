@@ -2,7 +2,7 @@ use crate::prelude::*;
 use crate::render::CommandList;
 use super::archetype;
 
-use crate::util::linked_queue::Queue;
+use crate::util::queue::Queue;
 
 pub struct Overlap;
 
@@ -17,7 +17,7 @@ impl Overlap {
 }
 
 impl Element for Overlap {
-    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
+    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
         archetype::panel(ctx, id, self)
     }
 }
@@ -27,7 +27,7 @@ impl archetype::Panel for Overlap {
         child_max_area
     }
 
-    fn close<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, children: Queue<'win, LayoutNode<'win>>) -> LayoutNode<'win> {
+    fn close<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id, children: Queue<'frm, LayoutNode<'frm>>) -> LayoutNode<'frm> {
         // Get the max size required among all children
         let max_area = (&children).into_iter().fold(Area::zero(), |max, child| max.stretch(&child.min_area));
 

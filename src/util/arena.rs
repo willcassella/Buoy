@@ -4,8 +4,8 @@ use std::ops::{Deref, DerefMut};
 use std::cell::UnsafeCell;
 use std::mem::{size_of, align_of};
 use std::any::Any;
+use std::convert::From;
 
-use super::dst;
 use super::into_any::IntoAny;
 
 const BUFFER_SIZE: usize = 1_usize << 16;
@@ -34,14 +34,14 @@ impl Drop for Node {
     }
 }
 
-struct LinkedBufferInner {
+struct ArenaInner {
     head: Option<Box<Node>>,
     offset: usize,
 }
 
-impl LinkedBufferInner {
+impl ArenaInner {
     fn new() -> Self {
-        LinkedBufferInner {
+        ArenaInner {
             head: None,
             offset: 0,
         }
@@ -52,44 +52,6 @@ impl LinkedBufferInner {
             head.prev = None;
         }
         self.offset = 0;
-    }
-
-    unsafe fn alloc_raw(&mut self, size: usize, align: usize) -> *mut () {
-        match self.head {
-            Some(ref mut node) => {
-                // Get the destination offset
-                let start = node.buf.as_mut_ptr();
-                let dest_offset = self.offset + start.add(self.offset).align_offset(align);
-
-                // If we've exceeded the bounds of our buffer, allocate into a new node
-                if dest_offset + size > BUFFER_SIZE {
-                    let (mut node, offset, ptr) = LinkedBufferInner::alloc_new_node(size, align);
-
-                    // Update self
-                    node.prev = self.head.take();
-                    self.head = Some(node);
-                    self.offset = offset;
-
-                    return ptr;
-                }
-
-                let dest = start.add(dest_offset) as *mut ();
-
-                // Update self
-                self.offset = dest_offset + size;
-
-                dest
-            },
-            None => {
-                let (node, offset, dest) = LinkedBufferInner::alloc_new_node(size, align);
-
-                // Update self
-                self.head = Some(node);
-                self.offset = offset;
-
-                dest
-            }
-        }
     }
 
     unsafe fn alloc_new_node(size: usize, align: usize) -> (Box<Node>, usize, *mut ()) {
@@ -104,23 +66,66 @@ impl LinkedBufferInner {
         let dest = start.add(dest_offset) as *mut ();
         (node, new_offset, dest)
     }
+
+    unsafe fn alloc_raw(&mut self, size: usize, align: usize) -> Unique<()> {
+        match self.head {
+            Some(ref mut node) => {
+                // Get the destination offset
+                let start = node.buf.as_mut_ptr();
+                let dest_offset = self.offset + start.add(self.offset).align_offset(align);
+
+                // If we've exceeded the bounds of our buffer, allocate into a new node
+                if dest_offset + size > BUFFER_SIZE {
+                    let (mut node, offset, ptr) = ArenaInner::alloc_new_node(size, align);
+
+                    // Update self
+                    node.prev = self.head.take();
+                    self.head = Some(node);
+                    self.offset = offset;
+
+                    return Unique::new(ptr).unwrap();
+                }
+
+                let dest = start.add(dest_offset) as *mut ();
+
+                // Update self
+                self.offset = dest_offset + size;
+
+                Unique::new(dest).unwrap()
+            },
+            None => {
+                let (node, offset, dest) = ArenaInner::alloc_new_node(size, align);
+
+                // Update self
+                self.head = Some(node);
+                self.offset = offset;
+
+                Unique::new(dest).unwrap()
+            }
+        }
+    }
+
+    unsafe fn alloc_typed<T>(&mut self) -> Unique<T> {
+        let ptr = self.alloc_raw(size_of::<T>(), align_of::<T>());
+        Unique::new_unchecked(ptr.as_ptr() as *mut T)
+    }
 }
 
-impl Default for LinkedBufferInner {
+impl Default for ArenaInner {
     fn default() -> Self {
-        LinkedBufferInner::new()
+        Self::new()
     }
 }
 
 #[derive(Default)]
-pub struct LinkedBuffer {
-    inner: UnsafeCell<LinkedBufferInner>,
+pub struct Arena {
+    inner: UnsafeCell<ArenaInner>,
 }
 
-impl LinkedBuffer {
+impl Arena {
     pub fn new() -> Self {
-        LinkedBuffer {
-            inner: UnsafeCell::new(LinkedBufferInner::new()),
+        Arena {
+            inner: UnsafeCell::new(ArenaInner::new()),
         }
     }
 
@@ -131,44 +136,16 @@ impl LinkedBuffer {
         }
     }
 
-    pub fn alloc<'a, T>(&'a self, value: T) -> LBBox<'a, T> {
+    pub fn alloc<'a, T>(&'a self, value: T) -> ABox<'a, T> {
         let ptr = unsafe {
             let inner = &mut *self.inner.get();
-            let dest = inner.alloc_raw(size_of::<T>(), align_of::<T>()) as *mut T;
-            std::ptr::write(dest, value);
+            let dest = inner.alloc_typed::<T>();
+            std::ptr::write(dest.as_ptr(), value);
             dest
         };
 
-        LBBox {
-            value: Unique::new(ptr).unwrap(),
-            _phantom: PhantomData,
-        }
-    }
-
-    // TODO: Figure out how Pin fits into this
-    pub fn alloc_dst<'a, F: ?Sized, T: dst::Dst<F>, U: Unsize<F>>(
-        &'a self,
-        args: T::InitArgs,
-        value: U,
-    ) -> LBBox<'a, T> {
-        let ptr = unsafe {
-            let inner = &mut *self.inner.get();
-
-            // Allocate memory for the dst
-            let dest = inner.alloc_raw(dst::alloc_size::<F, T, U>(), std::mem::align_of::<T>()) as *mut T;
-
-            // Construct the dst
-            std::ptr::write(dest, T::init(args));
-
-            // Initialize the dst field
-            let dst_field = (*dest).get_dst_field();
-            dst_field.init(value);
-
-            dest
-        };
-
-        LBBox {
-            value: Unique::new(ptr).unwrap(),
+        ABox {
+            value: ptr,
             _phantom: PhantomData,
         }
     }
@@ -178,53 +155,49 @@ impl LinkedBuffer {
         &'a self,
         t1: T1,
         i2: I2,
-    ) -> LBBox<'a, T2>
+    ) -> ABox<'a, T2>
     where
-        I2: FnOnce(LBBox<'a, T1>) -> T2
+        I2: FnOnce(ABox<'a, T1>) -> T2
     {
-        // FUTURE: Would like to use something like `type AllocT = (T2, T1,);` but apparently that's not allowed
-        // https://internals.rust-lang.org/t/cant-use-type-parameters-from-outer-function-why-not/3156/6
         unsafe {
             let inner = &mut *self.inner.get();
-            let dest = inner.alloc_raw(std::mem::size_of::<(T2, T1,)>(), std::mem::align_of::<(T2, T1,)>()) as *mut (T2, T1,);
+            let mut dest = inner.alloc_typed::<(T2, T1)>();
 
             // Write t1 into memory
-            std::ptr::write(&mut (*dest).1, t1);
-            let t1 = LBBox {
-                value: Unique::new(&mut (*dest).1).unwrap(),
+            std::ptr::write(&mut dest.as_mut().1, t1);
+            let t1 = ABox {
+                value: Unique::from(&mut dest.as_mut().1),
                 _phantom: PhantomData
             };
 
             // Initialize t2 with t1
-            std::ptr::write(&mut (*dest).0, i2(t1));
-            LBBox {
-                value: Unique::new(&mut (*dest).0).unwrap(),
+            std::ptr::write(&mut dest.as_mut().0, i2(t1));
+            ABox {
+                value: Unique::from(&mut dest.as_mut().0),
                 _phantom: PhantomData
             }
         }
     }
 }
 
-pub struct LBBox<'a, T: ?Sized> {
+pub struct ABox<'a, T: ?Sized> {
     value: Unique<T>,
     _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T> LBBox<'a, T> {
-    pub fn into_inner(b: Self) -> T {
-        let value = unsafe { std::ptr::read(b.value.as_ptr()) };
-        std::mem::forget(b);
+impl<'a, T> ABox<'a, T> {
+    pub fn into_inner(x: Self) -> T {
+        let value = unsafe { std::ptr::read(x.value.as_ptr()) };
+        std::mem::forget(x);
         value
     }
-}
 
-impl<'a, T> LBBox<'a, T> {
-    pub fn unsize<U: ?Sized>(mut self) -> LBBox<'a, U>
+    pub fn unsize<U: ?Sized>(mut self) -> ABox<'a, U>
     where
         T: Unsize<U>
     {
-        let result = LBBox {
-            value: unsafe { Unique::new_unchecked(self.value.as_mut() as &mut U) },
+        let result = ABox {
+            value: unsafe { Unique::from(self.value.as_mut() as &mut U) },
             _phantom: PhantomData,
         };
         std::mem::forget(self);
@@ -232,11 +205,11 @@ impl<'a, T> LBBox<'a, T> {
     }
 }
 
-impl<'buf, T: ?Sized + IntoAny> LBBox<'buf, T> {
-    pub fn downcast<U: Any>(mut self) -> Result<LBBox<'buf, U>, Self> {
+impl<'buf, T: ?Sized + IntoAny> ABox<'buf, T> {
+    pub fn downcast<U: Any>(mut self) -> Result<ABox<'buf, U>, Self> {
         match (*self).into_any_mut().downcast_mut::<U>() {
             Some(u) => {
-                let result = LBBox {
+                let result = ABox {
                     value: Unique::from(u),
                     _phantom: PhantomData,
                 };
@@ -248,13 +221,13 @@ impl<'buf, T: ?Sized + IntoAny> LBBox<'buf, T> {
     }
 }
 
-impl<'a, T: ?Sized> Drop for LBBox<'a, T> {
+impl<'a, T: ?Sized> Drop for ABox<'a, T> {
     fn drop(&mut self) {
         unsafe { std::ptr::drop_in_place(self.value.as_ptr()); }
     }
 }
 
-impl<'a, T: ?Sized> Deref for LBBox<'a, T> {
+impl<'a, T: ?Sized> Deref for ABox<'a, T> {
     type Target = T;
 
     fn deref<'b>(&'b self) -> &'b T {
@@ -262,7 +235,7 @@ impl<'a, T: ?Sized> Deref for LBBox<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for LBBox<'a, T> {
+impl<'a, T: ?Sized> DerefMut for ABox<'a, T> {
     fn deref_mut<'b>(&'b mut self) -> &'b mut T {
         unsafe { self.value.as_mut() }
     }
@@ -270,11 +243,11 @@ impl<'a, T: ?Sized> DerefMut for LBBox<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::LinkedBuffer;
+    use crate::util::arena::Arena;
 
     #[test]
     fn try_alloc() {
-        let mut buf = LinkedBuffer::new();
+        let mut buf = Arena::new();
 
         {
             let one = buf.alloc(1);

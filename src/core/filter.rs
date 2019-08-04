@@ -1,20 +1,39 @@
 use std::rc::Rc;
-use std::ops::Deref;
 
 use crate::core::element::*;
-use crate::util::linked_buffer::LBBox;
+use crate::util::arena::ABox;
+
+pub trait Filter {
+    fn predicate(
+        &self,
+        _id: Id,
+        _element: &dyn Element
+    ) -> PredicateResult {
+        PredicateResult::PassRecurse
+    }
+
+    fn element<'ctx, 'frm>(
+        &self,
+        mut ctx: Context<'ctx, 'frm>,
+        id: Id,
+        element: ABox<'frm, dyn Element>,
+    ) -> LayoutNode<'frm> {
+        // Default implementation just uses the element as a sub-element (no-op)
+        let mut sub = ctx.open_sub(ctx.max_area(), id, element);
+        sub.connect_all_sockets();
+        sub.close()
+    }
+}
+
+pub enum PredicateResult {
+    RunFilter,
+    Pass,
+    PassRecurse,
+}
 
 struct FilterNode {
     filter: Rc<dyn Filter>,
     parent: Option<Rc<FilterNode>>,
-}
-
-impl Deref for FilterNode {
-    type Target = dyn Filter;
-
-    fn deref(&self) -> &(dyn Filter + 'static) {
-        &*self.filter
-    }
 }
 
 #[derive(Clone, Default)]
@@ -85,33 +104,5 @@ impl Default for FilterStackBuilder {
             head: None,
             tail: std::ptr::null_mut(),
         }
-    }
-}
-
-pub enum PredicateResult {
-    RunFilter,
-    Pass,
-    PassRecurse,
-}
-
-pub trait Filter {
-    fn predicate(
-        &self,
-        _id: Id,
-        _element: &dyn Element
-    ) -> PredicateResult {
-        PredicateResult::PassRecurse
-    }
-
-    fn element<'ctx, 'frm>(
-        &self,
-        mut ctx: Context<'ctx, 'frm>,
-        id: Id,
-        element: LBBox<'frm, dyn Element>,
-    ) -> LayoutNode<'frm> {
-        // Default implementation just uses the element as a sub-element (no-op)
-        let mut sub = ctx.open_sub(ctx.max_area(), id, element);
-        sub.connect_all_sockets();
-        sub.close()
     }
 }

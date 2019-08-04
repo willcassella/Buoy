@@ -26,7 +26,7 @@ impl Hover {
 }
 
 impl Element for Hover {
-    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id) -> LayoutNode<'win> {
+    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
         let state = self.state.clone();
 
         ctx.new_layout(

@@ -2,7 +2,7 @@ use std::f32;
 
 use crate::prelude::*;
 use crate::render::CommandList;
-use crate::util::linked_queue::Queue;
+use crate::util::queue::Queue;
 
 use super::archetype;
 
@@ -44,7 +44,7 @@ impl List {
 }
 
 impl Element for List {
-    fn run<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, id: Id) -> LayoutNode<'win> {
+    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
         archetype::panel(ctx, id, self)
     }
 }
@@ -59,7 +59,7 @@ impl archetype::Panel for List {
         max_area
     }
 
-    fn close<'ctx, 'win>(&self, ctx: Context<'ctx, 'win>, _id: Id, children: Queue<'win, LayoutNode<'win>>) -> LayoutNode<'win> {
+    fn close<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id, children: Queue<'frm, LayoutNode<'frm>>) -> LayoutNode<'frm> {
         let mut min_area = Area::zero();
 
         // Figure out height and width for the stack
