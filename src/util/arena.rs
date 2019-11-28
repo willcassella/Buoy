@@ -221,6 +221,13 @@ impl<'buf, T: ?Sized + IntoAny> ABox<'buf, T> {
     }
 }
 
+impl<'buf, T: ?Sized> ABox<'buf, T> {
+    pub fn forget_inner(x: Self) {
+        // Currently no memory to deallocate
+        std::mem::forget(x);
+    }
+}
+
 impl<'a, T: ?Sized> Drop for ABox<'a, T> {
     fn drop(&mut self) {
         unsafe { std::ptr::drop_in_place(self.value.as_ptr()); }

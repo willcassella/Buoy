@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use crate::render::commands::{ColoredQuad, Quad};
 use crate::render::{color, CommandList};
-
 use super::archetype;
 
 #[repr(C)]
@@ -82,8 +81,12 @@ impl Default for Border {
 }
 
 impl Element for Border {
-    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
-        archetype::wrap(ctx, id, self)
+    fn run<'ctx, 'frm>(
+        self,
+        ctx: Context<'ctx, 'frm>,
+        id: Id
+    ) -> LayoutNode<'frm> {
+        archetype::wrap(self, id, ctx)
     }
 }
 
@@ -95,35 +98,43 @@ impl archetype::Wrap for Border {
         max_area
     }
 
-    fn close_some<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id, child: LayoutNode<'frm>) -> LayoutNode<'frm> {
+    fn close_some<'ctx, 'frm>(
+        self,
+        _id: Id,
+        ctx: Context<'ctx, 'frm>,
+        child: LayoutNode<'frm>
+    ) -> LayoutNode<'frm> {
+        let border = self;
         let mut min_area = child.min_area;
 
         // Add to width/height to account for border
-        min_area.width += self.left + self.right;
-        min_area.height += self.top + self.bottom;
+        min_area.width += border.left + border.right;
+        min_area.height += border.top + border.bottom;
 
-        let this = *self;
         ctx.new_layout(
             min_area,
             move |mut region: Region, cmds: &mut CommandList| {
                 // Unless we're fully transparent, render the border
-                if this.color != color::constants::TRANSPARENT {
-                    this.generate_commands(region, cmds);
+                if border.color != color::constants::TRANSPARENT {
+                    border.generate_commands(region, cmds);
                 }
 
                 // Reduce area to account for border
-                region.pos.x += this.left;
-                region.area.width -= this.left + this.right;
-                region.pos.y += this.top;
-                region.area.height -= this.top + this.bottom;
+                region.pos.x += border.left;
+                region.area.width -= border.left + border.right;
+                region.pos.y += border.top;
+                region.area.height -= border.top + border.bottom;
 
                 // Render the child
-                child.layout.render(region, cmds);
-            },
-        )
+                child.render(region, cmds);
+        })
     }
 
-    fn close_none<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
+    fn close_none<'ctx, 'frm>(
+        self,
+        _id: Id,
+        ctx: Context<'ctx, 'frm>
+    ) -> LayoutNode<'frm> {
         // Since we don't have a child, min area is just size of border
         let min_area = Area {
             width: self.left + self.right,
@@ -133,9 +144,8 @@ impl archetype::Wrap for Border {
         if self.color == color::constants::TRANSPARENT {
             ctx.new_layout(min_area, ())
         } else {
-            let this = *self;
             ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
-                this.generate_commands(region, cmds);
+                self.generate_commands(region, cmds);
             })
         }
     }

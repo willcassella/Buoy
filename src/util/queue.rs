@@ -101,6 +101,7 @@ impl<'buf, T> Queue<'buf, T> {
         Some(node)
     }
 
+    // TODO: What's the difference between this and std::mem::replace()?
     pub fn take(&mut self) -> Queue<'buf, T> {
         let result = Queue {
             head: self.head.take(),
@@ -121,6 +122,34 @@ impl<'buf, T> Queue<'buf, T> {
 
     pub fn iter<'a>(&'a self) -> RefIter<'a, 'buf, T> {
         RefIter{ next: &self.head }
+    }
+}
+
+pub struct DrainIter<'buf, T> {
+    next: Option<Link<'buf, T>>,
+}
+
+impl<'buf, T> Iterator for DrainIter<'buf, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next.take() {
+            Some(node) => {
+                let node = ABox::into_inner(node);
+                self.next = node.next;
+                Some(node.value)
+            },
+            None => None,
+        }
+    }
+}
+
+impl<'buf, T> IntoIterator for Queue<'buf, T> {
+    type Item = T;
+    type IntoIter = DrainIter<'buf, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DrainIter{ next: self.head }
     }
 }
 

@@ -1,8 +1,6 @@
-use std::rc::Rc;
-
 use crate::core::element::*;
 use crate::core::filter::*;
-use crate::state::*;
+use crate::message::*;
 use crate::space::*;
 use crate::util::arena::{Arena, ABox};
 use crate::util::queue::QNode;
@@ -12,8 +10,9 @@ pub struct Context<'slf, 'frm> {
     pub(in crate::core) children: SocketTree<'frm>,
     pub(in crate::core) filter_stack: FilterStack,
 
-    pub(in crate::core) prev_frame_state: &'slf StateCache,
-    pub(in crate::core) global_data: &'slf mut GlobalData,
+    pub(in crate::core) incoming_messages: &'frm MessageMap,
+    pub(in crate::core) outgoing_messages: MessageMap,
+
     pub(in crate::core) buffer: &'frm Arena,
     pub(in crate::core) subctx_stack: &'slf mut SubContextStack<'frm>,
 }
@@ -31,7 +30,6 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
     pub fn open_sub<'a, E: AllocElement<'frm>>(
         &'a mut self,
         max_area: Area,
-        id: Id,
         elem: E,
     ) -> SubContext<'a, 'slf, 'frm> {
         let buf = self.buffer;
@@ -41,12 +39,17 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
 
         SubContext {
             max_area,
-            root: ElementNode::new(id, elem.alloc(buf), self.filter_stack.clone()),
+            root: ElementNode::new(elem.alloc(buf), self.filter_stack.clone()),
             ctx: self,
         }
     }
 
-    pub fn open_socket<S: Socket<'frm>>(&mut self, name: SocketName, max_area: Area, socket: &mut S) {
+    pub fn open_socket<S: Socket<'frm>>(
+        &mut self,
+        name: SocketName,
+        max_area: Area,
+        socket: &mut S
+    ) {
         let children = match self.children.get(name) {
             Some(children) => children,
             None => return,
@@ -65,13 +68,16 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
                 children: child.children.take(),
                 filter_stack: FilterStack::default(),
 
-                prev_frame_state: self.prev_frame_state,
-                global_data: self.global_data,
+                incoming_messages: self.incoming_messages,
+                outgoing_messages: MessageMap::new(),
+
                 buffer: self.buffer,
                 subctx_stack: self.subctx_stack,
             };
 
-            socket.push(run_element(sub_ctx, child.id, child.elem, child.filter_stack));
+            socket.push(run_element(sub_ctx, child.elem));
+
+            // TODO: Integrate outgoing_messages
         }
     }
 
@@ -86,25 +92,21 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
         LayoutNode::null(self.buffer)
     }
 
-    pub fn next_frame_filter(&mut self, filter: Rc<dyn Filter>) {
-        self.global_data.next_frame_filters.append(filter);
+    pub fn message<T: Message>(&mut self, id: Id) -> (Inbox<T>, Outbox<T>) {
+        (Inbox::new(id), Outbox::new(id))
     }
 
-    pub fn new_state<T: StateT>(&mut self) -> State<T> {
-        let id = self.global_data.next_state_id.increment();
-        State::new(id)
+    pub fn read_message<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
+        let value = match self.incoming_messages.get(&inbox.id()) {
+            Some(value) => &**value,
+            None => return None,
+        };
+
+        value.downcast_ref::<T>().cloned()
     }
 
-    pub fn read_state<T: StateT>(&self, state: State<T>) -> T {
-        if state.id.frame_id != self.global_data.next_state_id.frame_id.prev() {
-            panic!("Attempt to read state from wrong frame");
-        }
-
-        if let Some(v) = self.prev_frame_state.get(&state.id) {
-            v.downcast_ref::<T>().expect("Mismatched types").clone()
-        } else {
-            Default::default()
-        }
+    pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
+        self.outgoing_messages.insert(outbox.id(), Box::new(value));
     }
 }
 
@@ -128,13 +130,16 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
             children: self.root.children.take(),
             filter_stack: FilterStack::default(),
 
-            prev_frame_state: self.ctx.prev_frame_state,
-            global_data: self.ctx.global_data,
+            incoming_messages: self.ctx.incoming_messages,
+            outgoing_messages: MessageMap::new(),
+
             buffer: self.ctx.buffer,
             subctx_stack: self.ctx.subctx_stack,
         };
 
-        run_element(ctx, self.root.id, self.root.elem, self.root.filter_stack)
+        run_element(ctx, self.root.elem)
+
+        // TODO: Integrate outgoing_messages
     }
 
     pub fn end(&mut self) -> &mut Self {
@@ -153,11 +158,10 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
     pub fn begin<'a, E: AllocElement<'frm>>(
         &'a mut self,
         socket: SocketName,
-        id: Id,
         elem: E,
     ) -> &'a mut Self {
         // TODO(perf) - Could potentially do this as a single allocation
-        let node = QNode::new(ElementNode::new(id, elem.alloc(self.ctx.buffer), self.ctx.filter_stack.clone()));
+        let node = QNode::new(ElementNode::new(elem.alloc(self.ctx.buffer), self.ctx.filter_stack.clone()));
         let node = self.ctx.buffer.alloc(node);
 
         self.ctx.subctx_stack.push((node, socket));
@@ -203,41 +207,45 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
         self
     }
 
-    pub fn new_state<T: StateT>(&mut self) -> State<T> {
-        self.ctx.new_state()
+    pub fn message<T: Message>(&mut self, id: Id) -> (Inbox<T>, Outbox<T>) {
+        self.ctx.message(id)
     }
 
-    pub fn read_state<T: StateT>(&self, state: State<T>) -> T {
-        self.ctx.read_state(state)
+    pub fn read_message<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
+        self.ctx.read_message(inbox)
+    }
+
+    pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
+        self.ctx.write_message(outbox, value)
     }
 }
 
 pub fn run_element<'ctx, 'frm>(
     mut ctx: Context<'ctx, 'frm>,
-    id: Id,
-    element: ABox<'frm, dyn Element>,
-    mut filters: FilterStack,
+    elem: Elem<'frm>,
+    // mut super_filters: FilterStack,
+    // mut local_filters: FilterStackMut,
 ) -> LayoutNode<'frm> {
     debug_assert!(ctx.filter_stack.is_empty());
 
     // Run the element against the given filter stack
-    let mut sub_filters = FilterStackBuilder::default();
+    let mut sub_filters = FilterStack::default();
 
-    while let Some(filter) = filters.pop() {
-        match filter.predicate(id, &*element) {
-            PredicateResult::RunFilter => {
-                ctx.filter_stack = sub_filters.append_to(filters);
-                return filter.element(ctx, id, element);
-            },
-            PredicateResult::Pass => {
-                // Continue popping filter stack
-            },
-            PredicateResult::PassRecurse => {
-                sub_filters.append(filter);
-            }
-        }
-    }
+    // while let Some(filter) = filters.pop() {
+    //     match filter.predicate(elem.data.into_any(), elem.id) {
+    //         PredicateResult::RunFilter => {
+    //             ctx.filter_stack = sub_filters.append_to(filters);
+    //             return filter.run(elem, ctx);
+    //         },
+    //         PredicateResult::Pass => {
+    //             // Continue popping filter stack
+    //         },
+    //         PredicateResult::PassRecurse => {
+    //             sub_filters.append(filter);
+    //         }
+    //     }
+    // }
 
-    ctx.filter_stack = sub_filters.into_stack();
-    element.run(ctx, id)
+    ctx.filter_stack = sub_filters;
+    elem.run(ctx)
 }

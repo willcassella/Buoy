@@ -6,14 +6,15 @@ pub mod space;
 pub mod util;
 
 mod core;
-pub use self::core::{state, element, filter, Window};
+pub use self::core::{id, message, element, filter, Window};
 
 pub mod primitives;
 
 pub mod prelude {
+    pub use crate::id::Id;
     pub use crate::element::*;
-    pub use crate::filter::*;
-    pub use crate::state::*;
+    pub use crate::filter::{FilterStack, Filter, TypedFilter, self};
+    pub use crate::message::*;
     pub use crate::space::*;
 
     pub use crate::Window;

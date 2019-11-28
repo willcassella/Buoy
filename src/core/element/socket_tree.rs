@@ -10,16 +10,14 @@ pub type ElementQNode<'frm> = ABox<'frm, QNode<'frm, ElementNode<'frm>>>;
 pub type ElementQueue<'frm> = Queue<'frm, ElementNode<'frm>>;
 
 pub struct ElementNode<'frm> {
-    pub id: Id,
-    pub elem: ABox<'frm, dyn Element>,
+    pub elem: Elem<'frm>,
     pub filter_stack: FilterStack,
     pub children: SocketTree<'frm>,
 }
 
 impl<'frm> ElementNode<'frm> {
-    pub fn new(id: Id, elem: ABox<'frm, dyn Element>, filter_stack: FilterStack) -> Self {
+    pub fn new(elem: Elem<'frm>, filter_stack: FilterStack) -> Self {
         ElementNode {
-            id,
             elem,
             filter_stack,
             children: SocketTree::default(),

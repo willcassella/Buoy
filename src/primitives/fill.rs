@@ -27,7 +27,7 @@ impl Fill {
 }
 
 impl Element for Fill {
-    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
+    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
         let color = self.color;
         ctx.new_layout(
             Area::zero(),

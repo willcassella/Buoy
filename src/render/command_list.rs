@@ -20,8 +20,8 @@ impl CommandList {
         &self.colored_quads
     }
 
-    pub fn add_hover_quads(&mut self, hover_quads: &[HoverQuad]) {
-        self.hover_quads.extend_from_slice(hover_quads);
+    pub fn add_hover_quads<I: Iterator<Item = HoverQuad>>(&mut self, hover_quads: I) {
+        self.hover_quads.extend(hover_quads)
     }
 
     pub fn get_hover_quads(&self) -> &Vec<HoverQuad> {

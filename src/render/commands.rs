@@ -1,6 +1,6 @@
 use super::color::RGBA8;
 use crate::space::Region;
-use crate::state::State;
+use crate::message::Outbox;
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Debug)]
@@ -46,10 +46,8 @@ impl ColoredQuad {
     }
 }
 
-pub type HoverState = State<bool>;
-
-#[derive(Clone)]
 pub struct HoverQuad {
     pub quad: Quad,
-    pub state: HoverState,
+    // TODO: This should be Outbox<Vec2> or something
+    pub message: Outbox<()>,
 }

@@ -1,28 +1,72 @@
 use std::rc::Rc;
+use std::any::Any;
 
 use crate::core::element::*;
-use crate::util::arena::ABox;
+use crate::core::id::Id;
 
 pub trait Filter {
     fn predicate(
         &self,
+        _element: &dyn Any,
         _id: Id,
-        _element: &dyn Element
     ) -> PredicateResult {
         PredicateResult::PassRecurse
     }
 
-    fn element<'ctx, 'frm>(
+    fn run<'ctx, 'frm>(
         &self,
-        mut ctx: Context<'ctx, 'frm>,
-        id: Id,
-        element: ABox<'frm, dyn Element>,
-    ) -> LayoutNode<'frm> {
-        // Default implementation just uses the element as a sub-element (no-op)
-        let mut sub = ctx.open_sub(ctx.max_area(), id, element);
-        sub.connect_all_sockets();
-        sub.close()
+        elem: Elem<'frm>,
+        ctx: Context<'ctx, 'frm>,
+    ) -> Output<'frm>;
+}
+
+pub trait TypedFilter {
+    type Element: Element;
+
+    fn predicate<'frm>(
+        &self,
+        _element: &Self::Element,
+        _id: Id,
+    ) -> PredicateResult {
+        PredicateResult::RunFilter
     }
+
+    fn run<'ctx, 'frm>(
+        &self,
+        elem: Elem<'frm, Self::Element>,
+        ctx: Context<'ctx, 'frm>,
+    ) -> Output<'frm>;
+}
+
+impl<T: TypedFilter> Filter for T {
+    fn predicate(
+        &self,
+        element: &dyn Any,
+        id: Id,
+    ) -> PredicateResult {
+        match element.downcast_ref::<T::Element>() {
+            Some(element) => <Self as TypedFilter>::predicate(self, element, id),
+            None => PredicateResult::PassRecurse,
+        }
+    }
+
+    fn run<'ctx, 'frm>(
+        &self,
+        elem: Elem<'frm>,
+        ctx: Context<'ctx, 'frm>,
+    ) -> Output<'frm> {
+        let elem = Elem {
+            id: elem.id,
+            data: elem.data.downcast::<T::Element>().ok().unwrap(),
+        };
+
+        <Self as TypedFilter>::run(self, elem, ctx)
+    }
+}
+
+pub struct Output<'frm> {
+    pub layout: LayoutNode<'frm>,
+    pub next: Option<Rc<dyn Filter>>,
 }
 
 pub enum PredicateResult {
@@ -63,14 +107,32 @@ impl FilterStack {
             None => None,
         }
     }
+
+    pub fn run<'ctx, 'frm>(&mut self, elem: Elem<'frm>, ctx: Context<'ctx, 'frm>) -> Option<Output<'frm>> {
+        let mut inner_stack = FilterStackMut::default();
+
+        while let Some(filter) = self.head.take() {
+            self.head = filter.parent.clone();
+
+            match filter.filter.predicate(elem.data.into_any(), elem.id) {
+                PredicateResult::Pass => continue,
+                PredicateResult::PassRecurse => inner_stack.append(filter.filter.clone()),
+                PredicateResult::RunFilter => {
+                    unimplemented!()
+                }
+            }
+        }
+
+        unimplemented!()
+    }
 }
 
-pub struct FilterStackBuilder {
+pub struct FilterStackMut {
     head: Option<Rc<FilterNode>>,
     tail: *mut FilterNode,
 }
 
-impl FilterStackBuilder {
+impl FilterStackMut {
     pub fn append(&mut self, filter: Rc<dyn Filter>) {
         let head = Rc::new(FilterNode {
             filter,
@@ -84,23 +146,34 @@ impl FilterStackBuilder {
         self.head = Some(head);
     }
 
-    pub fn append_to(self, stack: FilterStack) -> FilterStack {
+    pub fn append_stack(self, stack: FilterStack) -> FilterStack {
         if !self.tail.is_null() {
-            unsafe { std::ptr::write(&mut (*self.tail).parent, stack.head) }
+            unsafe { std::ptr::write(&mut (*self.tail).parent, stack.head); }
             FilterStack { head: self.head }
         } else {
             stack
         }
     }
 
-    pub fn into_stack(self) -> FilterStack {
+    pub fn append_stack_mut(&mut self, stack: FilterStackMut) {
+        if !self.tail.is_null() {
+            if !stack.tail.is_null() {
+                unsafe { std::ptr::write(&mut (*self.tail).parent, stack.head); }
+                self.tail = stack.tail;
+            }
+        } else {
+            *self = stack;
+        }
+    }
+
+    pub fn share(self) -> FilterStack {
         FilterStack { head: self.head }
     }
 }
 
-impl Default for FilterStackBuilder {
+impl Default for FilterStackMut {
     fn default() -> Self {
-        FilterStackBuilder {
+        FilterStackMut {
             head: None,
             tail: std::ptr::null_mut(),
         }

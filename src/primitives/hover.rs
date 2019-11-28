@@ -1,43 +1,41 @@
 use crate::prelude::*;
 use crate::render::{
-    commands::{HoverQuad, HoverState, Quad},
+    commands::{HoverQuad, Quad},
     CommandList,
 };
 
-#[derive(Clone)]
 pub struct Hover {
-    pub state: HoverState,
+    pub message: Outbox<()>,
 }
 
 impl Hover {
-    pub fn new(state: HoverState) -> Self {
+    pub fn new(message: Outbox<()>) -> Self {
         Hover {
-            state,
+            message,
         }
     }
 
-    pub fn build(id: Id, state: HoverState) -> HoverBuilder {
+    pub fn build(id: Id, message: Outbox<()>) -> HoverBuilder {
         HoverBuilder {
             id,
             socket: SocketName::default(),
-            element: Hover::new(state),
+            element: Hover::new(message),
         }
     }
 }
 
 impl Element for Hover {
-    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
-        let state = self.state.clone();
-
+    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
         ctx.new_layout(
             Area::zero(),
             move |region: Region, cmds: &mut CommandList| {
                 // Create the hover boundary
                 let quad = HoverQuad {
                     quad: Quad::from(region),
-                    state: state.clone(),
+                    message: self.message,
                 };
-                cmds.add_hover_quads(&[quad]);
+                // TODO: Shouldn't have to use a vec here
+                cmds.add_hover_quads(vec![quad].into_iter());
             },
         )
     }

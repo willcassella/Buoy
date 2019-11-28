@@ -36,8 +36,8 @@ impl Default for Size {
 }
 
 impl Element for Size {
-    fn run<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
-        archetype::wrap(ctx, id, self)
+    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
+        archetype::wrap(self, id, ctx)
     }
 }
 
@@ -48,29 +48,27 @@ impl archetype::Wrap for Size {
         max_area
     }
 
-    fn close_some<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id, child: LayoutNode<'frm>) -> LayoutNode<'frm> {
-        let this = *self;
-
+    fn close_some<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>, child: LayoutNode<'frm>) -> LayoutNode<'frm> {
         ctx.new_layout(
-            child.min_area.stretch(&this.min), // TODO: Handle if child is too big (will require clipping/scrolling)
+            child.min_area.stretch(&self.min), // TODO: Handle if child is too big (will require clipping/scrolling)
             move |mut region: Region, cmds: &mut CommandList| {
-                if this.max.width < region.area.width {
-                    region = this.h_align.align(this.max, region);
-                } else if this.min.width > region.area.width {
-                    region.area.width = this.min.width;
+                if self.max.width < region.area.width {
+                    region = self.h_align.align(self.max, region);
+                } else if self.min.width > region.area.width {
+                    region.area.width = self.min.width;
                 }
-                if this.max.height < region.area.height {
-                    region = this.v_align.align(this.max, region);
-                } else if this.min.height > region.area.height {
-                    region.area.height = this.min.height;
+                if self.max.height < region.area.height {
+                    region = self.v_align.align(self.max, region);
+                } else if self.min.height > region.area.height {
+                    region.area.height = self.min.height;
                 }
 
-                child.layout.render(region, cmds);
+                child.render(region, cmds);
             },
         )
     }
 
-    fn close_none<'ctx, 'frm>(&self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
+    fn close_none<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>) -> LayoutNode<'frm> {
         // Just take up space
         ctx.new_layout(self.min, ())
     }
