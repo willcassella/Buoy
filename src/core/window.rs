@@ -19,7 +19,6 @@ impl Window {
         root: E,
         filter_stack: FilterStack,
     ) -> LayoutNode<'frm> {
-        // Swap input caches
         std::mem::swap(&mut self.incoming_messages, &mut self.outgoing_messages);
         self.outgoing_messages.clear();
 
@@ -30,14 +29,13 @@ impl Window {
             filter_stack: FilterStack::default(),
 
             incoming_messages: &self.incoming_messages,
-            outgoing_messages: MessageMap::new(),
+            outgoing_messages: &mut self.outgoing_messages,
             buffer: &self.buffer,
             subctx_stack: &mut subctx_stack,
         };
 
         // Run the element
         let result = root.run(ctx, Id::default());
-
         result
     }
 

@@ -11,7 +11,7 @@ pub struct Context<'slf, 'frm> {
     pub(in crate::core) filter_stack: FilterStack,
 
     pub(in crate::core) incoming_messages: &'frm MessageMap,
-    pub(in crate::core) outgoing_messages: MessageMap,
+    pub(in crate::core) outgoing_messages: &'slf mut MessageMap,
 
     pub(in crate::core) buffer: &'frm Arena,
     pub(in crate::core) subctx_stack: &'slf mut SubContextStack<'frm>,
@@ -69,15 +69,13 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
                 filter_stack: FilterStack::default(),
 
                 incoming_messages: self.incoming_messages,
-                outgoing_messages: MessageMap::new(),
+                outgoing_messages: self.outgoing_messages,
 
                 buffer: self.buffer,
                 subctx_stack: self.subctx_stack,
             };
 
             socket.push(run_element(sub_ctx, child.elem));
-
-            // TODO: Integrate outgoing_messages
         }
     }
 
@@ -131,15 +129,13 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
             filter_stack: FilterStack::default(),
 
             incoming_messages: self.ctx.incoming_messages,
-            outgoing_messages: MessageMap::new(),
+            outgoing_messages: self.ctx.outgoing_messages,
 
             buffer: self.ctx.buffer,
             subctx_stack: self.ctx.subctx_stack,
         };
 
         run_element(ctx, self.root.elem)
-
-        // TODO: Integrate outgoing_messages
     }
 
     pub fn end(&mut self) -> &mut Self {
