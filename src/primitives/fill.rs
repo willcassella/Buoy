@@ -9,7 +9,7 @@ pub struct Fill {
 }
 
 fn generate_quad(color: color::RGBA8, region: Region, cmds: &mut CommandList) {
-    cmds.add_colored_quads(&[ColoredQuad::new(From::from(region), color)]);
+    cmds.add_colored_quads(std::iter::once(ColoredQuad::new(From::from(region), color)));
 }
 
 impl Fill {

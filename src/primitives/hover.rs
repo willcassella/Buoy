@@ -34,8 +34,7 @@ impl Element for Hover {
                     quad: Quad::from(region),
                     message: self.message,
                 };
-                // TODO: Shouldn't have to use a vec here
-                cmds.add_hover_quads(vec![quad].into_iter());
+                cmds.add_hover_quads(std::iter::once(quad));
             },
         )
     }

@@ -64,7 +64,7 @@ impl Border {
             ),
             self.color,
         );
-        cmds.add_colored_quads(&[top_quad, bottom_quad, left_quad, right_quad]);
+        cmds.add_colored_quads([top_quad, bottom_quad, left_quad, right_quad].iter().cloned());
     }
 }
 
