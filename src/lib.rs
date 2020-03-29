@@ -16,6 +16,7 @@ pub mod prelude {
     pub use crate::filter::{FilterStack, Filter, TypedFilter, self};
     pub use crate::message::*;
     pub use crate::space::*;
+    pub use crate::render;
 
     pub use crate::Window;
 }
