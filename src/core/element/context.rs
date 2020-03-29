@@ -225,7 +225,7 @@ pub fn run_element<'ctx, 'frm>(
     debug_assert!(ctx.filter_stack.is_empty());
 
     // Run the element against the given filter stack
-    let mut sub_filters = FilterStack::default();
+    let sub_filters = FilterStack::default();
 
     // while let Some(filter) = filters.pop() {
     //     match filter.predicate(elem.data.into_any(), elem.id) {

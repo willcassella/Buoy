@@ -19,6 +19,8 @@ impl Window {
         root: E,
         filter_stack: FilterStack,
     ) -> LayoutNode<'frm> {
+        assert!(filter_stack.is_empty(), "Filters aren't working yet");
+
         std::mem::swap(&mut self.incoming_messages, &mut self.outgoing_messages);
         self.outgoing_messages.clear();
 

@@ -108,7 +108,7 @@ impl FilterStack {
         }
     }
 
-    pub fn run<'ctx, 'frm>(&mut self, elem: Elem<'frm>, ctx: Context<'ctx, 'frm>) -> Option<Output<'frm>> {
+    pub fn run<'ctx, 'frm>(&mut self, elem: Elem<'frm>, _ctx: Context<'ctx, 'frm>) -> Option<Output<'frm>> {
         let mut inner_stack = FilterStackMut::default();
 
         while let Some(filter) = self.head.take() {
