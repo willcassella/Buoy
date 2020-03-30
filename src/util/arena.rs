@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
-use std::ptr::NonNull; // TODO: Switch to std::ptr::Unique when stabilized
-use std::ops::{Deref, DerefMut};
-use std::cell::UnsafeCell;
-use std::mem::{size_of, align_of};
 use std::any::Any;
+use std::cell::UnsafeCell;
 use std::convert::From;
+use std::marker::PhantomData;
+use std::mem::{align_of, size_of};
+use std::ops::{Deref, DerefMut};
+use std::ptr::NonNull; // TODO: Switch to std::ptr::Unique when stabilized
 
 use super::upcast::Upcast;
 
@@ -92,7 +92,7 @@ impl ArenaInner {
                 self.offset = dest_offset + size;
 
                 NonNull::new(dest).unwrap()
-            },
+            }
             None => {
                 let (node, offset, dest) = ArenaInner::alloc_new_node(size, align);
 
@@ -151,13 +151,9 @@ impl Arena {
     }
 
     // This allows you to initialize a composite structure of LBBox's with a single allocation
-    pub fn alloc_composite1<'a, T1, T2, I2>(
-        &'a self,
-        t1: T1,
-        i2: I2,
-    ) -> ABox<'a, T2>
+    pub fn alloc_composite1<'a, T1, T2, I2>(&'a self, t1: T1, i2: I2) -> ABox<'a, T2>
     where
-        I2: FnOnce(ABox<'a, T1>) -> T2
+        I2: FnOnce(ABox<'a, T1>) -> T2,
     {
         unsafe {
             let inner = &mut *self.inner.get();
@@ -167,14 +163,14 @@ impl Arena {
             std::ptr::write(&mut dest.as_mut().1, t1);
             let t1 = ABox {
                 value: NonNull::from(&mut dest.as_mut().1),
-                _phantom: PhantomData
+                _phantom: PhantomData,
             };
 
             // Initialize t2 with t1
             std::ptr::write(&mut dest.as_mut().0, i2(t1));
             ABox {
                 value: NonNull::from(&mut dest.as_mut().0),
-                _phantom: PhantomData
+                _phantom: PhantomData,
             }
         }
     }
@@ -201,14 +197,14 @@ impl<'a, T: ?Sized> ABox<'a, T> {
 
     pub fn upcast<F: ?Sized>(mut self) -> ABox<'a, F>
     where
-        T: Upcast<F>
+        T: Upcast<F>,
     {
-         let result = ABox {
-             value: unsafe { NonNull::from(self.value.as_mut().upcast_mut()) },
-             _phantom: PhantomData,
-         };
-         std::mem::forget(self);
-         result
+        let result = ABox {
+            value: unsafe { NonNull::from(self.value.as_mut().upcast_mut()) },
+            _phantom: PhantomData,
+        };
+        std::mem::forget(self);
+        result
     }
 }
 
@@ -222,7 +218,7 @@ impl<'a, T: ?Sized + Upcast<dyn Any>> ABox<'a, T> {
                 };
                 std::mem::forget(self);
                 Ok(result)
-            },
+            }
             None => Err(self),
         }
     }
@@ -230,7 +226,9 @@ impl<'a, T: ?Sized + Upcast<dyn Any>> ABox<'a, T> {
 
 impl<'a, T: ?Sized> Drop for ABox<'a, T> {
     fn drop(&mut self) {
-        unsafe { std::ptr::drop_in_place(self.value.as_ptr()); }
+        unsafe {
+            std::ptr::drop_in_place(self.value.as_ptr());
+        }
     }
 }
 

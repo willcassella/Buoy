@@ -7,16 +7,24 @@ pub trait Upcast<T: ?Sized> {
 }
 
 impl<T: ?Sized> Upcast<T> for T {
-    fn upcast(&self) -> &T { self }
-    fn upcast_mut(&mut self) -> &mut T { self }
+    fn upcast(&self) -> &T {
+        self
+    }
+    fn upcast_mut(&mut self) -> &mut T {
+        self
+    }
 }
 
 #[macro_export]
 macro_rules! impl_upcast {
     (dyn $t:ident) => {
         impl<'a, T: $t + 'a> $crate::util::upcast::Upcast<dyn $t + 'a> for T {
-            fn upcast(&self) -> &(dyn $t + 'a) { self }
-            fn upcast_mut(&mut self) -> &mut (dyn $t + 'a) { self }
+            fn upcast(&self) -> &(dyn $t + 'a) {
+                self
+            }
+            fn upcast_mut(&mut self) -> &mut (dyn $t + 'a) {
+                self
+            }
         }
     };
 }

@@ -1,33 +1,21 @@
-use std::rc::Rc;
 use std::any::Any;
+use std::rc::Rc;
 
 use crate::core::element::*;
 use crate::core::id::Id;
 
 pub trait Filter {
-    fn predicate(
-        &self,
-        _element: &dyn Any,
-        _id: Id,
-    ) -> PredicateResult {
+    fn predicate(&self, _element: &dyn Any, _id: Id) -> PredicateResult {
         PredicateResult::PassRecurse
     }
 
-    fn run<'ctx, 'frm>(
-        &self,
-        elem: Elem<'frm>,
-        ctx: Context<'ctx, 'frm>,
-    ) -> Output<'frm>;
+    fn run<'ctx, 'frm>(&self, elem: Elem<'frm>, ctx: Context<'ctx, 'frm>) -> Output<'frm>;
 }
 
 pub trait TypedFilter {
     type Element: Element;
 
-    fn predicate(
-        &self,
-        _element: &Self::Element,
-        _id: Id,
-    ) -> PredicateResult {
+    fn predicate(&self, _element: &Self::Element, _id: Id) -> PredicateResult {
         PredicateResult::RunFilter
     }
 
@@ -39,22 +27,14 @@ pub trait TypedFilter {
 }
 
 impl<T: TypedFilter> Filter for T {
-    fn predicate(
-        &self,
-        element: &dyn Any,
-        id: Id,
-    ) -> PredicateResult {
+    fn predicate(&self, element: &dyn Any, id: Id) -> PredicateResult {
         match element.downcast_ref::<T::Element>() {
             Some(element) => <Self as TypedFilter>::predicate(self, element, id),
             None => PredicateResult::PassRecurse,
         }
     }
 
-    fn run<'ctx, 'frm>(
-        &self,
-        elem: Elem<'frm>,
-        ctx: Context<'ctx, 'frm>,
-    ) -> Output<'frm> {
+    fn run<'ctx, 'frm>(&self, elem: Elem<'frm>, ctx: Context<'ctx, 'frm>) -> Output<'frm> {
         let elem = Elem {
             id: elem.id,
             data: elem.data.downcast::<T::Element>().ok().unwrap(),
@@ -103,12 +83,16 @@ impl FilterStack {
             Some(node) => {
                 self.head = node.parent.clone();
                 Some(node.filter.clone())
-            },
+            }
             None => None,
         }
     }
 
-    pub fn run<'ctx, 'frm>(&mut self, elem: Elem<'frm>, _ctx: Context<'ctx, 'frm>) -> Option<Output<'frm>> {
+    pub fn run<'ctx, 'frm>(
+        &mut self,
+        elem: Elem<'frm>,
+        _ctx: Context<'ctx, 'frm>,
+    ) -> Option<Output<'frm>> {
         let mut inner_stack = FilterStackMut::default();
 
         while let Some(filter) = self.head.take() {
@@ -117,9 +101,7 @@ impl FilterStack {
             match filter.filter.predicate((*elem.data).upcast(), elem.id) {
                 PredicateResult::Pass => continue,
                 PredicateResult::PassRecurse => inner_stack.append(filter.filter.clone()),
-                PredicateResult::RunFilter => {
-                    unimplemented!()
-                }
+                PredicateResult::RunFilter => unimplemented!(),
             }
         }
 
@@ -148,7 +130,9 @@ impl FilterStackMut {
 
     pub fn append_stack(self, stack: FilterStack) -> FilterStack {
         if !self.tail.is_null() {
-            unsafe { std::ptr::write(&mut (*self.tail).parent, stack.head); }
+            unsafe {
+                std::ptr::write(&mut (*self.tail).parent, stack.head);
+            }
             FilterStack { head: self.head }
         } else {
             stack
@@ -158,7 +142,9 @@ impl FilterStackMut {
     pub fn append_stack_mut(&mut self, stack: FilterStackMut) {
         if !self.tail.is_null() {
             if !stack.tail.is_null() {
-                unsafe { std::ptr::write(&mut (*self.tail).parent, stack.head); }
+                unsafe {
+                    std::ptr::write(&mut (*self.tail).parent, stack.head);
+                }
                 self.tail = stack.tail;
             }
         } else {

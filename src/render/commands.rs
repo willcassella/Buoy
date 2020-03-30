@@ -1,6 +1,6 @@
 use super::color::RGBA8;
-use crate::space::Region;
 use crate::message::Outbox;
+use crate::space::Region;
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Debug)]

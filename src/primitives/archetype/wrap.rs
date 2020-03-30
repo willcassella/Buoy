@@ -1,10 +1,7 @@
 use crate::prelude::*;
 
 pub trait Wrap {
-    fn open(
-        &self,
-        max_area: Area
-    ) -> Area {
+    fn open(&self, max_area: Area) -> Area {
         max_area
     }
 
@@ -12,20 +9,16 @@ pub trait Wrap {
         self,
         id: Id,
         ctx: Context<'ctx, 'frm>,
-        child: LayoutNode<'frm>
+        child: LayoutNode<'frm>,
     ) -> LayoutNode<'frm>;
 
-    fn close_none<'ctx, 'frm>(
-        self,
-        id: Id,
-        ctx: Context<'ctx, 'frm>
-    ) -> LayoutNode<'frm>;
+    fn close_none<'ctx, 'frm>(self, id: Id, ctx: Context<'ctx, 'frm>) -> LayoutNode<'frm>;
 }
 
 pub fn wrap<'ctx, 'frm, W: Wrap>(
     wrap: W,
     id: Id,
-    mut ctx: Context<'ctx, 'frm>
+    mut ctx: Context<'ctx, 'frm>,
 ) -> LayoutNode<'frm> {
     let child_max_area = wrap.open(ctx.max_area());
 

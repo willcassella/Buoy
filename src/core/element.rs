@@ -1,8 +1,8 @@
-use std::any::Any;
 use crate::core::id::Id;
-use crate::util::arena::{Arena, ABox};
-use crate::util::upcast::Upcast;
 use crate::space::Area;
+use crate::util::arena::{ABox, Arena};
+use crate::util::upcast::Upcast;
+use std::any::Any;
 
 mod context;
 pub use self::context::{Context, SubContext};
@@ -11,7 +11,7 @@ mod socket;
 pub use self::socket::{Socket, SocketName};
 
 mod socket_tree;
-pub(in crate::core) use self::socket_tree::{ElementNode, SocketTree, ElementQNode};
+pub(in crate::core) use self::socket_tree::{ElementNode, ElementQNode, SocketTree};
 
 mod layout;
 pub use self::layout::{Layout, LayoutNode};
@@ -24,11 +24,19 @@ pub trait DynElement: Any + Upcast<dyn Any> {
     // Gross hack because rust doesn't support arbitrary self types.
     // 'self' in this case is NOT actually a real Box, it's used because Box is the only way
     // to pass ownership of unsized types through trait through a trait object method.
-    unsafe fn run<'ctx, 'frm>(self: Box<Self>, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm>;
+    unsafe fn run<'ctx, 'frm>(
+        self: Box<Self>,
+        ctx: Context<'ctx, 'frm>,
+        id: Id,
+    ) -> LayoutNode<'frm>;
 }
 
 impl<T: Element> DynElement for T {
-    unsafe fn run<'ctx, 'frm>(self: Box<Self>, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
+    unsafe fn run<'ctx, 'frm>(
+        self: Box<Self>,
+        ctx: Context<'ctx, 'frm>,
+        id: Id,
+    ) -> LayoutNode<'frm> {
         let this = std::ptr::read(Box::into_raw(self));
         this.run(ctx, id)
     }

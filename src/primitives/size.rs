@@ -48,7 +48,12 @@ impl archetype::Wrap for Size {
         max_area
     }
 
-    fn close_some<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>, child: LayoutNode<'frm>) -> LayoutNode<'frm> {
+    fn close_some<'ctx, 'frm>(
+        self,
+        _id: Id,
+        ctx: Context<'ctx, 'frm>,
+        child: LayoutNode<'frm>,
+    ) -> LayoutNode<'frm> {
         ctx.new_layout(
             child.min_area.stretch(self.min), // TODO: Handle if child is too big (will require clipping/scrolling)
             move |mut region: Region, cmds: &mut CommandList| {

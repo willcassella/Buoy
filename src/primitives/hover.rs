@@ -10,9 +10,7 @@ pub struct Hover {
 
 impl Hover {
     pub fn new(message: Outbox<()>) -> Self {
-        Hover {
-            message,
-        }
+        Hover { message }
     }
 
     pub fn build(id: Id, message: Outbox<()>) -> HoverBuilder {

@@ -1,6 +1,6 @@
 use crate::render::CommandList;
 use crate::space::*;
-use crate::util::arena::{Arena, ABox};
+use crate::util::arena::{ABox, Arena};
 
 pub trait Layout: DynLayout {
     fn render(self, region: Region, cmds: &mut CommandList);
@@ -27,7 +27,7 @@ impl Layout for () {
 
 impl<T> Layout for T
 where
-    T: FnOnce(Region, &mut CommandList)
+    T: FnOnce(Region, &mut CommandList),
 {
     fn render(self, region: Region, cmds: &mut CommandList) {
         self(region, cmds);

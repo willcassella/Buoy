@@ -4,7 +4,7 @@ use crate::core::element::*;
 use crate::core::filter::*;
 
 use crate::util::arena::ABox;
-use crate::util::queue::{Queue, QNode};
+use crate::util::queue::{QNode, Queue};
 
 pub type ElementQNode<'frm> = ABox<'frm, QNode<'frm, ElementNode<'frm>>>;
 pub type ElementQueue<'frm> = Queue<'frm, ElementNode<'frm>>;
@@ -47,7 +47,9 @@ impl<'frm> SocketTree<'frm> {
         if socket.is_default() {
             Some(&mut self.default_socket)
         } else {
-            self.other_sockets.as_mut().and_then(|sockets| sockets.get_mut(&socket))
+            self.other_sockets
+                .as_mut()
+                .and_then(|sockets| sockets.get_mut(&socket))
         }
     }
 
@@ -55,7 +57,9 @@ impl<'frm> SocketTree<'frm> {
         if socket.is_default() {
             Some(std::mem::take(&mut self.default_socket))
         } else {
-            self.other_sockets.as_mut().and_then(|sockets| sockets.remove(&socket))
+            self.other_sockets
+                .as_mut()
+                .and_then(|sockets| sockets.remove(&socket))
         }
     }
 
@@ -79,7 +83,7 @@ impl<'frm> SocketTree<'frm> {
                 for (socket, children) in other_sockets {
                     sockets.entry(socket).or_default().append(children);
                 }
-            },
+            }
             None => self.other_sockets = Some(other_sockets),
         }
     }

@@ -1,4 +1,4 @@
-use std::cmp::{Ordering, min, max};
+use std::cmp::{max, min, Ordering};
 use std::ops::RangeInclusive;
 
 use crate::prelude::*;
@@ -114,7 +114,12 @@ impl GridRegion {
         }
     }
 
-    pub fn col_span(name: SocketName, start_col: ColIndex, end_col: ColIndex, row: RowIndex) -> Self {
+    pub fn col_span(
+        name: SocketName,
+        start_col: ColIndex,
+        end_col: ColIndex,
+        row: RowIndex,
+    ) -> Self {
         GridRegion {
             name,
             start_col,
@@ -124,7 +129,12 @@ impl GridRegion {
         }
     }
 
-    pub fn row_span(name: SocketName, col: ColIndex, start_row: RowIndex, end_row: RowIndex) -> Self {
+    pub fn row_span(
+        name: SocketName,
+        col: ColIndex,
+        start_row: RowIndex,
+        end_row: RowIndex,
+    ) -> Self {
         GridRegion {
             name,
             start_col: col,
@@ -134,7 +144,13 @@ impl GridRegion {
         }
     }
 
-    pub fn span(name: SocketName, start_col: ColIndex, end_col: ColIndex, start_row: RowIndex, end_row: RowIndex) -> Self {
+    pub fn span(
+        name: SocketName,
+        start_col: ColIndex,
+        end_col: ColIndex,
+        start_row: RowIndex,
+        end_row: RowIndex,
+    ) -> Self {
         GridRegion {
             name,
             start_col,
@@ -201,10 +217,7 @@ fn examine_grid_tracks(tracks: &[GridTrack]) -> ExamineGridTracksResult {
         }
     }
 
-    ExamineGridTracksResult {
-        frs,
-        layouts,
-    }
+    ExamineGridTracksResult { frs, layouts }
 }
 
 #[derive(Clone)]
@@ -214,7 +227,10 @@ struct ExamineRegionTracksResult {
     range: RangeInclusive<usize>,
 }
 
-fn examine_region_tracks(tracks: &[GridTrack], range: RangeInclusive<usize>) -> ExamineRegionTracksResult {
+fn examine_region_tracks(
+    tracks: &[GridTrack],
+    range: RangeInclusive<usize>,
+) -> ExamineRegionTracksResult {
     let mut auto_tracks = 0;
     let mut frs = 0;
     for track in tracks[range.clone()].iter() {
@@ -231,10 +247,20 @@ fn examine_region_tracks(tracks: &[GridTrack], range: RangeInclusive<usize>) -> 
     }
 }
 
-fn expand_region_tracks(min_size: f32, region_tracks: &ExamineRegionTracksResult, track_layouts: &mut Vec<TrackLayout>, fr_min_size: &mut f32) {
+fn expand_region_tracks(
+    min_size: f32,
+    region_tracks: &ExamineRegionTracksResult,
+    track_layouts: &mut Vec<TrackLayout>,
+    fr_min_size: &mut f32,
+) {
     if region_tracks.auto_tracks > 0 {
-        for track_layout in track_layouts[region_tracks.range.clone()].iter_mut().filter(|layout| layout.track.is_auto()) {
-            track_layout.size = track_layout.size.max(min_size / region_tracks.auto_tracks as f32);
+        for track_layout in track_layouts[region_tracks.range.clone()]
+            .iter_mut()
+            .filter(|layout| layout.track.is_auto())
+        {
+            track_layout.size = track_layout
+                .size
+                .max(min_size / region_tracks.auto_tracks as f32);
         }
     } else {
         *fr_min_size = fr_min_size.max(min_size / region_tracks.frs as f32);
@@ -252,8 +278,14 @@ struct RegionLayout<'frm> {
 impl Element for Grid {
     fn run<'ctx, 'frm>(self, mut ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
         // Count up the number of fractions in rows and columns
-        let ExamineGridTracksResult{ frs: col_frs, layouts: mut col_layouts } = examine_grid_tracks(&self.cols);
-        let ExamineGridTracksResult{ frs: row_frs, layouts: mut row_layouts } = examine_grid_tracks(&self.rows);
+        let ExamineGridTracksResult {
+            frs: col_frs,
+            layouts: mut col_layouts,
+        } = examine_grid_tracks(&self.cols);
+        let ExamineGridTracksResult {
+            frs: row_frs,
+            layouts: mut row_layouts,
+        } = examine_grid_tracks(&self.rows);
 
         let auto_max_area = ctx.max_area();
         let fr_max_area = Area {
@@ -265,11 +297,21 @@ impl Element for Grid {
         let mut region_layouts = Vec::with_capacity(self.regions.len());
         for region in self.regions {
             // Figure out the max area for the region
-            let region_cols = examine_region_tracks(&self.cols, region.get_col_range(self.cols.len()));
-            let region_rows = examine_region_tracks(&self.rows, region.get_row_range(self.rows.len()));
+            let region_cols =
+                examine_region_tracks(&self.cols, region.get_col_range(self.cols.len()));
+            let region_rows =
+                examine_region_tracks(&self.rows, region.get_row_range(self.rows.len()));
             let max_region_area = Area {
-                width: if region_cols.auto_tracks > 0 { auto_max_area.width } else { fr_max_area.width * region_cols.frs as f32 },
-                height: if region_rows.auto_tracks > 0 { auto_max_area.height } else { fr_max_area.height * region_rows.frs as f32 },
+                width: if region_cols.auto_tracks > 0 {
+                    auto_max_area.width
+                } else {
+                    fr_max_area.width * region_cols.frs as f32
+                },
+                height: if region_rows.auto_tracks > 0 {
+                    auto_max_area.height
+                } else {
+                    fr_max_area.height * region_rows.frs as f32
+                },
             };
 
             // Calculate layout
@@ -283,8 +325,18 @@ impl Element for Grid {
             };
 
             // Expand each affected track
-            expand_region_tracks(layout.min_area.width, &region_cols, &mut col_layouts, &mut fr_min_area.width);
-            expand_region_tracks(layout.min_area.height, &region_rows, &mut row_layouts, &mut fr_min_area.height);
+            expand_region_tracks(
+                layout.min_area.width,
+                &region_cols,
+                &mut col_layouts,
+                &mut fr_min_area.width,
+            );
+            expand_region_tracks(
+                layout.min_area.height,
+                &region_rows,
+                &mut row_layouts,
+                &mut fr_min_area.height,
+            );
 
             region_layouts.push(RegionLayout {
                 layout,
@@ -298,18 +350,23 @@ impl Element for Grid {
         // Calcuate minimum area required for the grid
         let grid_min_area = Area {
             // Not filtering fr tracks when folding because their size should be 0
-            width: col_layouts.iter().fold(0_f32, |acc, col| acc + col.size) + fr_min_area.width * col_frs as f32,
-            height: row_layouts.iter().fold(0_f32, |acc, row| acc + row.size) + fr_min_area.height * row_frs as f32,
+            width: col_layouts.iter().fold(0_f32, |acc, col| acc + col.size)
+                + fr_min_area.width * col_frs as f32,
+            height: row_layouts.iter().fold(0_f32, |acc, row| acc + row.size)
+                + fr_min_area.height * row_frs as f32,
         };
 
-        ctx.new_layout(grid_min_area, GridLayout {
-            min_area: grid_min_area,
-            col_frs,
-            row_frs,
-            cols: col_layouts,
-            rows: row_layouts,
-            regions: region_layouts,
-        })
+        ctx.new_layout(
+            grid_min_area,
+            GridLayout {
+                min_area: grid_min_area,
+                col_frs,
+                row_frs,
+                cols: col_layouts,
+                rows: row_layouts,
+                regions: region_layouts,
+            },
+        )
     }
 }
 
@@ -322,7 +379,13 @@ struct GridLayout<'frm> {
     regions: Vec<RegionLayout<'frm>>,
 }
 
-fn layout_tracks(frs: u32, min_size: f32, given_size: f32, mut start: f32, tracks: &mut Vec<TrackLayout>) {
+fn layout_tracks(
+    frs: u32,
+    min_size: f32,
+    given_size: f32,
+    mut start: f32,
+    tracks: &mut Vec<TrackLayout>,
+) {
     let (fr_size_each, auto_additional_size_each) = if min_size < given_size {
         let additional_size = given_size - min_size;
         if frs > 0 {
@@ -349,8 +412,20 @@ impl<'frm> Layout for GridLayout<'frm> {
     fn render(mut self, grid_layout_region: Region, cmds: &mut render::CommandList) {
         // Compute final size and offsets for tracks
         println!("Running grid layout");
-        layout_tracks(self.col_frs, self.min_area.width, grid_layout_region.area.width, grid_layout_region.pos.x, &mut self.cols);
-        layout_tracks(self.row_frs, self.min_area.height, grid_layout_region.area.height, grid_layout_region.pos.y, &mut self.rows);
+        layout_tracks(
+            self.col_frs,
+            self.min_area.width,
+            grid_layout_region.area.width,
+            grid_layout_region.pos.x,
+            &mut self.cols,
+        );
+        layout_tracks(
+            self.row_frs,
+            self.min_area.height,
+            grid_layout_region.area.height,
+            grid_layout_region.pos.y,
+            &mut self.rows,
+        );
 
         // Lay out regions
         for grid_region in self.regions {

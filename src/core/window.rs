@@ -1,6 +1,6 @@
-use crate::core::id::*;
 use crate::core::element::*;
 use crate::core::filter::*;
+use crate::core::id::*;
 use crate::message::*;
 use crate::space::*;
 use crate::util::arena::Arena;
@@ -40,7 +40,7 @@ impl Window {
         root.run(ctx, Id::default())
     }
 
-   pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
+    pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
         self.outgoing_messages.insert(outbox.id(), Box::new(value));
     }
 }

@@ -1,7 +1,7 @@
+use super::archetype;
 use crate::prelude::*;
 use crate::render::commands::{ColoredQuad, Quad};
 use crate::render::{color, CommandList};
-use super::archetype;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -64,7 +64,11 @@ impl Border {
             ),
             self.color,
         );
-        cmds.add_colored_quads([top_quad, bottom_quad, left_quad, right_quad].iter().cloned());
+        cmds.add_colored_quads(
+            [top_quad, bottom_quad, left_quad, right_quad]
+                .iter()
+                .cloned(),
+        );
     }
 }
 
@@ -81,11 +85,7 @@ impl Default for Border {
 }
 
 impl Element for Border {
-    fn run<'ctx, 'frm>(
-        self,
-        ctx: Context<'ctx, 'frm>,
-        id: Id
-    ) -> LayoutNode<'frm> {
+    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
         archetype::wrap(self, id, ctx)
     }
 }
@@ -102,7 +102,7 @@ impl archetype::Wrap for Border {
         self,
         _id: Id,
         ctx: Context<'ctx, 'frm>,
-        child: LayoutNode<'frm>
+        child: LayoutNode<'frm>,
     ) -> LayoutNode<'frm> {
         let border = self;
         let mut min_area = child.min_area;
@@ -127,14 +127,11 @@ impl archetype::Wrap for Border {
 
                 // Render the child
                 child.render(region, cmds);
-        })
+            },
+        )
     }
 
-    fn close_none<'ctx, 'frm>(
-        self,
-        _id: Id,
-        ctx: Context<'ctx, 'frm>
-    ) -> LayoutNode<'frm> {
+    fn close_none<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>) -> LayoutNode<'frm> {
         // Since we don't have a child, min area is just size of border
         let min_area = Area {
             width: self.left + self.right,

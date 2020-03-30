@@ -2,7 +2,7 @@ use crate::core::element::*;
 use crate::core::filter::*;
 use crate::message::*;
 use crate::space::*;
-use crate::util::arena::{Arena, ABox};
+use crate::util::arena::{ABox, Arena};
 use crate::util::queue::QNode;
 
 pub struct Context<'slf, 'frm> {
@@ -48,7 +48,7 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
         &mut self,
         name: SocketName,
         max_area: Area,
-        socket: &mut S
+        socket: &mut S,
     ) {
         let children = match self.children.get(name) {
             Some(children) => children,
@@ -157,18 +157,17 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
         elem: E,
     ) -> &'a mut Self {
         // TODO(perf) - Could potentially do this as a single allocation
-        let node = QNode::new(ElementNode::new(elem.alloc(self.ctx.buffer), self.ctx.filter_stack.clone()));
+        let node = QNode::new(ElementNode::new(
+            elem.alloc(self.ctx.buffer),
+            self.ctx.filter_stack.clone(),
+        ));
         let node = self.ctx.buffer.alloc(node);
 
         self.ctx.subctx_stack.push((node, socket));
         self
     }
 
-    pub fn connect_socket(
-        &mut self,
-        target: SocketName,
-        socket: SocketName,
-    ) -> &mut Self {
+    pub fn connect_socket(&mut self, target: SocketName, socket: SocketName) -> &mut Self {
         // Get the current children
         let children = match self.ctx.children.remove(socket) {
             Some(children) => children,
@@ -186,9 +185,7 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
         self
     }
 
-    pub fn connect_all_sockets(
-        &mut self,
-    ) -> &mut Self {
+    pub fn connect_all_sockets(&mut self) -> &mut Self {
         // Get the current children
         let children = self.ctx.children.take();
 

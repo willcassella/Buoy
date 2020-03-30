@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::usize;
 
-use super::arena::{Arena, ABox};
+use super::arena::{ABox, Arena};
 use super::fill::Fill;
 
 type Link<'buf, T> = ABox<'buf, QNode<'buf, T>>;
@@ -13,10 +13,7 @@ pub struct QNode<'buf, T> {
 
 impl<'buf, T> QNode<'buf, T> {
     pub fn new(value: T) -> Self {
-        QNode {
-            next: None,
-            value,
-        }
+        QNode { next: None, value }
     }
 
     pub fn into_inner(x: Self) -> T {
@@ -67,7 +64,9 @@ impl<'buf, T> Queue<'buf, T> {
         self.tail_next = &mut node.next;
 
         // Write the value into the link (using std::ptr::write because we know *tail_next == None)
-        unsafe { std::ptr::write(tail_next, Some(node)); }
+        unsafe {
+            std::ptr::write(tail_next, Some(node));
+        }
     }
 
     pub fn append(&mut self, other: Self) {
@@ -82,7 +81,9 @@ impl<'buf, T> Queue<'buf, T> {
             self.tail_next
         };
 
-        unsafe { std::ptr::write(tail_next, other.head); }
+        unsafe {
+            std::ptr::write(tail_next, other.head);
+        }
         self.tail_next = other.tail_next;
     }
 
@@ -112,16 +113,17 @@ impl<'buf, T> Queue<'buf, T> {
     }
 
     pub fn push_back(&mut self, buf: &'buf Arena, value: T) {
-        let node = buf.alloc(QNode{ value, next: None });
+        let node = buf.alloc(QNode { value, next: None });
         self.push_back_node(node);
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
-        self.pop_front_node().map(|node| QNode::into_inner(ABox::into_inner(node)))
+        self.pop_front_node()
+            .map(|node| QNode::into_inner(ABox::into_inner(node)))
     }
 
     pub fn iter<'a>(&'a self) -> RefIter<'a, 'buf, T> {
-        RefIter{ next: &self.head }
+        RefIter { next: &self.head }
     }
 }
 
@@ -138,7 +140,7 @@ impl<'buf, T> Iterator for DrainIter<'buf, T> {
                 let node = ABox::into_inner(node);
                 self.next = node.next;
                 Some(node.value)
-            },
+            }
             None => None,
         }
     }
@@ -149,7 +151,7 @@ impl<'buf, T> IntoIterator for Queue<'buf, T> {
     type IntoIter = DrainIter<'buf, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        DrainIter{ next: self.head }
+        DrainIter { next: self.head }
     }
 }
 
@@ -165,7 +167,7 @@ impl<'a, 'buf, T> Iterator for RefIter<'a, 'buf, T> {
             Some(ref node) => {
                 self.next = &node.next;
                 Some(&**node)
-            },
+            }
             None => None,
         }
     }
@@ -187,10 +189,7 @@ pub struct QueueFiller<'a, 'buf, T> {
 
 impl<'a, 'buf, T> QueueFiller<'a, 'buf, T> {
     pub fn new(queue: &'a mut Queue<'buf, T>, buf: &'buf Arena) -> Self {
-        QueueFiller {
-            queue,
-            buf,
-        }
+        QueueFiller { queue, buf }
     }
 }
 
@@ -206,8 +205,8 @@ impl<'a, 'buf, T> Fill<T> for QueueFiller<'a, 'buf, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::queue::Queue;
     use crate::util::arena::Arena;
+    use crate::util::queue::Queue;
 
     #[test]
     fn test_order() {

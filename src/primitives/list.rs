@@ -44,11 +44,7 @@ impl List {
 }
 
 impl Element for List {
-    fn run<'ctx, 'frm>(
-        self,
-        ctx: Context<'ctx, 'frm>,
-        id: Id,
-    ) -> LayoutNode<'frm> {
+    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
         archetype::panel(self, id, ctx)
     }
 }
@@ -67,7 +63,7 @@ impl archetype::Panel for List {
         self,
         _id: Id,
         ctx: Context<'ctx, 'frm>,
-        children: Queue<'frm, LayoutNode<'frm>>
+        children: Queue<'frm, LayoutNode<'frm>>,
     ) -> LayoutNode<'frm> {
         let mut min_area = Area::zero();
 
@@ -88,18 +84,26 @@ impl archetype::Panel for List {
         }
 
         match self.dir {
-            ListDir::LeftToRight => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
-                render_left_to_right(children, region, cmds);
-            }),
-            ListDir::RightToLeft => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
-                render_right_to_left(children, region, cmds);
-            }),
-            ListDir::TopToBottom => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
-                render_top_to_bottom(children, region, cmds);
-            }),
-            ListDir::BottomToTop => ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
-                render_bottom_to_top(children, region, cmds);
-            }),
+            ListDir::LeftToRight => {
+                ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
+                    render_left_to_right(children, region, cmds);
+                })
+            }
+            ListDir::RightToLeft => {
+                ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
+                    render_right_to_left(children, region, cmds);
+                })
+            }
+            ListDir::TopToBottom => {
+                ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
+                    render_top_to_bottom(children, region, cmds);
+                })
+            }
+            ListDir::BottomToTop => {
+                ctx.new_layout(min_area, move |region: Region, cmds: &mut CommandList| {
+                    render_bottom_to_top(children, region, cmds);
+                })
+            }
         }
     }
 }
