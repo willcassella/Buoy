@@ -161,12 +161,12 @@ impl<'a, 'buf, T> Iterator for RefIter<'a, 'buf, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.next {
-            &Some(ref node) => {
+        match *self.next {
+            Some(ref node) => {
                 self.next = &node.next;
                 Some(&**node)
             },
-            &None => None,
+            None => None,
         }
     }
 }

@@ -13,12 +13,12 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn run<'frm, E: Element>(
-        &'frm mut self,
+    pub fn run<E: Element>(
+        &mut self,
         max_area: Area,
         root: E,
         filter_stack: FilterStack,
-    ) -> LayoutNode<'frm> {
+    ) -> LayoutNode<'_> {
         assert!(filter_stack.is_empty(), "Filters aren't working yet");
 
         std::mem::swap(&mut self.incoming_messages, &mut self.outgoing_messages);
@@ -37,8 +37,7 @@ impl Window {
         };
 
         // Run the element
-        let result = root.run(ctx, Id::default());
-        result
+        root.run(ctx, Id::default())
     }
 
    pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {

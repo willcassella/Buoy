@@ -1,4 +1,4 @@
-use std::cmp::{min, max};
+use std::cmp::{Ordering, min, max};
 use std::ops::RangeInclusive;
 
 use crate::prelude::*;
@@ -42,12 +42,10 @@ enum TrackIndex {
 
 impl TrackIndex {
     pub fn ordinal(idx: i32) -> Option<Self> {
-        if idx > 0 {
-            Some(TrackIndex::FromStart((idx - 1) as u32))
-        } else if idx < 0 {
-            Some(TrackIndex::FromEnd((-idx - 1) as u32))
-        } else {
-            None
+        match idx.cmp(&0) {
+            Ordering::Less => Some(TrackIndex::FromEnd((-idx - 1) as u32)),
+            Ordering::Greater => Some(TrackIndex::FromStart((idx - 1) as u32)),
+            Ordering::Equal => None,
         }
     }
 
@@ -65,7 +63,7 @@ pub struct ColIndex(TrackIndex);
 
 impl ColIndex {
     pub fn ordinal(idx: i32) -> Option<Self> {
-        TrackIndex::ordinal(idx).map(|x| ColIndex(x))
+        TrackIndex::ordinal(idx).map(ColIndex)
     }
 
     pub fn from_left(idx: u32) -> Self {
@@ -83,7 +81,7 @@ pub struct RowIndex(TrackIndex);
 
 impl RowIndex {
     pub fn ordinal(idx: i32) -> Option<Self> {
-        TrackIndex::ordinal(idx).map(|x| RowIndex(x))
+        TrackIndex::ordinal(idx).map(RowIndex)
     }
 
     pub fn from_top(idx: u32) -> Self {
@@ -185,14 +183,14 @@ struct ExamineGridTracksResult {
 }
 
 // Counts up the number of fractional tracks, and fills a vec of CalculatedTrack for each track
-fn examine_grid_tracks(tracks: &Vec<GridTrack>) -> ExamineGridTracksResult {
+fn examine_grid_tracks(tracks: &[GridTrack]) -> ExamineGridTracksResult {
     assert_ne!(tracks.len(), 0, "0-track grids are not currently supported");
 
     let mut frs = 0;
     let mut layouts = Vec::with_capacity(tracks.len());
     for &track in tracks {
         layouts.push(TrackLayout {
-            track: track,
+            track,
             size: 0_f32,
             start: 0_f32,
         });
@@ -216,7 +214,7 @@ struct ExamineRegionTracksResult {
     range: RangeInclusive<usize>,
 }
 
-fn examine_region_tracks(tracks: &Vec<GridTrack>, range: RangeInclusive<usize>) -> ExamineRegionTracksResult {
+fn examine_region_tracks(tracks: &[GridTrack], range: RangeInclusive<usize>) -> ExamineRegionTracksResult {
     let mut auto_tracks = 0;
     let mut frs = 0;
     for track in tracks[range.clone()].iter() {
@@ -229,7 +227,7 @@ fn examine_region_tracks(tracks: &Vec<GridTrack>, range: RangeInclusive<usize>) 
     ExamineRegionTracksResult {
         auto_tracks,
         frs,
-        range: range,
+        range,
     }
 }
 

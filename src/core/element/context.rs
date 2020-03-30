@@ -164,11 +164,11 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
         self
     }
 
-    pub fn connect_socket<'a>(
-        &'a mut self,
+    pub fn connect_socket(
+        &mut self,
         target: SocketName,
         socket: SocketName,
-    ) -> &'a mut Self {
+    ) -> &mut Self {
         // Get the current children
         let children = match self.ctx.children.remove(socket) {
             Some(children) => children,
@@ -186,9 +186,9 @@ impl<'slf, 'ctx, 'frm> SubContext<'slf, 'ctx, 'frm> {
         self
     }
 
-    pub fn connect_all_sockets<'a>(
-        &'a mut self,
-    ) -> &'a mut Self {
+    pub fn connect_all_sockets(
+        &mut self,
+    ) -> &mut Self {
         // Get the current children
         let children = self.ctx.children.take();
 

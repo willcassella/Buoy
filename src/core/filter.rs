@@ -23,7 +23,7 @@ pub trait Filter {
 pub trait TypedFilter {
     type Element: Element;
 
-    fn predicate<'frm>(
+    fn predicate(
         &self,
         _element: &Self::Element,
         _id: Id,

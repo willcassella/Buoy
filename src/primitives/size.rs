@@ -50,7 +50,7 @@ impl archetype::Wrap for Size {
 
     fn close_some<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>, child: LayoutNode<'frm>) -> LayoutNode<'frm> {
         ctx.new_layout(
-            child.min_area.stretch(&self.min), // TODO: Handle if child is too big (will require clipping/scrolling)
+            child.min_area.stretch(self.min), // TODO: Handle if child is too big (will require clipping/scrolling)
             move |mut region: Region, cmds: &mut CommandList| {
                 if self.max.width < region.area.width {
                     region = self.h_align.align(self.max, region);

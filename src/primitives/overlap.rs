@@ -29,7 +29,7 @@ impl archetype::Panel for Overlap {
 
     fn close<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>, children: Queue<'frm, LayoutNode<'frm>>) -> LayoutNode<'frm> {
         // Get the max size required among all children
-        let max_area = (&children).into_iter().fold(Area::zero(), |max, child| max.stretch(&child.min_area));
+        let max_area = (&children).into_iter().fold(Area::zero(), |max, child| max.stretch(child.min_area));
 
         // Use that as the min required space for this element
         ctx.new_layout(

@@ -136,7 +136,7 @@ impl Arena {
         }
     }
 
-    pub fn alloc<'a, T>(&'a self, value: T) -> ABox<'a, T> {
+    pub fn alloc<T>(&self, value: T) -> ABox<'_, T> {
         let ptr = unsafe {
             let inner = &mut *self.inner.get();
             let dest = inner.alloc_typed::<T>();
@@ -237,13 +237,13 @@ impl<'a, T: ?Sized> Drop for ABox<'a, T> {
 impl<'a, T: ?Sized> Deref for ABox<'a, T> {
     type Target = T;
 
-    fn deref<'b>(&'b self) -> &'b T {
+    fn deref(&self) -> &T {
         unsafe { self.value.as_ref() }
     }
 }
 
 impl<'a, T: ?Sized> DerefMut for ABox<'a, T> {
-    fn deref_mut<'b>(&'b mut self) -> &'b mut T {
+    fn deref_mut(&mut self) -> &mut T {
         unsafe { self.value.as_mut() }
     }
 }

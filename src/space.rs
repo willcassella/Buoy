@@ -42,7 +42,7 @@ impl Area {
         }
     }
 
-    pub fn stretch(&self, other: &Self) -> Self {
+    pub fn stretch(self, other: Self) -> Self {
         Area {
             width: self.width.max(other.width),
             height: self.height.max(other.height),
