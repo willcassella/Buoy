@@ -1,6 +1,6 @@
-use std::collections::hash_map::DefaultHasher;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use twox_hash::XxHash64;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Hash, Eq, PartialEq)]
@@ -8,7 +8,7 @@ pub struct Id(u64);
 
 impl Id {
     pub fn append_id(self, id: Id) -> Self {
-        let mut hasher = DefaultHasher::default();
+        let mut hasher = XxHash64::default();
         self.hash(&mut hasher);
         id.hash(&mut hasher);
 
@@ -26,7 +26,7 @@ impl Id {
 
 impl<'a> From<&'a str> for Id {
     fn from(id: &'a str) -> Self {
-        let mut hasher = DefaultHasher::default();
+        let mut hasher = XxHash64::default();
         id.hash(&mut hasher);
 
         Id(hasher.finish())
@@ -35,7 +35,7 @@ impl<'a> From<&'a str> for Id {
 
 impl From<u64> for Id {
     fn from(id: u64) -> Self {
-        let mut hasher = DefaultHasher::default();
+        let mut hasher = XxHash64::default();
         id.hash(&mut hasher);
 
         Id(hasher.finish())
