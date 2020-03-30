@@ -1,9 +1,7 @@
-#![feature(unsize, coerce_unsized)]
-#![feature(ptr_internals)]
-
+#[macro_use]
+pub mod util;
 pub mod render;
 pub mod space;
-pub mod util;
 
 mod core;
 pub use self::core::{id, message, element, filter, Window};

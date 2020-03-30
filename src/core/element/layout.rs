@@ -17,6 +17,8 @@ impl<T: Layout> DynLayout for T {
     }
 }
 
+impl_upcast!(dyn DynLayout);
+
 impl Layout for () {
     fn render(self, _region: Region, _cmds: &mut CommandList) {
         // NullLayout only takes up space
@@ -34,14 +36,14 @@ where
 
 pub struct LayoutNode<'frm> {
     pub min_area: Area,
-    pub layout: ABox<'frm, dyn Layout + 'frm>,
+    pub layout: ABox<'frm, dyn DynLayout + 'frm>,
 }
 
 impl<'frm> LayoutNode<'frm> {
     pub fn null(buf: &'frm Arena) -> Self {
         LayoutNode {
             min_area: Area::zero(),
-            layout: buf.alloc(()).unsize(),
+            layout: buf.alloc(()).upcast(),
         }
     }
 

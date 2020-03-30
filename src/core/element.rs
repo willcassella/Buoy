@@ -1,7 +1,7 @@
 use std::any::Any;
 use crate::core::id::Id;
 use crate::util::arena::{Arena, ABox};
-use crate::util::into_any::IntoAny;
+use crate::util::upcast::Upcast;
 use crate::space::Area;
 
 mod context;
@@ -16,11 +16,11 @@ pub(in crate::core) use self::socket_tree::{ElementNode, SocketTree, ElementQNod
 mod layout;
 pub use self::layout::{Layout, LayoutNode};
 
-pub trait Element: Any {
+pub trait Element: DynElement {
     fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm>;
 }
 
-pub trait DynElement: IntoAny {
+pub trait DynElement: Any + Upcast<dyn Any> {
     // Gross hack because rust doesn't support arbitrary self types.
     // 'self' in this case is NOT actually a real Box, it's used because Box is the only way
     // to pass ownership of unsized types through trait through a trait object method.
@@ -33,6 +33,8 @@ impl<T: Element> DynElement for T {
         this.run(ctx, id)
     }
 }
+
+impl_upcast!(dyn DynElement);
 
 pub struct Elem<'frm, T: ?Sized + DynElement = dyn DynElement> {
     pub id: Id,
@@ -63,7 +65,7 @@ impl<'frm, T: Element> AllocElement<'frm> for Elem<'frm, T> {
     fn alloc(self, _buf: &'frm Arena) -> Elem<'frm> {
         Elem {
             id: self.id,
-            data: self.data.unsize(),
+            data: self.data.upcast::<dyn DynElement>(),
         }
     }
 }
@@ -81,7 +83,7 @@ impl<'frm, T: Element> AllocElement<'frm> for (Id, T) {
     fn alloc(self, buf: &'frm Arena) -> Elem<'frm> {
         Elem {
             id: self.0,
-            data: buf.alloc(self.1).unsize(),
+            data: buf.alloc(self.1).upcast::<dyn DynElement>(),
         }
     }
 }

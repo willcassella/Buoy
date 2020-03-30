@@ -1,12 +1,12 @@
-use std::marker::{PhantomData, Unsize};
-use std::ptr::Unique;
+use std::marker::PhantomData;
+use std::ptr::NonNull; // TODO: Switch to std::ptr::Unique when stabilized
 use std::ops::{Deref, DerefMut};
 use std::cell::UnsafeCell;
 use std::mem::{size_of, align_of};
 use std::any::Any;
 use std::convert::From;
 
-use super::into_any::IntoAny;
+use super::upcast::Upcast;
 
 const BUFFER_SIZE: usize = 1_usize << 16;
 
@@ -67,7 +67,7 @@ impl ArenaInner {
         (node, new_offset, dest)
     }
 
-    unsafe fn alloc_raw(&mut self, size: usize, align: usize) -> Unique<()> {
+    unsafe fn alloc_raw(&mut self, size: usize, align: usize) -> NonNull<()> {
         match self.head {
             Some(ref mut node) => {
                 // Get the destination offset
@@ -83,7 +83,7 @@ impl ArenaInner {
                     self.head = Some(node);
                     self.offset = offset;
 
-                    return Unique::new(ptr).unwrap();
+                    return NonNull::new(ptr).unwrap();
                 }
 
                 let dest = start.add(dest_offset) as *mut ();
@@ -91,7 +91,7 @@ impl ArenaInner {
                 // Update self
                 self.offset = dest_offset + size;
 
-                Unique::new(dest).unwrap()
+                NonNull::new(dest).unwrap()
             },
             None => {
                 let (node, offset, dest) = ArenaInner::alloc_new_node(size, align);
@@ -100,14 +100,14 @@ impl ArenaInner {
                 self.head = Some(node);
                 self.offset = offset;
 
-                Unique::new(dest).unwrap()
+                NonNull::new(dest).unwrap()
             }
         }
     }
 
-    unsafe fn alloc_typed<T>(&mut self) -> Unique<T> {
+    unsafe fn alloc_typed<T>(&mut self) -> NonNull<T> {
         let ptr = self.alloc_raw(size_of::<T>(), align_of::<T>());
-        Unique::new_unchecked(ptr.as_ptr() as *mut T)
+        NonNull::new_unchecked(ptr.as_ptr() as *mut T)
     }
 }
 
@@ -166,14 +166,14 @@ impl Arena {
             // Write t1 into memory
             std::ptr::write(&mut dest.as_mut().1, t1);
             let t1 = ABox {
-                value: Unique::from(&mut dest.as_mut().1),
+                value: NonNull::from(&mut dest.as_mut().1),
                 _phantom: PhantomData
             };
 
             // Initialize t2 with t1
             std::ptr::write(&mut dest.as_mut().0, i2(t1));
             ABox {
-                value: Unique::from(&mut dest.as_mut().0),
+                value: NonNull::from(&mut dest.as_mut().0),
                 _phantom: PhantomData
             }
         }
@@ -181,7 +181,7 @@ impl Arena {
 }
 
 pub struct ABox<'a, T: ?Sized> {
-    value: Unique<T>,
+    value: NonNull<T>,
     _phantom: PhantomData<&'a ()>,
 }
 
@@ -191,26 +191,33 @@ impl<'a, T> ABox<'a, T> {
         std::mem::forget(x);
         value
     }
+}
 
-    pub fn unsize<U: ?Sized>(mut self) -> ABox<'a, U>
+impl<'a, T: ?Sized> ABox<'a, T> {
+    pub fn forget_inner(x: Self) {
+        // Currently no memory to deallocate
+        std::mem::forget(x);
+    }
+
+    pub fn upcast<F: ?Sized>(mut self) -> ABox<'a, F>
     where
-        T: Unsize<U>
+        T: Upcast<F>
     {
-        let result = ABox {
-            value: unsafe { Unique::from(self.value.as_mut() as &mut U) },
-            _phantom: PhantomData,
-        };
-        std::mem::forget(self);
-        result
+         let result = ABox {
+             value: unsafe { NonNull::from(self.value.as_mut().upcast_mut()) },
+             _phantom: PhantomData,
+         };
+         std::mem::forget(self);
+         result
     }
 }
 
-impl<'buf, T: ?Sized + IntoAny> ABox<'buf, T> {
-    pub fn downcast<U: Any>(mut self) -> Result<ABox<'buf, U>, Self> {
-        match (*self).into_any_mut().downcast_mut::<U>() {
+impl<'a, T: ?Sized + Upcast<dyn Any>> ABox<'a, T> {
+    pub fn downcast<U: Any>(mut self) -> Result<ABox<'a, U>, Self> {
+        match (*self).upcast_mut().downcast_mut::<U>() {
             Some(u) => {
                 let result = ABox {
-                    value: Unique::from(u),
+                    value: NonNull::from(u),
                     _phantom: PhantomData,
                 };
                 std::mem::forget(self);
@@ -218,13 +225,6 @@ impl<'buf, T: ?Sized + IntoAny> ABox<'buf, T> {
             },
             None => Err(self),
         }
-    }
-}
-
-impl<'buf, T: ?Sized> ABox<'buf, T> {
-    pub fn forget_inner(x: Self) {
-        // Currently no memory to deallocate
-        std::mem::forget(x);
     }
 }
 

@@ -82,7 +82,7 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
     pub fn new_layout<L: Layout + 'frm>(&self, min_area: Area, layout: L) -> LayoutNode<'frm> {
         LayoutNode {
             min_area,
-            layout: self.buffer.alloc(layout).unsize(),
+            layout: self.buffer.alloc(layout).upcast(),
         }
     }
 

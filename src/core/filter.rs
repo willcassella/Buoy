@@ -114,7 +114,7 @@ impl FilterStack {
         while let Some(filter) = self.head.take() {
             self.head = filter.parent.clone();
 
-            match filter.filter.predicate(elem.data.into_any(), elem.id) {
+            match filter.filter.predicate((*elem.data).upcast(), elem.id) {
                 PredicateResult::Pass => continue,
                 PredicateResult::PassRecurse => inner_stack.append(filter.filter.clone()),
                 PredicateResult::RunFilter => {
