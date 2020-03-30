@@ -411,7 +411,6 @@ fn layout_tracks(
 impl<'frm> Layout for GridLayout<'frm> {
     fn render(mut self, grid_layout_region: Region, cmds: &mut render::CommandList) {
         // Compute final size and offsets for tracks
-        println!("Running grid layout");
         layout_tracks(
             self.col_frs,
             self.min_area.width,

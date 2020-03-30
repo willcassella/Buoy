@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use crate::core::element::*;
 use crate::core::filter::*;
-
 use crate::util::arena::ABox;
 use crate::util::queue::{QNode, Queue};
+use std::collections::HashMap;
 
 pub type ElementQNode<'frm> = ABox<'frm, QNode<'frm, ElementNode<'frm>>>;
 pub type ElementQueue<'frm> = Queue<'frm, ElementNode<'frm>>;
