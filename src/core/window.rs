@@ -41,6 +41,6 @@ impl Window {
     }
 
     pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
-        self.outgoing_messages.insert(outbox.id(), Box::new(value));
+        self.outgoing_messages.write(outbox, value);
     }
 }

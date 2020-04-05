@@ -7,6 +7,7 @@ Right now a lot of time is spent hashing out Ids. These are critical to making t
 - Make Id lazily computed
     - Many primitive elements are given an Id but don't actually use it. Could change the representation of Id so that it stores it's base id + suffix and only computes the real Id when required
 - Make string Ids fixed-size (8 characters?)
+- Different hashing algorithm? https://github.com/servo/rust-fnv
 
 ## Filters
 - Right now filters have to go through `std::any::downcast` to decide if they're relevant or not. A more efficient solution would be to have filters be part of the natural renderer selection process for a given component. (Basically have a global table of types and renderers, which gets pushed onto when a filter is added)

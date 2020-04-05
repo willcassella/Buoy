@@ -8,7 +8,29 @@ pub trait Message: Clone + Send + Any {}
 
 impl<T: Clone + Send + Any> Message for T {}
 
-pub type MessageMap = HashMap<Id, Box<dyn Any + Send>>;
+#[derive(Default)]
+pub struct MessageMap {
+    map: HashMap<Id, Box<dyn Any + Send>>,
+}
+
+impl MessageMap {
+    pub fn read<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
+        let value = match self.map.get(&inbox.id()) {
+            Some(value) => &**value,
+            None => return None,
+        };
+
+        value.downcast_ref::<T>().cloned()
+    }
+
+    pub fn write<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
+        self.map.insert(outbox.id(), Box::new(value));
+    }
+
+    pub fn clear(&mut self) {
+        self.map.clear();
+    }
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

@@ -51,3 +51,9 @@ pub struct HoverQuad {
     // TODO: This should be Outbox<Vec2> or something
     pub message: Outbox<()>,
 }
+
+pub struct ClickQuad {
+    pub quad: Quad,
+    // TODO: This should be Outbox<Vec2> or something
+    pub message: Outbox<()>,
+}

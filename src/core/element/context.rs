@@ -95,16 +95,11 @@ impl<'slf, 'frm> Context<'slf, 'frm> {
     }
 
     pub fn read_message<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
-        let value = match self.incoming_messages.get(&inbox.id()) {
-            Some(value) => &**value,
-            None => return None,
-        };
-
-        value.downcast_ref::<T>().cloned()
+        self.incoming_messages.read(inbox)
     }
 
     pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
-        self.outgoing_messages.insert(outbox.id(), Box::new(value));
+        self.outgoing_messages.write(outbox, value)
     }
 }
 

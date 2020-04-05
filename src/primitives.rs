@@ -11,6 +11,9 @@ pub use grid::{ColIndex, Grid, GridRegion, GridTrack, RowIndex};
 pub mod hover;
 pub use hover::Hover;
 
+pub mod click;
+pub use click::Click;
+
 pub mod list;
 pub use list::{List, ListDir};
 
