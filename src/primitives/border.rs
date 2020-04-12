@@ -1,7 +1,10 @@
 use super::archetype;
+use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::commands::{ColoredQuad, Quad};
 use crate::render::{color, CommandList};
+use crate::util::arena::{ABox, Arena};
+use std::rc::Rc;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -28,7 +31,7 @@ impl Border {
         BorderBuilder {
             id,
             socket: SocketName::default(),
-            element: Default::default(),
+            border: Default::default(),
         }
     }
 
@@ -84,10 +87,32 @@ impl Default for Border {
     }
 }
 
-impl Element for Border {
-    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
-        archetype::wrap(self, id, ctx)
+impl Component for Border {
+    fn type_id() -> TypeId {
+        TypeId::new("buoy", "border")
     }
+}
+
+impl Render for Border {
+    fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
+        archetype::wrap(self, ctx)
+    }
+}
+
+struct BorderRendererFactory;
+impl RendererFactory for BorderRendererFactory {
+    fn create_renderer<'frm, 'thrd>(
+        &self,
+        type_id: TypeId,
+        buffer: &'thrd Arena,
+    ) -> ABox<'thrd, dyn Renderer<'frm>> {
+        assert_eq!(type_id, Border::type_id());
+        ABox::upcast(buffer.alloc(BasicRenderer::<Border>::default()))
+    }
+}
+
+pub fn register(window: &mut Window) {
+    window.register_component(Border::type_id(), Rc::new(BorderRendererFactory));
 }
 
 impl archetype::Wrap for Border {
@@ -98,10 +123,9 @@ impl archetype::Wrap for Border {
         max_area
     }
 
-    fn close_some<'ctx, 'frm>(
+    fn close_some<'frm, 'thrd, 'ctx>(
         self,
-        _id: Id,
-        ctx: Context<'ctx, 'frm>,
+        ctx: Context<'frm, 'thrd, 'ctx>,
         child: LayoutNode<'frm>,
     ) -> LayoutNode<'frm> {
         let border = self;
@@ -131,7 +155,7 @@ impl archetype::Wrap for Border {
         )
     }
 
-    fn close_none<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>) -> LayoutNode<'frm> {
+    fn close_none<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         // Since we don't have a child, min area is just size of border
         let min_area = Area {
             width: self.left + self.right,
@@ -151,12 +175,12 @@ impl archetype::Wrap for Border {
 pub struct BorderBuilder {
     id: Id,
     socket: SocketName,
-    element: Border,
+    border: Border,
 }
 
 impl BorderBuilder {
     pub fn uniform(mut self, size: f32) -> Self {
-        self.element = Border::uniform(size);
+        self.border = Border::uniform(size);
         self
     }
 
@@ -166,33 +190,33 @@ impl BorderBuilder {
     }
 
     pub fn top(mut self, top: f32) -> Self {
-        self.element.top = top;
+        self.border.top = top;
         self
     }
 
     pub fn bottom(mut self, bottom: f32) -> Self {
-        self.element.bottom = bottom;
+        self.border.bottom = bottom;
         self
     }
 
     pub fn left(mut self, left: f32) -> Self {
-        self.element.left = left;
+        self.border.left = left;
         self
     }
 
     pub fn right(mut self, right: f32) -> Self {
-        self.element.right = right;
+        self.border.right = right;
         self
     }
 
     pub fn color(mut self, color: color::RGBA8) -> Self {
-        self.element.color = color;
+        self.border.color = color;
         self
     }
 }
 
-impl Builder for BorderBuilder {
-    type Element = Border;
+impl Builder<'_> for BorderBuilder {
+    type Component = Border;
 
     fn get_id(&self) -> Id {
         self.id
@@ -202,7 +226,7 @@ impl Builder for BorderBuilder {
         self.socket
     }
 
-    fn get_element(self) -> Self::Element {
-        self.element
+    fn get_component(self) -> Self::Component {
+        self.border
     }
 }

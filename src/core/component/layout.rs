@@ -17,7 +17,12 @@ impl<T: Layout> DynLayout for T {
     }
 }
 
-impl_upcast!(dyn DynLayout);
+auto_impl_upcast!(dyn DynLayout);
+
+pub enum LayoutResult {
+    Deferred,
+    Complete { min_area: Area },
+}
 
 impl Layout for () {
     fn render(self, _region: Region, _cmds: &mut CommandList) {
@@ -34,16 +39,16 @@ where
     }
 }
 
-pub struct LayoutNode<'frm> {
+pub struct LayoutNode<'a> {
     pub min_area: Area,
-    pub layout: ABox<'frm, dyn DynLayout + 'frm>,
+    pub layout: ABox<'a, dyn DynLayout + 'a>,
 }
 
-impl<'frm> LayoutNode<'frm> {
-    pub fn null(buf: &'frm Arena) -> Self {
+impl<'a> LayoutNode<'a> {
+    pub fn null(buf: &'a Arena) -> Self {
         LayoutNode {
             min_area: Area::zero(),
-            layout: buf.alloc(()).upcast(),
+            layout: ABox::upcast(buf.alloc(())),
         }
     }
 

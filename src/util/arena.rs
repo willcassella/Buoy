@@ -195,31 +195,31 @@ impl<'a, T: ?Sized> ABox<'a, T> {
         std::mem::forget(x);
     }
 
-    pub fn upcast<F: ?Sized>(mut self) -> ABox<'a, F>
+    pub fn upcast<F: ?Sized>(mut x: Self) -> ABox<'a, F>
     where
         T: Upcast<F>,
     {
         let result = ABox {
-            value: unsafe { NonNull::from(self.value.as_mut().upcast_mut()) },
+            value: unsafe { NonNull::from(x.value.as_mut().upcast_mut()) },
             _phantom: PhantomData,
         };
-        std::mem::forget(self);
+        std::mem::forget(x);
         result
     }
 }
 
 impl<'a, T: ?Sized + Upcast<dyn Any>> ABox<'a, T> {
-    pub fn downcast<U: Any>(mut self) -> Result<ABox<'a, U>, Self> {
-        match (*self).upcast_mut().downcast_mut::<U>() {
+    pub fn downcast<U: Any>(mut x: Self) -> Result<ABox<'a, U>, Self> {
+        match (*x).upcast_mut().downcast_mut::<U>() {
             Some(u) => {
                 let result = ABox {
                     value: NonNull::from(u),
                     _phantom: PhantomData,
                 };
-                std::mem::forget(self);
+                std::mem::forget(x);
                 Ok(result)
             }
-            None => Err(self),
+            None => Err(x),
         }
     }
 }

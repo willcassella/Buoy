@@ -1,9 +1,10 @@
-use std::f32;
-
+use super::archetype;
+use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::CommandList;
-
-use super::archetype;
+use crate::util::arena::{ABox, Arena};
+use std::f32;
+use std::rc::Rc;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -19,7 +20,7 @@ impl Size {
         SizeBuilder {
             id,
             socket: SocketName::default(),
-            element: Size::default(),
+            size: Size::default(),
         }
     }
 }
@@ -35,10 +36,32 @@ impl Default for Size {
     }
 }
 
-impl Element for Size {
-    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
-        archetype::wrap(self, id, ctx)
+impl Component for Size {
+    fn type_id() -> TypeId {
+        TypeId::new("buoy", "size")
     }
+}
+
+impl Render for Size {
+    fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
+        archetype::wrap(self, ctx)
+    }
+}
+
+struct SizeRendererFactory;
+impl RendererFactory for SizeRendererFactory {
+    fn create_renderer<'frm, 'thrd>(
+        &self,
+        type_id: TypeId,
+        buffer: &'thrd Arena,
+    ) -> ABox<'thrd, dyn Renderer<'frm>> {
+        assert_eq!(type_id, Size::type_id());
+        ABox::upcast(buffer.alloc(BasicRenderer::<Size>::default()))
+    }
+}
+
+pub fn register(window: &mut Window) {
+    window.register_component(Size::type_id(), Rc::new(SizeRendererFactory));
 }
 
 impl archetype::Wrap for Size {
@@ -48,10 +71,9 @@ impl archetype::Wrap for Size {
         max_area
     }
 
-    fn close_some<'ctx, 'frm>(
+    fn close_some<'frm, 'thrd, 'ctx>(
         self,
-        _id: Id,
-        ctx: Context<'ctx, 'frm>,
+        ctx: Context<'frm, 'thrd, 'ctx>,
         child: LayoutNode<'frm>,
     ) -> LayoutNode<'frm> {
         ctx.new_layout(
@@ -73,7 +95,7 @@ impl archetype::Wrap for Size {
         )
     }
 
-    fn close_none<'ctx, 'frm>(self, _id: Id, ctx: Context<'ctx, 'frm>) -> LayoutNode<'frm> {
+    fn close_none<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         // Just take up space
         ctx.new_layout(self.min, ())
     }
@@ -82,55 +104,55 @@ impl archetype::Wrap for Size {
 pub struct SizeBuilder {
     id: Id,
     socket: SocketName,
-    element: Size,
+    size: Size,
 }
 
 impl SizeBuilder {
     pub fn h_align(mut self, h_align: HAlign) -> Self {
-        self.element.h_align = h_align;
+        self.size.h_align = h_align;
         self
     }
 
     pub fn v_align(mut self, v_align: VAlign) -> Self {
-        self.element.v_align = v_align;
+        self.size.v_align = v_align;
         self
     }
 
     pub fn width(mut self, width: f32) -> Self {
-        self.element.min.width = width;
-        self.element.max.width = width;
+        self.size.min.width = width;
+        self.size.max.width = width;
         self
     }
 
     pub fn min_width(mut self, width: f32) -> Self {
-        self.element.min.width = width;
+        self.size.min.width = width;
         self
     }
 
     pub fn max_width(mut self, width: f32) -> Self {
-        self.element.max.width = width;
+        self.size.max.width = width;
         self
     }
 
     pub fn height(mut self, height: f32) -> Self {
-        self.element.min.height = height;
-        self.element.max.height = height;
+        self.size.min.height = height;
+        self.size.max.height = height;
         self
     }
 
     pub fn min_height(mut self, height: f32) -> Self {
-        self.element.min.height = height;
+        self.size.min.height = height;
         self
     }
 
     pub fn max_height(mut self, height: f32) -> Self {
-        self.element.max.height = height;
+        self.size.max.height = height;
         self
     }
 }
 
-impl Builder for SizeBuilder {
-    type Element = Size;
+impl Builder<'_> for SizeBuilder {
+    type Component = Size;
 
     fn get_id(&self) -> Id {
         self.id
@@ -140,7 +162,7 @@ impl Builder for SizeBuilder {
         self.socket
     }
 
-    fn get_element(self) -> Self::Element {
-        self.element
+    fn get_component(self) -> Self::Component {
+        self.size
     }
 }

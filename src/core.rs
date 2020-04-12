@@ -1,7 +1,5 @@
-pub mod element;
-pub mod filter;
+pub mod component;
 pub mod id;
 pub mod message;
 
-mod window;
-pub use window::Window;
+pub mod context;

@@ -1,10 +1,11 @@
-use std::f32;
-
+use super::archetype;
+use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::CommandList;
+use crate::util::arena::{ABox, Arena};
 use crate::util::queue::Queue;
-
-use super::archetype;
+use std::f32;
+use std::rc::Rc;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -43,10 +44,32 @@ impl List {
     }
 }
 
-impl Element for List {
-    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
-        archetype::panel(self, id, ctx)
+impl Component for List {
+    fn type_id() -> TypeId {
+        TypeId::new("buoy", "list")
     }
+}
+
+impl Render for List {
+    fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
+        archetype::panel(self, ctx)
+    }
+}
+
+struct ListRendererFactory;
+impl RendererFactory for ListRendererFactory {
+    fn create_renderer<'frm, 'thrd>(
+        &self,
+        type_id: TypeId,
+        buffer: &'thrd Arena,
+    ) -> ABox<'thrd, dyn Renderer<'frm>> {
+        assert_eq!(List::type_id(), type_id);
+        ABox::upcast(buffer.alloc(BasicRenderer::<List>::default()))
+    }
+}
+
+pub fn register(window: &mut Window) {
+    window.register_component(List::type_id(), Rc::new(ListRendererFactory))
 }
 
 impl archetype::Panel for List {
@@ -59,10 +82,9 @@ impl archetype::Panel for List {
         max_area
     }
 
-    fn close<'ctx, 'frm>(
+    fn close<'frm, 'thrd, 'ctx>(
         self,
-        _id: Id,
-        ctx: Context<'ctx, 'frm>,
+        ctx: Context<'frm, 'thrd, 'ctx>,
         children: Queue<'frm, LayoutNode<'frm>>,
     ) -> LayoutNode<'frm> {
         let mut min_area = Area::zero();

@@ -1,7 +1,9 @@
+use crate::basic_renderer::*;
+use crate::prelude::*;
+use crate::util::arena::{ABox, Arena};
 use std::cmp::{max, min, Ordering};
 use std::ops::RangeInclusive;
-
-use crate::prelude::*;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Grid {
@@ -275,8 +277,14 @@ struct RegionLayout<'frm> {
     pub end_row: u32,
 }
 
-impl Element for Grid {
-    fn run<'ctx, 'frm>(self, mut ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
+impl Component for Grid {
+    fn type_id() -> TypeId {
+        TypeId::new("buoy", "grid")
+    }
+}
+
+impl Render for Grid {
+    fn render<'frm, 'thrd, 'ctx>(self, mut ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         // Count up the number of fractions in rows and columns
         let ExamineGridTracksResult {
             frs: col_frs,
@@ -316,7 +324,7 @@ impl Element for Grid {
 
             // Calculate layout
             let mut layout = None;
-            ctx.open_socket(region.name, max_region_area, &mut layout);
+            ctx.socket(region.name, max_region_area, &mut layout);
 
             // If layout failed for this region, then don't need to do anything
             let layout = match layout {
@@ -368,6 +376,22 @@ impl Element for Grid {
             },
         )
     }
+}
+
+struct GridRendererFactory;
+impl RendererFactory for GridRendererFactory {
+    fn create_renderer<'frm, 'thrd>(
+        &self,
+        type_id: TypeId,
+        buffer: &'thrd Arena,
+    ) -> ABox<'thrd, dyn Renderer<'frm>> {
+        assert_eq!(Grid::type_id(), type_id);
+        ABox::upcast(buffer.alloc(BasicRenderer::<Grid>::default()))
+    }
+}
+
+pub fn register(window: &mut Window) {
+    window.register_component(Grid::type_id(), Rc::new(GridRendererFactory));
 }
 
 struct GridLayout<'frm> {

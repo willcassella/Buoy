@@ -27,6 +27,10 @@ impl MessageMap {
         self.map.insert(outbox.id(), Box::new(value));
     }
 
+    pub fn extend(&mut self, other: &mut MessageMap) {
+        self.map.extend(other.map.drain());
+    }
+
     pub fn clear(&mut self) {
         self.map.clear();
     }

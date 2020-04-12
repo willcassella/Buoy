@@ -1,8 +1,11 @@
+use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::{
     commands::{ClickQuad, Quad},
     CommandList,
 };
+use crate::util::arena::{ABox, Arena};
+use std::rc::Rc;
 
 pub struct Click {
     pub message: Outbox<()>,
@@ -17,13 +20,19 @@ impl Click {
         ClickBuilder {
             id,
             socket: SocketName::default(),
-            element: Click::new(message),
+            click: Click::new(message),
         }
     }
 }
 
-impl Element for Click {
-    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
+impl Component for Click {
+    fn type_id() -> TypeId {
+        TypeId::new("buoy", "click")
+    }
+}
+
+impl Render for Click {
+    fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         ctx.new_layout(
             Area::zero(),
             move |region: Region, cmds: &mut CommandList| {
@@ -37,14 +46,30 @@ impl Element for Click {
     }
 }
 
+struct ClickRendererFactory;
+impl RendererFactory for ClickRendererFactory {
+    fn create_renderer<'frm, 'thrd>(
+        &self,
+        type_id: TypeId,
+        buffer: &'thrd Arena,
+    ) -> ABox<'thrd, dyn Renderer<'frm>> {
+        assert_eq!(Click::type_id(), type_id);
+        ABox::upcast(buffer.alloc(BasicRenderer::<Click>::default()))
+    }
+}
+
+pub fn register(window: &mut Window) {
+    window.register_component(Click::type_id(), Rc::new(ClickRendererFactory));
+}
+
 pub struct ClickBuilder {
     id: Id,
     socket: SocketName,
-    element: Click,
+    click: Click,
 }
 
-impl Builder for ClickBuilder {
-    type Element = Click;
+impl Builder<'_> for ClickBuilder {
+    type Component = Click;
 
     fn get_id(&self) -> Id {
         self.id
@@ -54,7 +79,7 @@ impl Builder for ClickBuilder {
         self.socket
     }
 
-    fn get_element(self) -> Self::Element {
-        self.element
+    fn get_component(self) -> Self::Component {
+        self.click
     }
 }

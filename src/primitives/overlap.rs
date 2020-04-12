@@ -1,8 +1,10 @@
 use super::archetype;
+use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::CommandList;
-
+use crate::util::arena::{ABox, Arena};
 use crate::util::queue::Queue;
+use std::rc::Rc;
 
 pub struct Overlap;
 
@@ -11,15 +13,37 @@ impl Overlap {
         OverlapBuilder {
             id,
             socket: SocketName::default(),
-            element: Overlap,
+            overlap: Overlap,
         }
     }
 }
 
-impl Element for Overlap {
-    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, id: Id) -> LayoutNode<'frm> {
-        archetype::panel(self, id, ctx)
+impl Component for Overlap {
+    fn type_id() -> TypeId {
+        TypeId::new("buoy", "overlap")
     }
+}
+
+impl Render for Overlap {
+    fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
+        archetype::panel(self, ctx)
+    }
+}
+
+struct OverlapRendererFactory;
+impl RendererFactory for OverlapRendererFactory {
+    fn create_renderer<'frm, 'thrd>(
+        &self,
+        type_id: TypeId,
+        buffer: &'thrd Arena,
+    ) -> ABox<'thrd, dyn Renderer<'frm>> {
+        assert_eq!(Overlap::type_id(), type_id);
+        ABox::upcast(buffer.alloc(BasicRenderer::<Overlap>::default()))
+    }
+}
+
+pub fn register(window: &mut Window) {
+    window.register_component(Overlap::type_id(), Rc::new(OverlapRendererFactory));
 }
 
 impl archetype::Panel for Overlap {
@@ -27,10 +51,9 @@ impl archetype::Panel for Overlap {
         child_max_area
     }
 
-    fn close<'ctx, 'frm>(
+    fn close<'frm, 'thrd, 'ctx>(
         self,
-        _id: Id,
-        ctx: Context<'ctx, 'frm>,
+        ctx: Context<'frm, 'thrd, 'ctx>,
         children: Queue<'frm, LayoutNode<'frm>>,
     ) -> LayoutNode<'frm> {
         // Get the max size required among all children
@@ -51,7 +74,7 @@ impl archetype::Panel for Overlap {
 pub struct OverlapBuilder {
     id: Id,
     socket: SocketName,
-    element: Overlap,
+    overlap: Overlap,
 }
 
 impl OverlapBuilder {
@@ -61,8 +84,8 @@ impl OverlapBuilder {
     }
 }
 
-impl Builder for OverlapBuilder {
-    type Element = Overlap;
+impl Builder<'_> for OverlapBuilder {
+    type Component = Overlap;
 
     fn get_id(&self) -> Id {
         self.id
@@ -72,7 +95,7 @@ impl Builder for OverlapBuilder {
         self.socket
     }
 
-    fn get_element(self) -> Self::Element {
-        self.element
+    fn get_component(self) -> Self::Component {
+        self.overlap
     }
 }

@@ -1,8 +1,11 @@
+use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::{
     commands::{HoverQuad, Quad},
     CommandList,
 };
+use crate::util::arena::{ABox, Arena};
+use std::rc::Rc;
 
 pub struct Hover {
     pub message: Outbox<()>,
@@ -17,13 +20,19 @@ impl Hover {
         HoverBuilder {
             id,
             socket: SocketName::default(),
-            element: Hover::new(message),
+            hover: Hover::new(message),
         }
     }
 }
 
-impl Element for Hover {
-    fn run<'ctx, 'frm>(self, ctx: Context<'ctx, 'frm>, _id: Id) -> LayoutNode<'frm> {
+impl Component for Hover {
+    fn type_id() -> TypeId {
+        TypeId::new("buoy", "hover")
+    }
+}
+
+impl Render for Hover {
+    fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         ctx.new_layout(
             Area::zero(),
             move |region: Region, cmds: &mut CommandList| {
@@ -38,14 +47,30 @@ impl Element for Hover {
     }
 }
 
+struct HoverRendererFactory;
+impl RendererFactory for HoverRendererFactory {
+    fn create_renderer<'frm, 'thrd>(
+        &self,
+        type_id: TypeId,
+        buffer: &'thrd Arena,
+    ) -> ABox<'thrd, dyn Renderer<'frm>> {
+        assert_eq!(Hover::type_id(), type_id);
+        ABox::upcast(buffer.alloc(BasicRenderer::<Hover>::default()))
+    }
+}
+
+pub fn register(window: &mut Window) {
+    window.register_component(Hover::type_id(), Rc::new(HoverRendererFactory));
+}
+
 pub struct HoverBuilder {
     id: Id,
     socket: SocketName,
-    element: Hover,
+    hover: Hover,
 }
 
-impl Builder for HoverBuilder {
-    type Element = Hover;
+impl Builder<'_> for HoverBuilder {
+    type Component = Hover;
 
     fn get_id(&self) -> Id {
         self.id
@@ -55,7 +80,7 @@ impl Builder for HoverBuilder {
         self.socket
     }
 
-    fn get_element(self) -> Self::Element {
-        self.element
+    fn get_component(self) -> Self::Component {
+        self.hover
     }
 }
