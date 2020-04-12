@@ -2,7 +2,6 @@ use super::archetype;
 use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::CommandList;
-use crate::util::arena::{ABox, Arena};
 use std::f32;
 use std::rc::Rc;
 
@@ -46,22 +45,6 @@ impl Render for Size {
     fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         archetype::wrap(self, ctx)
     }
-}
-
-struct SizeRendererFactory;
-impl RendererFactory for SizeRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(type_id, Size::type_id());
-        ABox::upcast(buffer.alloc(BasicRenderer::<Size>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(Size::type_id(), Rc::new(SizeRendererFactory));
 }
 
 impl archetype::Wrap for Size {
@@ -165,4 +148,11 @@ impl Builder<'_> for SizeBuilder {
     fn get_component(self) -> Self::Component {
         self.size
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, Size);
+
+pub fn register(window: &mut Window) {
+    window.register_component(Size::type_id(), Rc::new(RendererFactory));
 }

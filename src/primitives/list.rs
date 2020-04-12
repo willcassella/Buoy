@@ -2,7 +2,6 @@ use super::archetype;
 use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::CommandList;
-use crate::util::arena::{ABox, Arena};
 use crate::util::queue::Queue;
 use std::f32;
 use std::rc::Rc;
@@ -54,22 +53,6 @@ impl Render for List {
     fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         archetype::panel(self, ctx)
     }
-}
-
-struct ListRendererFactory;
-impl RendererFactory for ListRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(List::type_id(), type_id);
-        ABox::upcast(buffer.alloc(BasicRenderer::<List>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(List::type_id(), Rc::new(ListRendererFactory))
 }
 
 impl archetype::Panel for List {
@@ -176,4 +159,11 @@ fn render_bottom_to_top(children: Queue<LayoutNode>, mut region: Region, out: &m
 
         child.render(child_region, out);
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, List);
+
+pub fn register(window: &mut Window) {
+    window.register_component(List::type_id(), Rc::new(RendererFactory))
 }

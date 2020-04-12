@@ -30,7 +30,7 @@ impl Window {
         }
     }
 
-    pub fn run<C: Anchor<dyn DynComponent>>(
+    pub fn run<'a, C: Anchor<dyn DynComponent + 'a>>(
         &mut self,
         commands: &mut CommandList,
         window_region: Region,

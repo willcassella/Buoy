@@ -6,6 +6,7 @@ pub mod space;
 mod core;
 pub use self::core::{component, context::*, id, message};
 
+#[macro_use]
 pub mod basic_renderer;
 
 pub mod primitives;

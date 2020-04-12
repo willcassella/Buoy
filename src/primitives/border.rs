@@ -3,7 +3,6 @@ use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::commands::{ColoredQuad, Quad};
 use crate::render::{color, CommandList};
-use crate::util::arena::{ABox, Arena};
 use std::rc::Rc;
 
 #[repr(C)]
@@ -97,22 +96,6 @@ impl Render for Border {
     fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         archetype::wrap(self, ctx)
     }
-}
-
-struct BorderRendererFactory;
-impl RendererFactory for BorderRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(type_id, Border::type_id());
-        ABox::upcast(buffer.alloc(BasicRenderer::<Border>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(Border::type_id(), Rc::new(BorderRendererFactory));
 }
 
 impl archetype::Wrap for Border {
@@ -229,4 +212,11 @@ impl Builder<'_> for BorderBuilder {
     fn get_component(self) -> Self::Component {
         self.border
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, Border);
+
+pub fn register(window: &mut Window) {
+    window.register_component(Border::type_id(), Rc::new(RendererFactory));
 }

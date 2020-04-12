@@ -37,13 +37,14 @@ impl<'frm> ThreadContext<'frm> {
                 let renderer_factory = window
                     .renderers
                     .get(&type_id)
-                    .expect("No such renderer registered");
+                    .ok_or_else(|| format!("No renderer registered for {}", type_id))
+                    .unwrap();
                 &**entry.insert(renderer_factory.create_renderer(type_id, &self.buffer))
             }
         };
 
-        // Safe because ABox's inside the HashMap have 'frm (greater than 'thrd) lifetime
-        // And nothing will be removed from the HashMap until this ThreadContext is destroyed.
+        // Safe because ABox's can be safely moved around without invalidating references to their contents,
+        // and nothing will be removed from the HashMap until this ThreadContext is destroyed.
         unsafe { std::mem::transmute(value) }
     }
 

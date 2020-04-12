@@ -4,7 +4,6 @@ use crate::render::{
     commands::{HoverQuad, Quad},
     CommandList,
 };
-use crate::util::arena::{ABox, Arena};
 use std::rc::Rc;
 
 pub struct Hover {
@@ -47,22 +46,6 @@ impl Render for Hover {
     }
 }
 
-struct HoverRendererFactory;
-impl RendererFactory for HoverRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(Hover::type_id(), type_id);
-        ABox::upcast(buffer.alloc(BasicRenderer::<Hover>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(Hover::type_id(), Rc::new(HoverRendererFactory));
-}
-
 pub struct HoverBuilder {
     id: Id,
     socket: SocketName,
@@ -83,4 +66,11 @@ impl Builder<'_> for HoverBuilder {
     fn get_component(self) -> Self::Component {
         self.hover
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, Hover);
+
+pub fn register(window: &mut Window) {
+    window.register_component(Hover::type_id(), Rc::new(RendererFactory));
 }

@@ -1,11 +1,10 @@
 use crate::basic_renderer::*;
 use crate::prelude::*;
-use crate::util::arena::{ABox, Arena};
 use std::cmp::{max, min, Ordering};
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct Grid {
     pub cols: Vec<GridTrack>,
     pub rows: Vec<GridTrack>,
@@ -378,22 +377,6 @@ impl Render for Grid {
     }
 }
 
-struct GridRendererFactory;
-impl RendererFactory for GridRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(Grid::type_id(), type_id);
-        ABox::upcast(buffer.alloc(BasicRenderer::<Grid>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(Grid::type_id(), Rc::new(GridRendererFactory));
-}
-
 struct GridLayout<'frm> {
     min_area: Area,
     col_frs: u32,
@@ -466,4 +449,11 @@ impl<'frm> Layout for GridLayout<'frm> {
             grid_region.layout.render(Region { pos, area }, cmds);
         }
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, Grid);
+
+pub fn register(window: &mut Window) {
+    window.register_component(Grid::type_id(), Rc::new(RendererFactory));
 }

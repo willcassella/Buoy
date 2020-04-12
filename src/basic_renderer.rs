@@ -48,3 +48,22 @@ impl<'frm, T: Component + Render + 'frm> Renderer<'frm> for BasicRenderer<T> {
         comp.render(ctx)
     }
 }
+
+#[macro_export]
+macro_rules! impl_basic_renderer_factory {
+    ($factory_name:ident, $component_type:ident) => {
+        impl $crate::component::RendererFactory for $factory_name {
+            fn create_renderer<'frm, 'thrd>(
+                &self,
+                type_id: $crate::component::TypeId,
+                buffer: &'thrd $crate::util::arena::Arena,
+            ) -> $crate::util::arena::ABox<'thrd, dyn Renderer<'frm>> {
+                assert_eq!($component_type::type_id(), type_id);
+                $crate::util::arena::ABox::upcast(
+                    buffer
+                        .alloc($crate::basic_renderer::BasicRenderer::<$component_type>::default()),
+                )
+            }
+        }
+    };
+}

@@ -2,7 +2,6 @@ use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::commands::ColoredQuad;
 use crate::render::{color, CommandList};
-use crate::util::arena::{ABox, Arena};
 use std::rc::Rc;
 
 #[repr(C)]
@@ -47,22 +46,6 @@ impl Render for Fill {
     }
 }
 
-struct FillRendererFactory;
-impl RendererFactory for FillRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(Fill::type_id(), type_id);
-        ABox::upcast(buffer.alloc(BasicRenderer::<Fill>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(Fill::type_id(), Rc::new(FillRendererFactory));
-}
-
 pub struct FillBuilder {
     id: Id,
     socket: SocketName,
@@ -95,4 +78,11 @@ impl Builder<'_> for FillBuilder {
     fn get_component(self) -> Self::Component {
         self.fill
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, Fill);
+
+pub fn register(window: &mut Window) {
+    window.register_component(Fill::type_id(), Rc::new(RendererFactory));
 }

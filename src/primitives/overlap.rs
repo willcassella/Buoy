@@ -2,7 +2,6 @@ use super::archetype;
 use crate::basic_renderer::*;
 use crate::prelude::*;
 use crate::render::CommandList;
-use crate::util::arena::{ABox, Arena};
 use crate::util::queue::Queue;
 use std::rc::Rc;
 
@@ -28,22 +27,6 @@ impl Render for Overlap {
     fn render<'frm, 'thrd, 'ctx>(self, ctx: Context<'frm, 'thrd, 'ctx>) -> LayoutNode<'frm> {
         archetype::panel(self, ctx)
     }
-}
-
-struct OverlapRendererFactory;
-impl RendererFactory for OverlapRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(Overlap::type_id(), type_id);
-        ABox::upcast(buffer.alloc(BasicRenderer::<Overlap>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(Overlap::type_id(), Rc::new(OverlapRendererFactory));
 }
 
 impl archetype::Panel for Overlap {
@@ -98,4 +81,11 @@ impl Builder<'_> for OverlapBuilder {
     fn get_component(self) -> Self::Component {
         self.overlap
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, Overlap);
+
+pub fn register(window: &mut Window) {
+    window.register_component(Overlap::type_id(), Rc::new(RendererFactory));
 }

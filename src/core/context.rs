@@ -183,12 +183,12 @@ impl<'frm, 'thrd, 'slf> SubContext<'frm, 'thrd, 'slf> {
         self
     }
 
-    pub fn push_into<'a, C: Anchor<dyn DynComponent + 'frm>>(
-        &'a mut self,
+    pub fn push_into<C: Anchor<dyn DynComponent + 'frm>>(
+        &mut self,
         socket: SocketName,
         id: Id,
         component: C,
-    ) -> &'a mut Self {
+    ) -> &mut Self {
         // Look up the renderer for this type
         let renderer = self
             .thread_context

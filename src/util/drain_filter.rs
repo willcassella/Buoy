@@ -1,3 +1,4 @@
+#[allow(clippy::len_without_is_empty)]
 pub trait Array {
     type Item;
 
@@ -33,8 +34,12 @@ pub struct Iter<'a, A: Array, F> {
 impl<'a, A: Array, F> Drop for Iter<'a, A, F> {
     fn drop(&mut self) {
         unsafe {
-            // Iterator may not have run to completion, so shift remaining elements forwards in array
-            std::ptr::copy(self.array.get_mut_unchecked(self.read_index), self.array.get_mut_unchecked(self.write_index), self.len - self.read_index);
+            // Iterator may not have run to completion, so shift remaining elements forwards in array\
+            std::ptr::copy(
+                self.array.get_mut_unchecked(self.read_index),
+                self.array.get_mut_unchecked(self.write_index),
+                self.len - self.read_index,
+            );
             let new_len = self.len - (self.read_index - self.write_index);
             self.array.set_len(new_len);
         }
@@ -55,6 +60,7 @@ where
                     self.read_index += 1;
                     return Some(std::ptr::read(item));
                 } else {
+                    // TODO(perf): Check if it's faster to use std::ptr::copy_nonoverlapping inside if
                     std::ptr::copy(item, self.array.get_mut_unchecked(self.write_index), 1);
                     self.read_index += 1;
                     self.write_index += 1;
@@ -67,17 +73,11 @@ where
 }
 
 pub trait DrainFilter: Sized + Array {
-    fn buoy_drain_filter<'a, F: FnMut(&mut Self::Item) -> bool>(
-        &'a mut self,
-        filter: F,
-    ) -> Iter<'a, Self, F>;
+    fn buoy_drain_filter<F: FnMut(&mut Self::Item) -> bool>(&mut self, filter: F) -> Iter<Self, F>;
 }
 
 impl<T: Array> DrainFilter for T {
-    fn buoy_drain_filter<'a, F: FnMut(&mut Self::Item) -> bool>(
-        &'a mut self,
-        filter: F,
-    ) -> Iter<'a, Self, F> {
+    fn buoy_drain_filter<F: FnMut(&mut Self::Item) -> bool>(&mut self, filter: F) -> Iter<Self, F> {
         let len = self.len();
         unsafe {
             self.set_len(0);

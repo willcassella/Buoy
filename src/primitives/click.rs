@@ -4,7 +4,6 @@ use crate::render::{
     commands::{ClickQuad, Quad},
     CommandList,
 };
-use crate::util::arena::{ABox, Arena};
 use std::rc::Rc;
 
 pub struct Click {
@@ -46,22 +45,6 @@ impl Render for Click {
     }
 }
 
-struct ClickRendererFactory;
-impl RendererFactory for ClickRendererFactory {
-    fn create_renderer<'frm, 'thrd>(
-        &self,
-        type_id: TypeId,
-        buffer: &'thrd Arena,
-    ) -> ABox<'thrd, dyn Renderer<'frm>> {
-        assert_eq!(Click::type_id(), type_id);
-        ABox::upcast(buffer.alloc(BasicRenderer::<Click>::default()))
-    }
-}
-
-pub fn register(window: &mut Window) {
-    window.register_component(Click::type_id(), Rc::new(ClickRendererFactory));
-}
-
 pub struct ClickBuilder {
     id: Id,
     socket: SocketName,
@@ -82,4 +65,11 @@ impl Builder<'_> for ClickBuilder {
     fn get_component(self) -> Self::Component {
         self.click
     }
+}
+
+struct RendererFactory;
+impl_basic_renderer_factory!(RendererFactory, Click);
+
+pub fn register(window: &mut Window) {
+    window.register_component(Click::type_id(), Rc::new(RendererFactory));
 }
