@@ -7,6 +7,12 @@ pub struct Region {
     pub area: Area,
 }
 
+impl Region {
+    pub fn new(pos: Point, area: Area) -> Self {
+        Region { pos, area }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Point {
@@ -15,6 +21,10 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn new(x: f32, y: f32) -> Self {
+        Point { x, y }
+    }
+
     pub fn zero() -> Self {
         Point { x: 0_f32, y: 0_f32 }
     }
@@ -28,6 +38,10 @@ pub struct Area {
 }
 
 impl Area {
+    pub fn new(width: f32, height: f32) -> Self {
+        Area { width, height }
+    }
+
     pub fn zero() -> Self {
         Area {
             width: 0_f32,

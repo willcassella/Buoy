@@ -5,13 +5,13 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 pub trait Ext: Sized {
-    fn anchor<A: ?Sized>(self) -> StackAnchor<Self, A>
+    fn move_anchor<A: ?Sized>(self) -> StackAnchor<Self, A>
     where
         Self: Upcast<A>;
 }
 
 impl<T> Ext for T {
-    fn anchor<A: ?Sized>(self) -> StackAnchor<Self, A>
+    fn move_anchor<A: ?Sized>(self) -> StackAnchor<Self, A>
     where
         Self: Upcast<A>,
     {

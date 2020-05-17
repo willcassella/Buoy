@@ -1,4 +1,4 @@
-pub mod component;
+pub mod device;
 pub mod id;
 pub mod message;
 

@@ -1,12 +1,12 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use crate::core::component::*;
+use crate::core::context::LayoutNode;
 use crate::util::fill::Fill;
 
-pub trait Socket<'a>: Fill<LayoutNode<'a>> {}
+pub trait Socket: Fill<LayoutNode> {}
 
-impl<'a, T: Fill<LayoutNode<'a>>> Socket<'a> for T {}
+impl<T: Fill<LayoutNode>> Socket for T {}
 
 // TODO: Should this be an arrayvec::ArrayString instead?
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]

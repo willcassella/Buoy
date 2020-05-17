@@ -34,7 +34,7 @@ pub struct Iter<'a, A: Array, F> {
 impl<'a, A: Array, F> Drop for Iter<'a, A, F> {
     fn drop(&mut self) {
         unsafe {
-            // Iterator may not have run to completion, so shift remaining elements forwards in array\
+            // Iterator may not have run to completion, so shift remaining elements forwards in array
             std::ptr::copy(
                 self.array.get_mut_unchecked(self.read_index),
                 self.array.get_mut_unchecked(self.write_index),
