@@ -12,7 +12,7 @@ pub mod prelude {
     pub use crate::space::*;
 
     pub use crate::{
-        FrameContext, GuiContext, LayoutContext, LayoutNode, LayoutResult, LayoutSubContext,
-        RenderContext, ThreadContext,
+        FrameContext, GuiContext, LayoutContext, LayoutNode, LayoutResult, RenderContext,
+        SubLayoutContext, ThreadContext,
     };
 }

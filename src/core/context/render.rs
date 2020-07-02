@@ -3,9 +3,9 @@ use crate::space::Region;
 use crate::LayoutNode;
 
 pub struct RenderContext<'slf, 'frm, C> {
-    pub(crate) region: Region,
-    pub(crate) gui_ctx: &'frm GuiContext<C>,
-    pub(crate) thread_ctx: &'slf ThreadContext<'frm, C>,
+    pub(in crate::core) region: Region,
+    pub(in crate::core) gui_ctx: &'frm GuiContext<C>,
+    pub(in crate::core) thread_ctx: &'slf ThreadContext<'frm, C>,
 }
 
 impl<'slf, 'frm, C: 'static> RenderContext<'slf, 'frm, C> {

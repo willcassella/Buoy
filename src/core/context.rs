@@ -9,7 +9,7 @@ pub use thread::ThreadContext;
 
 mod layout;
 pub use layout::LayoutContext;
-pub use layout::LayoutSubContext;
+pub use layout::SubLayoutContext;
 
 // TODO: Should this be part of a different module?
 pub use layout::{LayoutNode, LayoutResult};

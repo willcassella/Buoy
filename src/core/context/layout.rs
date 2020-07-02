@@ -27,7 +27,7 @@ pub struct LayoutContext<'slf, 'thrd, 'frm, C> {
     pub(in crate::core) id: Id,
     pub(in crate::core) max_area: Area,
     pub(in crate::core) children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
-    pub(in crate::core) subctx_stack: &'slf mut Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
+    pub(in crate::core) sublayout_stack: &'slf mut Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
 
 impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
@@ -52,17 +52,17 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
         max_area: Area,
         id: Id,
         device: D,
-    ) -> LayoutSubContext<'a, 'thrd, 'frm, C> {
+    ) -> SubLayoutContext<'a, 'thrd, 'frm, C> {
         // Look up the renderer for this type
         let renderer = self
             .thread_context
             .renderer_for(self.gui_context, device.get_type_id());
         let index = ref_move(device, |d| renderer.alloc(d));
 
-        // Clear the subcontext stack before using it
-        assert!(self.subctx_stack.is_empty());
+        // Clear the sublayout stack before using it
+        assert!(self.sublayout_stack.is_empty());
 
-        LayoutSubContext {
+        SubLayoutContext {
             gui_context: self.gui_context,
             frame_context: self.frame_context,
             thread_context: self.thread_context,
@@ -75,7 +75,7 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
                 index,
                 children: Vec::new(),
             },
-            stack: self.subctx_stack,
+            stack: self.sublayout_stack,
         }
     }
 
@@ -99,7 +99,7 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
                 id: device.id,
                 max_area,
                 children: std::mem::take(&mut device.children),
-                subctx_stack: self.subctx_stack,
+                sublayout_stack: self.sublayout_stack,
             };
 
             let layout_node = match device.renderer.layout(device.index, ctx) {
@@ -136,7 +136,7 @@ pub struct SubDevice<'thrd, 'frm, C> {
     children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
 
-pub struct LayoutSubContext<'slf, 'thrd, 'frm, C> {
+pub struct SubLayoutContext<'slf, 'thrd, 'frm, C> {
     gui_context: &'frm GuiContext<C>,
     frame_context: &'frm FrameContext,
     thread_context: &'thrd ThreadContext<'frm, C>,
@@ -147,7 +147,7 @@ pub struct LayoutSubContext<'slf, 'thrd, 'frm, C> {
     stack: &'slf mut Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
 
-impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
+impl<'slf, 'thrd, 'frm, C: 'static> SubLayoutContext<'slf, 'thrd, 'frm, C> {
     // TODO: Replace this with LayoutResult<!> once never is stabilized
     pub fn close(mut self) -> LayoutResult<()> {
         while !self.stack.is_empty() {
@@ -163,7 +163,7 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
             id: self.root.id,
             max_area: self.max_area,
             children: std::mem::take(&mut self.root.children),
-            subctx_stack: self.stack,
+            sublayout_stack: self.stack,
         };
 
         let layout_node = match self.root.renderer.layout(self.root.index, ctx) {
@@ -173,7 +173,7 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
         LayoutResult::CompleteNode(layout_node)
     }
 
-    pub fn pop(&mut self) -> &mut Self {
+    pub fn pop(&mut self) {
         let (socket, device) = self.stack.pop().expect("Bad call to 'pop'");
 
         // Get the parent node
@@ -183,7 +183,6 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
         };
 
         parent.children.push((socket, device));
-        self
     }
 
     pub fn push_into<D: Anchor<dyn Device + 'frm>>(
@@ -191,7 +190,7 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
         socket: SocketName,
         id: Id,
         device: D,
-    ) -> &mut Self {
+    ) {
         // Look up the renderer for this type
         let renderer = self
             .thread_context
@@ -208,10 +207,9 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
                 children: Vec::new(),
             },
         ));
-        self
     }
 
-    pub fn connect_socket(&mut self, target: SocketName, socket: SocketName) -> &mut Self {
+    pub fn connect_socket(&mut self, target: SocketName, socket: SocketName) {
         // Get the parent
         let parent = match self.stack.last_mut() {
             Some(parent) => &mut parent.1,
@@ -229,10 +227,9 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
 
         // Insert the children into the parent
         parent.children.extend(children_iter);
-        self
     }
 
-    pub fn connect_all_sockets(&mut self) -> &mut Self {
+    pub fn connect_all_sockets(&mut self) {
         // Get the parent
         let parent = match self.stack.last_mut() {
             Some(parent) => &mut parent.1,
@@ -241,7 +238,6 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutSubContext<'slf, 'thrd, 'frm, C> {
 
         // Append all current children
         parent.children.append(&mut self.ctx_children);
-        self
     }
 
     pub fn message<T: Message>(&mut self, id: Id) -> (Inbox<T>, Outbox<T>) {

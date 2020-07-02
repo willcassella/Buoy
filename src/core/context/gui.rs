@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 pub struct GuiContext<C> {
     outgoing_messages: MessageMap,
-    pub(crate) renderers: HashMap<TypeId, Rc<dyn IntoRenderer<C>>>,
+    pub(in crate::core) renderers: HashMap<TypeId, Rc<dyn IntoRenderer<C>>>,
 }
 
 impl<C> Default for GuiContext<C> {
@@ -59,7 +59,7 @@ impl<C: 'static> GuiContext<C> {
                 id: Id::default(),
                 max_area: window_region.area,
                 children: Vec::default(),
-                subctx_stack: &mut subctx_stack,
+                sublayout_stack: &mut subctx_stack,
             };
 
             match renderer.layout(device_index, layout_ctx) {

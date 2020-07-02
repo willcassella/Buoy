@@ -2,15 +2,11 @@
 
 ## Ids
 Right now a lot of time is spent hashing out Ids. These are critical to making the messaging and filtering system work at all, but a big win would be making this more efficient. Some possibilities are:
-- Use a faster hashing algorithm
+- Use a faster hashing algorithm (https://github.com/servo/rust-fnv)
 - Reconstructing the Hasher object over and over again kind of sucks. Making it efficient to concatenate Ids would be a good win here.
 - Make Id lazily computed
     - Many primitive elements are given an Id but don't actually use it. Could change the representation of Id so that it stores it's base id + suffix and only computes the real Id when required
 - Make string Ids fixed-size (8 characters?)
-- Different hashing algorithm? https://github.com/servo/rust-fnv
-
-## Filters
-- Right now filters have to go through `std::any::downcast` to decide if they're relevant or not. A more efficient solution would be to have filters be part of the natural renderer selection process for a given component. (Basically have a global table of types and renderers, which gets pushed onto when a filter is added)
 
 ## Dynamic Allocation
 - I've spent a lot of time building my `Arena` buffer for this, but it's not currently used everywhere. Try to replace instances of Box and Stack/Queue with Arena-backed objects where possible.
@@ -21,7 +17,7 @@ Right now a lot of time is spent hashing out Ids. These are critical to making t
 
 ## Threading
 - It's a little bit questionable how many threads you actually want to commit to your UI framework, but maybe a good global worker system makes this less of a problem.
-- Jobs could be split by `Element`/`Component`, though that runs the risk of making jobs too small. Some kind of stealing/delegating system would be a good investement here, so threads don't spend more of their time managing jobs than actually doing them.
+- Jobs could be split by `Device`, though that runs the risk of making jobs too small. Some kind of stealing/delegating system would be a good investement here, so threads don't spend more of their time managing jobs than actually doing them.
 
 ## Caching
-- A robust caching system is a ways off, but I think the "unit" of caching should be `LayoutNode`, since that's easy to re-render (assuming I get cloning working), and it's less likely to become invalid than rendering commands (which would be the other candidate). If it's somehow determined that a given `Element`/`Component`/`Whatever bikeshed name I pick` will produce the same `LayoutNode`, then just don't run it.
+- A robust caching system is a ways off, but I think the "unit" of caching should be `LayoutNode`, since that's easy to re-render, and it's less likely to become invalid than rendering commands (which would be the other candidate). If it's somehow determined that a given `Device` will produce the same `LayoutNode`, then just don't run it.

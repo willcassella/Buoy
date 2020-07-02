@@ -44,14 +44,14 @@ pub struct Inbox<T: Message> {
 }
 
 impl<T: Message> Inbox<T> {
-    pub(crate) fn new(id: Id) -> Self {
+    pub(in crate::core) fn new(id: Id) -> Self {
         Inbox {
             id,
             _phantom: PhantomData,
         }
     }
 
-    pub(crate) fn id(&self) -> Id {
+    pub(in crate::core) fn id(&self) -> Id {
         self.id
     }
 }
@@ -64,14 +64,14 @@ pub struct Outbox<T: Message> {
 }
 
 impl<T: Message> Outbox<T> {
-    pub(crate) fn new(id: Id) -> Self {
+    pub(in crate::core) fn new(id: Id) -> Self {
         Outbox {
             id,
             _phantom: PhantomData,
         }
     }
 
-    pub(crate) fn id(&self) -> Id {
+    pub(in crate::core) fn id(&self) -> Id {
         self.id
     }
 }

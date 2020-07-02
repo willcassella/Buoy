@@ -1,4 +1,5 @@
 use std::f32;
+use std::ops::{Add, Sub};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -10,6 +11,19 @@ pub struct Region {
 impl Region {
     pub fn new(pos: Point, area: Area) -> Self {
         Region { pos, area }
+    }
+
+    pub fn contains(&self, mut point: Point) -> bool {
+        if self.pos.x > point.x || self.pos.y > point.y {
+            return false;
+        }
+
+        point = point - self.pos;
+        if point.x > self.area.width || point.y > self.area.height {
+            return false;
+        }
+
+        return true;
     }
 }
 
@@ -27,6 +41,28 @@ impl Point {
 
     pub fn zero() -> Self {
         Point { x: 0_f32, y: 0_f32 }
+    }
+}
+
+impl Add<Point> for Point {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Sub<Point> for Point {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
     }
 }
 
