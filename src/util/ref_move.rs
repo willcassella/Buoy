@@ -1,3 +1,4 @@
+use crate::util::arena::ABox;
 use crate::util::upcast::Upcast;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
@@ -78,6 +79,40 @@ impl<A: ?Sized, T: ?Sized + Upcast<A>> Anchor<A> for BoxAnchor<T, A> {
         // Create a Box to ManuallyDrop<T> and let it fall out of scope.
         // The memory behind the Box will be deallocated, but T's destructor will not be called.
         Box::from_raw(Box::into_raw(self.b) as *mut ManuallyDrop<T>);
+    }
+}
+
+pub struct ABoxAnchor<'a, T: ?Sized, A: ?Sized> {
+    b: ABox<'a, T>,
+    _p: PhantomData<A>,
+}
+
+impl<'a, T: ?Sized, A: ?Sized> ABoxAnchor<'a, T, A> {
+    pub fn new(b: ABox<'a, T>) -> Self {
+        ABoxAnchor { b, _p: PhantomData }
+    }
+}
+
+impl<'a, A: ?Sized, T: ?Sized + Upcast<A>> Deref for ABoxAnchor<'a, T, A> {
+    type Target = A;
+
+    #[inline(always)]
+    fn deref(&self) -> &A {
+        self.b.deref().upcast()
+    }
+}
+
+impl<'a, A: ?Sized, T: ?Sized + Upcast<A>> DerefMut for ABoxAnchor<'a, T, A> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut A {
+        self.b.deref_mut().upcast_mut()
+    }
+}
+
+impl<'a, A: ?Sized, T: ?Sized + Upcast<A>> Anchor<A> for ABoxAnchor<'a, T, A> {
+    #[inline(always)]
+    unsafe fn dealloc(self) {
+        ABox::forget_inner(self.b);
     }
 }
 

@@ -8,8 +8,7 @@ mod thread;
 pub use thread::ThreadContext;
 
 mod layout;
-pub use layout::LayoutContext;
-pub use layout::SubLayoutContext;
+pub use layout::{LayoutContext, LayoutTree, LayoutTreeVisitor};
 
 // TODO: Should this be part of a different module?
 pub use layout::{LayoutNode, LayoutResult};

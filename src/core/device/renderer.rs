@@ -20,10 +20,10 @@ pub trait Renderer<'frm, C>: Sized {
     // dependencies are met, then this function will be run again.
     // TODO: Implement ctx.defer()
     // TODO: Maybe allow this to specify which things its deferring on/how?
-    fn layout<'ctx, 'thrd>(
+    fn layout<'thrd>(
         &self,
         device: Self::Device,
-        ctx: LayoutContext<'ctx, 'thrd, 'frm, C>,
+        ctx: LayoutContext<'thrd, 'frm, C>,
     ) -> LayoutResult<Self::Layout>;
 
     fn render<'ctx>(&self, layout: Self::Layout, ctx: RenderContext<'ctx, 'frm, C>, canvas: &mut C);
@@ -32,10 +32,10 @@ pub trait Renderer<'frm, C>: Sized {
 pub trait RendererWrapper<'frm, C> {
     fn alloc(&self, device: RefMove<dyn Device + 'frm>) -> DeviceIndex;
 
-    fn layout<'ctx, 'thrd>(
+    fn layout<'thrd>(
         &self,
         device: DeviceIndex,
-        ctx: LayoutContext<'ctx, 'thrd, 'frm, C>,
+        ctx: LayoutContext<'thrd, 'frm, C>,
     ) -> RendererLayoutResult;
 
     fn render<'ctx>(&self, layout: LayoutIndex, ctx: RenderContext<'ctx, 'frm, C>, canvas: &mut C);
@@ -78,7 +78,7 @@ impl<'frm, C, T: Renderer<'frm, C>> RendererWrapper<'frm, C> for RendererWrapper
     fn layout<'ctx, 'thrd>(
         &self,
         device: DeviceIndex,
-        ctx: LayoutContext<'ctx, 'thrd, 'frm, C>,
+        ctx: LayoutContext<'thrd, 'frm, C>,
     ) -> RendererLayoutResult {
         let dev = self
             .devices

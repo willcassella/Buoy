@@ -50,16 +50,14 @@ impl<C: 'static> GuiContext<C> {
 
         // Run layout on the device
         let layout = {
-            let mut subctx_stack = Vec::new();
             let layout_ctx = LayoutContext {
-                gui_context: self,
-                frame_context: &frame_context,
-                thread_context: &thread_context,
+                gui_ctx: self,
+                frame_ctx: &frame_context,
+                thread_ctx: &thread_context,
 
                 id: Id::default(),
                 max_area: window_region.area,
                 children: Vec::default(),
-                sublayout_stack: &mut subctx_stack,
             };
 
             match renderer.layout(device_index, layout_ctx) {

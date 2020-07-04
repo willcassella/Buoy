@@ -19,18 +19,17 @@ pub struct LayoutNode {
     pub min_area: Area,
 }
 
-pub struct LayoutContext<'slf, 'thrd, 'frm, C> {
-    pub(in crate::core) gui_context: &'frm GuiContext<C>,
-    pub(in crate::core) frame_context: &'frm FrameContext,
-    pub(in crate::core) thread_context: &'thrd ThreadContext<'frm, C>,
+pub struct LayoutContext<'thrd, 'frm, C> {
+    pub(in crate::core) gui_ctx: &'frm GuiContext<C>,
+    pub(in crate::core) frame_ctx: &'frm FrameContext,
+    pub(in crate::core) thread_ctx: &'thrd ThreadContext<'frm, C>,
 
     pub(in crate::core) id: Id,
     pub(in crate::core) max_area: Area,
     pub(in crate::core) children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
-    pub(in crate::core) sublayout_stack: &'slf mut Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
 
-impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
+impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
     #[inline]
     pub fn id(&self) -> Id {
         self.id
@@ -41,42 +40,62 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
         self.max_area
     }
 
+    pub fn socket_children_len(&self, socket: SocketName) -> usize {
+        self.children.iter().filter(|(k, _)| *k == socket).count()
+    }
+
     // TODO: It would be nice if I didn't have to expose this
     #[inline]
     pub fn buffer(&self) -> &'frm Arena {
-        self.thread_context.buffer()
+        self.thread_ctx.buffer()
     }
 
-    pub fn sub_device<'a, D: Anchor<dyn Device + 'frm>>(
-        &'a mut self,
+    pub fn device_tree<D: Anchor<dyn Device + 'frm>, T: LayoutTree<'frm, C>>(
+        &mut self,
         max_area: Area,
         id: Id,
         device: D,
-    ) -> SubLayoutContext<'a, 'thrd, 'frm, C> {
+        subtree: T,
+    ) -> LayoutResult<()> {
         // Look up the renderer for this type
         let renderer = self
-            .thread_context
-            .renderer_for(self.gui_context, device.get_type_id());
+            .thread_ctx
+            .renderer_for(self.gui_ctx, device.get_type_id());
+
+        // Allocate the device with its renderer
         let index = ref_move(device, |d| renderer.alloc(d));
+        let mut sub_device = SubDevice {
+            id,
+            renderer,
+            index,
+            children: Vec::new(),
+        };
 
-        // Clear the sublayout stack before using it
-        assert!(self.sublayout_stack.is_empty());
-
-        SubLayoutContext {
-            gui_context: self.gui_context,
-            frame_context: self.frame_context,
-            thread_context: self.thread_context,
+        // Visit the subtree
+        let visitor = LayoutTreeVisitor {
+            parent: &mut sub_device,
+            gui_ctx: self.gui_ctx,
+            thread_ctx: self.thread_ctx,
             ctx_children: &mut self.children,
+        };
+        subtree.visit(visitor);
 
-            max_area,
-            root: SubDevice {
-                id,
-                renderer,
-                index,
-                children: Vec::new(),
-            },
-            stack: self.sublayout_stack,
-        }
+        // Create a context for running the device
+        let ctx = LayoutContext {
+            gui_ctx: self.gui_ctx,
+            frame_ctx: self.frame_ctx,
+            thread_ctx: self.thread_ctx,
+
+            id: sub_device.id,
+            max_area: max_area,
+            children: sub_device.children,
+        };
+
+        let layout_node = match sub_device.renderer.layout(sub_device.index, ctx) {
+            RendererLayoutResult::Complete(layout_node) => layout_node,
+        };
+
+        LayoutResult::CompleteNode(layout_node)
     }
 
     pub fn socket<S: Socket>(&mut self, name: SocketName, max_area: Area, socket: &mut S) {
@@ -92,14 +111,13 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
 
             // Run the child
             let ctx = LayoutContext {
-                gui_context: self.gui_context,
-                frame_context: self.frame_context,
-                thread_context: self.thread_context,
+                gui_ctx: self.gui_ctx,
+                frame_ctx: self.frame_ctx,
+                thread_ctx: self.thread_ctx,
 
                 id: device.id,
                 max_area,
                 children: std::mem::take(&mut device.children),
-                sublayout_stack: self.sublayout_stack,
             };
 
             let layout_node = match device.renderer.layout(device.index, ctx) {
@@ -120,85 +138,55 @@ impl<'slf, 'thrd, 'frm, C: 'static> LayoutContext<'slf, 'thrd, 'frm, C> {
 
     #[inline]
     pub fn read_message<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
-        self.frame_context.read_message(inbox)
+        self.frame_ctx.read_message(inbox)
     }
 
     #[inline]
     pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
-        self.thread_context.write_message(outbox, value)
+        self.thread_ctx.write_message(outbox, value)
     }
 }
 
-pub struct SubDevice<'thrd, 'frm, C> {
-    id: Id,
-    renderer: &'thrd dyn RendererWrapper<'frm, C>,
-    index: DeviceIndex,
-    children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
-}
-
-pub struct SubLayoutContext<'slf, 'thrd, 'frm, C> {
-    gui_context: &'frm GuiContext<C>,
-    frame_context: &'frm FrameContext,
-    thread_context: &'thrd ThreadContext<'frm, C>,
+pub struct LayoutTreeVisitor<'slf, 'thrd, 'frm, C> {
+    parent: &'slf mut SubDevice<'thrd, 'frm, C>,
+    gui_ctx: &'frm GuiContext<C>,
+    thread_ctx: &'thrd ThreadContext<'frm, C>,
     ctx_children: &'slf mut Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
-
-    max_area: Area,
-    root: SubDevice<'thrd, 'frm, C>,
-    stack: &'slf mut Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
 
-impl<'slf, 'thrd, 'frm, C: 'static> SubLayoutContext<'slf, 'thrd, 'frm, C> {
-    // TODO: Replace this with LayoutResult<!> once never is stabilized
-    pub fn close(mut self) -> LayoutResult<()> {
-        while !self.stack.is_empty() {
-            self.pop();
-        }
+impl<'slf, 'thrd, 'frm: 'thrd, C: 'static> LayoutTreeVisitor<'slf, 'thrd, 'frm, C> {
+    pub fn socket(&mut self, parent: SocketName, name: SocketName, limit: Option<usize>) {
+        let mut limit = limit.unwrap_or(usize::MAX);
+        let children_iter = self.ctx_children.buoy_drain_filter(|child| {
+            if limit == 0 {
+                return false;
+            }
 
-        // Create a context for running the device
-        let ctx = LayoutContext {
-            gui_context: self.gui_context,
-            frame_context: self.frame_context,
-            thread_context: self.thread_context,
+            if child.0 != name {
+                return false;
+            }
 
-            id: self.root.id,
-            max_area: self.max_area,
-            children: std::mem::take(&mut self.root.children),
-            sublayout_stack: self.stack,
-        };
+            child.0 = parent;
+            limit -= 1;
+            true
+        });
 
-        let layout_node = match self.root.renderer.layout(self.root.index, ctx) {
-            RendererLayoutResult::Complete(layout_node) => layout_node,
-        };
-
-        LayoutResult::CompleteNode(layout_node)
+        // Insert the children into the parent
+        self.parent.children.extend(children_iter);
     }
 
-    pub fn pop(&mut self) {
-        let (socket, device) = self.stack.pop().expect("Bad call to 'pop'");
-
-        // Get the parent node
-        let parent = match self.stack.last_mut() {
-            Some(parent) => &mut parent.1,
-            None => &mut self.root,
-        };
-
-        parent.children.push((socket, device));
-    }
-
-    pub fn push_into<D: Anchor<dyn Device + 'frm>>(
-        &mut self,
-        socket: SocketName,
-        id: Id,
-        device: D,
-    ) {
+    pub fn device<D: Anchor<dyn Device + 'frm>>(&mut self, socket: SocketName, id: Id, device: D) {
         // Look up the renderer for this type
         let renderer = self
-            .thread_context
-            .renderer_for(self.gui_context, device.get_type_id());
+            .thread_ctx
+            .renderer_for(self.gui_ctx, device.get_type_id());
 
-        // Allocate the device, then push it onto the stack
+        // TODO: Determine if it's viable to just call into 'device_tree' with a no-op tree
+        // Might not be as performant for debug builds.
+
+        // Allocate the device and add it to the parent
         let index = ref_move(device, |d| renderer.alloc(d));
-        self.stack.push((
+        self.parent.children.push((
             socket,
             SubDevice {
                 id,
@@ -209,46 +197,48 @@ impl<'slf, 'thrd, 'frm, C: 'static> SubLayoutContext<'slf, 'thrd, 'frm, C> {
         ));
     }
 
-    pub fn connect_socket(&mut self, target: SocketName, socket: SocketName) {
-        // Get the parent
-        let parent = match self.stack.last_mut() {
-            Some(parent) => &mut parent.1,
-            None => &mut self.root,
+    pub fn device_tree<D: Anchor<dyn Device + 'frm>, T: LayoutTree<'frm, C>>(
+        &mut self,
+        socket: SocketName,
+        id: Id,
+        device: D,
+        subtree: T,
+    ) {
+        // Look up the renderer for this type
+        let renderer = self
+            .thread_ctx
+            .renderer_for(self.gui_ctx, device.get_type_id());
+
+        // Allocate the device with its renderer
+        let index = ref_move(device, |d| renderer.alloc(d));
+        let mut sub_device = SubDevice {
+            id,
+            renderer,
+            index,
+            children: Vec::new(),
         };
 
-        let children_iter = self.ctx_children.buoy_drain_filter(|child| {
-            if child.0 != socket {
-                return false;
-            }
-
-            child.0 = target;
-            true
-        });
-
-        // Insert the children into the parent
-        parent.children.extend(children_iter);
-    }
-
-    pub fn connect_all_sockets(&mut self) {
-        // Get the parent
-        let parent = match self.stack.last_mut() {
-            Some(parent) => &mut parent.1,
-            None => &mut self.root,
+        // Visit the subtree
+        let visitor = LayoutTreeVisitor {
+            parent: &mut sub_device,
+            gui_ctx: self.gui_ctx,
+            thread_ctx: self.thread_ctx,
+            ctx_children: self.ctx_children,
         };
+        subtree.visit(visitor);
 
-        // Append all current children
-        parent.children.append(&mut self.ctx_children);
+        // Add the device to the parent
+        self.parent.children.push((socket, sub_device));
     }
+}
 
-    pub fn message<T: Message>(&mut self, id: Id) -> (Inbox<T>, Outbox<T>) {
-        (Inbox::new(id), Outbox::new(id))
-    }
+pub trait LayoutTree<'frm, C> {
+    fn visit<'ctx, 'thrd>(self, visitor: LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>);
+}
 
-    pub fn read_message<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
-        self.frame_context.read_message(inbox)
-    }
-
-    pub fn write_message<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
-        self.thread_context.write_message(outbox, value)
-    }
+pub(in crate::core) struct SubDevice<'thrd, 'frm, C> {
+    id: Id,
+    renderer: &'thrd dyn RendererWrapper<'frm, C>,
+    index: DeviceIndex,
+    children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
