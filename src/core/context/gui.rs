@@ -49,32 +49,31 @@ impl<C: 'static> GuiContext<C> {
         let device_index = ref_move(root, |root| renderer.alloc(root));
 
         // Run layout on the device
-        let layout = {
-            let layout_ctx = LayoutContext {
-                gui_ctx: self,
-                frame_ctx: &frame_context,
-                thread_ctx: &thread_context,
-
-                id: Id::default(),
-                max_area: window_region.area,
-                children: Vec::default(),
-            };
-
-            match renderer.layout(device_index, layout_ctx) {
-                RendererLayoutResult::Complete(layout_node) => layout_node,
-            }
-        };
-
-        // Get the renderer for the layout
-        let renderer = thread_context.renderer_for(self, layout.type_id);
-
-        // Render the device
-        let render_ctx = RenderContext {
-            region: window_region,
+        let layout_ctx = LayoutContext {
             gui_ctx: self,
+            frame_ctx: &frame_context,
             thread_ctx: &thread_context,
+
+            id: Id::default(),
+            max_area: window_region.area,
+            children: Vec::default(),
         };
-        renderer.render(layout.index, render_ctx, canvas);
+
+        match renderer.layout(device_index, layout_ctx) {
+            RendererLayoutResult::None => (),
+            RendererLayoutResult::Complete(layout) => {
+                // Get the renderer for the layout
+                let renderer = thread_context.renderer_for(self, layout.type_id);
+
+                // Render the device
+                let render_ctx = RenderContext {
+                    region: window_region,
+                    gui_ctx: self,
+                    thread_ctx: &thread_context,
+                };
+                renderer.render(layout.index, render_ctx, canvas);
+            }
+        }
 
         // Output messages
         let mut thread_outgoing_messages = thread_context.take_outgoing_messages();

@@ -24,7 +24,12 @@ impl MessageMap {
     }
 
     pub fn write<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
-        self.map.insert(outbox.id(), Box::new(value));
+        match outbox.mapping {
+            Some(mapping) => mapping(value, MessageWriter { message_map: self }),
+            None => {
+                self.map.insert(outbox.id(), Box::new(value));
+            }
+        };
     }
 
     pub fn extend(&mut self, other: &mut MessageMap) {
@@ -33,6 +38,22 @@ impl MessageMap {
 
     pub fn clear(&mut self) {
         self.map.clear();
+    }
+}
+
+pub struct MessageWriter<'a> {
+    message_map: &'a mut MessageMap,
+}
+
+impl<'a> MessageWriter<'a> {
+    pub fn write<T: Message>(&mut self, outbox: Outbox<T>, value: T) {
+        self.message_map.write(outbox, value);
+    }
+
+    pub fn reborrow<'b>(&'b mut self) -> MessageWriter<'b> {
+        MessageWriter {
+            message_map: self.message_map,
+        }
     }
 }
 
@@ -57,21 +78,30 @@ impl<T: Message> Inbox<T> {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Outbox<T: Message> {
     id: Id,
-    _phantom: PhantomData<T>,
+    mapping: Option<Box<dyn FnOnce(T, MessageWriter)>>,
 }
 
 impl<T: Message> Outbox<T> {
     pub(in crate::core) fn new(id: Id) -> Self {
-        Outbox {
-            id,
-            _phantom: PhantomData,
-        }
+        Outbox { id, mapping: None }
     }
 
     pub(in crate::core) fn id(&self) -> Id {
         self.id
+    }
+
+    pub fn map_from<I: Message, F: FnOnce(I, MessageWriter) -> T + 'static>(
+        self,
+        mapping: F,
+    ) -> Outbox<I> {
+        Outbox {
+            id: self.id,
+            mapping: Some(Box::new(move |v, mut writer| {
+                let v = mapping(v, writer.reborrow());
+                writer.write(self, v);
+            })),
+        }
     }
 }

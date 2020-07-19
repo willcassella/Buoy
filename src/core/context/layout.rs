@@ -8,6 +8,7 @@ use crate::util::drain_filter::DrainFilter;
 use crate::util::ref_move::{ref_move, Anchor};
 
 pub enum LayoutResult<T> {
+    None,
     // TODO: Deferred,
     Complete { min_area: Area, layout: T },
     CompleteNode(LayoutNode),
@@ -87,15 +88,14 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
             thread_ctx: self.thread_ctx,
 
             id: sub_device.id,
-            max_area: max_area,
+            max_area,
             children: sub_device.children,
         };
 
-        let layout_node = match sub_device.renderer.layout(sub_device.index, ctx) {
-            RendererLayoutResult::Complete(layout_node) => layout_node,
-        };
-
-        LayoutResult::CompleteNode(layout_node)
+        match sub_device.renderer.layout(sub_device.index, ctx) {
+            RendererLayoutResult::None => LayoutResult::None,
+            RendererLayoutResult::Complete(layout_node) => LayoutResult::CompleteNode(layout_node),
+        }
     }
 
     pub fn socket<S: Socket>(&mut self, name: SocketName, max_area: Area, socket: &mut S) {
@@ -120,10 +120,10 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
                 children: std::mem::take(&mut device.children),
             };
 
-            let layout_node = match device.renderer.layout(device.index, ctx) {
-                RendererLayoutResult::Complete(layout_node) => layout_node,
+            match device.renderer.layout(device.index, ctx) {
+                RendererLayoutResult::None => (),
+                RendererLayoutResult::Complete(layout_node) => socket.push(layout_node),
             };
-            socket.push(layout_node);
         }
     }
 

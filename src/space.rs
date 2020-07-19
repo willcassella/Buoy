@@ -23,7 +23,7 @@ impl Region {
             return false;
         }
 
-        return true;
+        true
     }
 }
 
@@ -60,6 +60,45 @@ impl Sub<Point> for Point {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Point {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Vector {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vector {
+    pub fn new(x: f32, y: f32) -> Self {
+        Vector { x, y }
+    }
+
+    pub fn zero() -> Self {
+        Vector { x: 0_f32, y: 0_f32 }
+    }
+}
+
+impl Add<Vector> for Vector {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Vector {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Sub<Vector> for Vector {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vector {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }

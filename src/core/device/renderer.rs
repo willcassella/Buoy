@@ -4,6 +4,7 @@ use crate::util::ref_move::RefMove;
 use std::cell::RefCell;
 
 pub enum RendererLayoutResult {
+    None,
     // TODO: Deferred
     Complete(LayoutNode),
 }
@@ -89,6 +90,7 @@ impl<'frm, C, T: Renderer<'frm, C>> RendererWrapper<'frm, C> for RendererWrapper
             .unwrap();
 
         let (min_area, layout) = match self.renderer.layout(dev, ctx) {
+            LayoutResult::None => return RendererLayoutResult::None,
             LayoutResult::Complete { min_area, layout } => (min_area, layout),
             LayoutResult::CompleteNode(node) => return RendererLayoutResult::Complete(node),
         };
