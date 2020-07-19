@@ -25,17 +25,11 @@ pub struct LayoutContext<'thrd, 'frm, C> {
     pub(in crate::core) frame_ctx: &'frm FrameContext,
     pub(in crate::core) thread_ctx: &'thrd ThreadContext<'frm, C>,
 
-    pub(in crate::core) id: Id,
     pub(in crate::core) max_area: Area,
     pub(in crate::core) children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
 
 impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
-    #[inline]
-    pub fn id(&self) -> Id {
-        self.id
-    }
-
     #[inline]
     pub fn max_area(&self) -> Area {
         self.max_area
@@ -54,7 +48,6 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
     pub fn device_tree<D: Anchor<dyn Device + 'frm>, T: LayoutTree<'frm, C>>(
         &mut self,
         max_area: Area,
-        id: Id,
         device: D,
         subtree: T,
     ) -> LayoutResult<()> {
@@ -66,7 +59,6 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
         // Allocate the device with its renderer
         let index = ref_move(device, |d| renderer.alloc(d));
         let mut sub_device = SubDevice {
-            id,
             renderer,
             index,
             children: Vec::new(),
@@ -87,7 +79,6 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
             frame_ctx: self.frame_ctx,
             thread_ctx: self.thread_ctx,
 
-            id: sub_device.id,
             max_area,
             children: sub_device.children,
         };
@@ -115,7 +106,6 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
                 frame_ctx: self.frame_ctx,
                 thread_ctx: self.thread_ctx,
 
-                id: device.id,
                 max_area,
                 children: std::mem::take(&mut device.children),
             };
@@ -175,7 +165,7 @@ impl<'slf, 'thrd, 'frm: 'thrd, C: 'static> LayoutTreeVisitor<'slf, 'thrd, 'frm, 
         self.parent.children.extend(children_iter);
     }
 
-    pub fn device<D: Anchor<dyn Device + 'frm>>(&mut self, socket: SocketName, id: Id, device: D) {
+    pub fn device<D: Anchor<dyn Device + 'frm>>(&mut self, socket: SocketName, device: D) {
         // Look up the renderer for this type
         let renderer = self
             .thread_ctx
@@ -189,7 +179,6 @@ impl<'slf, 'thrd, 'frm: 'thrd, C: 'static> LayoutTreeVisitor<'slf, 'thrd, 'frm, 
         self.parent.children.push((
             socket,
             SubDevice {
-                id,
                 renderer,
                 index,
                 children: Vec::new(),
@@ -200,7 +189,6 @@ impl<'slf, 'thrd, 'frm: 'thrd, C: 'static> LayoutTreeVisitor<'slf, 'thrd, 'frm, 
     pub fn device_tree<D: Anchor<dyn Device + 'frm>, T: LayoutTree<'frm, C>>(
         &mut self,
         socket: SocketName,
-        id: Id,
         device: D,
         subtree: T,
     ) {
@@ -212,7 +200,6 @@ impl<'slf, 'thrd, 'frm: 'thrd, C: 'static> LayoutTreeVisitor<'slf, 'thrd, 'frm, 
         // Allocate the device with its renderer
         let index = ref_move(device, |d| renderer.alloc(d));
         let mut sub_device = SubDevice {
-            id,
             renderer,
             index,
             children: Vec::new(),
@@ -237,7 +224,6 @@ pub trait LayoutTree<'frm, C> {
 }
 
 pub(in crate::core) struct SubDevice<'thrd, 'frm, C> {
-    id: Id,
     renderer: &'thrd dyn RendererWrapper<'frm, C>,
     index: DeviceIndex,
     children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,

@@ -1,6 +1,5 @@
 use crate::core::context::*;
 use crate::core::device::*;
-use crate::core::id::Id;
 use crate::message::*;
 use crate::space::*;
 use crate::util::arena::Arena;
@@ -54,7 +53,6 @@ impl<C: 'static> GuiContext<C> {
             frame_ctx: &frame_context,
             thread_ctx: &thread_context,
 
-            id: Id::default(),
             max_area: window_region.area,
             children: Vec::default(),
         };

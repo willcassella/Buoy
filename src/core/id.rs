@@ -15,12 +15,8 @@ impl Id {
         Id(hasher.finish())
     }
 
-    pub fn append_str(self, id: &str) -> Self {
-        self.append_id(Id::from(id))
-    }
-
-    pub fn append_num(self, id: u64) -> Self {
-        self.append_id(Id::from(id))
+    pub fn append<T: Into<Id>>(self, id: T) -> Self {
+        self.append_id(id.into())
     }
 }
 
