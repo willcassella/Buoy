@@ -25,9 +25,3 @@ impl<'a> From<&'a str> for SocketName {
         SocketName(hasher.finish())
     }
 }
-
-pub enum SocketCapacity {
-    One,
-    Infinite,
-    Finite(usize),
-}

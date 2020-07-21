@@ -2,7 +2,7 @@ mod type_id;
 pub use type_id::TypeId;
 
 mod socket;
-pub use socket::{Socket, SocketCapacity, SocketName};
+pub use socket::{Socket, SocketName};
 
 mod renderer;
 pub use self::renderer::{
