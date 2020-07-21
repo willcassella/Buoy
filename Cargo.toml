@@ -5,5 +5,4 @@ authors = ["Will Cassella <wcassella@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-arrayvec = "0.4.10"
 fnv = "1.0.7"

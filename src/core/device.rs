@@ -14,10 +14,20 @@ pub use self::renderer::{
 // will cause an improper downcast.
 pub unsafe trait DynDevice {
     fn get_type_id(&self) -> TypeId;
+    fn get_package_name(&self) -> &'static str;
+    fn get_type_name(&self) -> &'static str;
 }
 
 pub trait Device: DynDevice {
     fn type_id() -> TypeId
+    where
+        Self: Sized;
+
+    fn package_name() -> &'static str
+    where
+        Self: Sized;
+
+    fn type_name() -> &'static str
     where
         Self: Sized;
 }
@@ -27,5 +37,13 @@ auto_impl_upcast!(dyn Device);
 unsafe impl<T: Device> DynDevice for T {
     fn get_type_id(&self) -> TypeId {
         T::type_id()
+    }
+
+    fn get_package_name(&self) -> &'static str {
+        T::package_name()
+    }
+
+    fn get_type_name(&self) -> &'static str {
+        T::type_name()
     }
 }

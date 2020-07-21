@@ -1,32 +1,20 @@
-use arrayvec::ArrayString;
 use std::fmt;
 
+// Generated as a v4 uuid. Usually precomputed.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeId {
-    pub package: ArrayString<[u8; 4]>,
-    pub name: ArrayString<[u8; 12]>,
+    id: u128,
 }
 
 impl TypeId {
-    pub fn new(package: &str, name: &str) -> Self {
-        // TODO: Have better error handling here
-        TypeId {
-            package: ArrayString::from(package).unwrap(),
-            name: ArrayString::from(name).unwrap(),
-        }
-    }
-
-    pub fn null() -> Self {
-        TypeId {
-            package: Default::default(),
-            name: Default::default(),
-        }
+    pub const fn new(id: u128) -> Self {
+        TypeId { id }
     }
 }
 
 impl fmt::Display for TypeId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}.{}", self.package, self.name)
+        write!(f, "{}", self.id)
     }
 }
 
