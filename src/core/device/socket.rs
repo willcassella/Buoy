@@ -1,4 +1,4 @@
-use std::collections::hash_map::DefaultHasher;
+use fnv::FnvHasher;
 use std::hash::{Hash, Hasher};
 
 use crate::core::context::LayoutNode;
@@ -20,7 +20,7 @@ impl SocketName {
 
 impl<'a> From<&'a str> for SocketName {
     fn from(s: &'a str) -> Self {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FnvHasher::default();
         s.hash(&mut hasher);
         SocketName(hasher.finish())
     }

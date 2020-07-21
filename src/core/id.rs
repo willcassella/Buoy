@@ -1,28 +1,23 @@
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use twox_hash::XxHash64;
+use fnv::FnvHasher;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Hash, Eq, PartialEq)]
 pub struct Id(u64);
 
 impl Id {
-    pub fn append_id(self, id: Id) -> Self {
-        let mut hasher = XxHash64::default();
-        self.hash(&mut hasher);
-        id.hash(&mut hasher);
+    pub fn append<T: Into<Id>>(self, id: T) -> Self {
+        let mut hasher = FnvHasher::with_key(self.0);
+        id.into().hash(&mut hasher);
 
         Id(hasher.finish())
-    }
-
-    pub fn append<T: Into<Id>>(self, id: T) -> Self {
-        self.append_id(id.into())
     }
 }
 
 impl<'a> From<&'a str> for Id {
     fn from(id: &'a str) -> Self {
-        let mut hasher = XxHash64::default();
+        let mut hasher = FnvHasher::default();
         id.hash(&mut hasher);
 
         Id(hasher.finish())
@@ -31,7 +26,7 @@ impl<'a> From<&'a str> for Id {
 
 impl From<u64> for Id {
     fn from(id: u64) -> Self {
-        let mut hasher = XxHash64::default();
+        let mut hasher = FnvHasher::default();
         id.hash(&mut hasher);
 
         Id(hasher.finish())
