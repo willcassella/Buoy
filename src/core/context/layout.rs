@@ -223,6 +223,19 @@ pub trait LayoutTree<'frm, C> {
     fn visit<'ctx, 'thrd>(self, visitor: LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>);
 }
 
+impl<'frm, C, F> LayoutTree<'frm, C> for F
+where
+    F: for<'ctx, 'thrd> FnOnce(LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>)
+{
+    fn visit<'ctx, 'thrd>(self, visitor: LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>) {
+        self(visitor)
+    }
+}
+
+impl<'frm, C> LayoutTree<'frm, C> for () {
+    fn visit<'ctx, 'thrd>(self, _visitor: LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>) {}
+}
+
 pub(in crate::core) struct SubDevice<'thrd, 'frm, C> {
     renderer: &'thrd dyn RendererWrapper<'frm, C>,
     index: DeviceIndex,

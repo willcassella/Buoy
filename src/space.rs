@@ -131,7 +131,14 @@ impl Area {
         }
     }
 
-    pub fn stretch(self, other: Self) -> Self {
+    pub fn min(self, other: Self) -> Self {
+        Area {
+            width: self.width.min(other.width),
+            height: self.height.min(other.height),
+        }
+    }
+
+    pub fn max(self, other: Self) -> Self {
         Area {
             width: self.width.max(other.width),
             height: self.height.max(other.height),
@@ -145,30 +152,45 @@ impl Default for Area {
     }
 }
 
+#[derive(Copy, Clone)]
+enum Align {
+    Start,
+    StartOffsetAbs(f32),
+    StartOffsetPct(f32),
+    End,
+    EndOffsetAbs(f32),
+    EndOffsetPct(f32),
+    Center,
+}
+
+fn align<T: Into<Align>>(align: T, area_dim: f32, region_dim: f32, start: f32) -> f32 {
+    match align.into() {
+        Align::Start => start,
+        Align::StartOffsetAbs(x) => start + x, // TODO: Clamp to (region_dim - area_dim)?
+        Align::StartOffsetPct(x) => start + (region_dim - area_dim) * x,
+        Align::End => start + region_dim - area_dim,
+        Align::EndOffsetAbs(x) => start + region_dim - area_dim - x,
+        Align::EndOffsetPct(x) => start + (region_dim - area_dim) * (1_f32 - x),
+        Align::Center => (start + region_dim / 2_f32) - area_dim / 2_f32,
+    }
+}
+
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum HAlign {
     Center,
     Left,
     Right,
+    LeftOffsetAbs(f32),
+    LeftOffsetPct(f32),
+    RightOffsetAbs(f32),
+    RightOffsetPct(f32),
 }
 
 impl HAlign {
-    pub fn align(self, area: Area, mut region: Region) -> Region {
-        match self {
-            HAlign::Left => {
-                region.area.width = area.width;
-            }
-            HAlign::Right => {
-                region.pos.x = region.pos.x + region.area.width - area.width;
-                region.area.width = area.width;
-            }
-            HAlign::Center => {
-                region.pos.x = (region.pos.x + region.area.width / 2_f32) - area.width / 2_f32;
-                region.area.width = area.width;
-            }
-        }
-
+    pub fn align_horizontally(self, area: Area, mut region: Region) -> Region {
+        region.pos.x = align(self, area.width, region.area.width, region.pos.x);
+        region.area.width = area.width;
         region
     }
 }
@@ -179,30 +201,36 @@ impl Default for HAlign {
     }
 }
 
+impl Into<Align> for HAlign {
+    fn into(self) -> Align {
+        match self {
+            HAlign::Left => Align::Start,
+            HAlign::LeftOffsetAbs(x) => Align::StartOffsetAbs(x),
+            HAlign::LeftOffsetPct(x) => Align::StartOffsetPct(x),
+            HAlign::Right => Align::End,
+            HAlign::RightOffsetAbs(x) => Align::EndOffsetAbs(x),
+            HAlign::RightOffsetPct(x) => Align::EndOffsetPct(x),
+            HAlign::Center => Align::Center,
+        }
+    }
+}
+
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VAlign {
-    Center,
     Top,
+    TopOffsetAbs(f32),
+    TopOffsetPct(f32),
     Bottom,
+    BottomOffsetAbs(f32),
+    BottomOffsetPct(f32),
+    Center,
 }
 
 impl VAlign {
-    pub fn align(self, area: Area, mut region: Region) -> Region {
-        match self {
-            VAlign::Top => {
-                region.area.height = area.height;
-            }
-            VAlign::Bottom => {
-                region.pos.y = region.pos.y + region.area.height - area.height;
-                region.area.height = area.height;
-            }
-            VAlign::Center => {
-                region.pos.y = (region.pos.y + region.area.height / 2_f32) - area.height / 2_f32;
-                region.area.height = area.height;
-            }
-        }
-
+    pub fn align_vertically(self, area: Area, mut region: Region) -> Region {
+        region.pos.y = align(self, area.height, region.area.height, region.pos.y);
+        region.area.height = area.height;
         region
     }
 }
@@ -210,5 +238,19 @@ impl VAlign {
 impl Default for VAlign {
     fn default() -> Self {
         VAlign::Top
+    }
+}
+
+impl Into<Align> for VAlign {
+    fn into(self) -> Align {
+        match self {
+            VAlign::Top => Align::Start,
+            VAlign::TopOffsetAbs(x) => Align::StartOffsetAbs(x),
+            VAlign::TopOffsetPct(x) => Align::StartOffsetPct(x),
+            VAlign::Bottom => Align::End,
+            VAlign::BottomOffsetAbs(x) => Align::EndOffsetAbs(x),
+            VAlign::BottomOffsetPct(x) => Align::EndOffsetPct(x),
+            VAlign::Center => Align::Center,
+        }
     }
 }

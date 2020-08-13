@@ -1,10 +1,16 @@
+use fnv::FnvHasher;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use fnv::FnvHasher;
 
 #[repr(C)]
-#[derive(Clone, Copy, Default, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct Id(u64);
+
+impl Default for Id {
+    fn default() -> Self {
+        Id(FnvHasher::default().finish())
+    }
+}
 
 impl Id {
     pub fn append<T: Into<Id>>(self, id: T) -> Self {
