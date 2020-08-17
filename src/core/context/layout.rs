@@ -225,7 +225,7 @@ pub trait LayoutTree<'frm, C> {
 
 impl<'frm, C, F> LayoutTree<'frm, C> for F
 where
-    F: for<'ctx, 'thrd> FnOnce(LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>)
+    F: for<'ctx, 'thrd> FnOnce(LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>),
 {
     fn visit<'ctx, 'thrd>(self, visitor: LayoutTreeVisitor<'ctx, 'thrd, 'frm, C>) {
         self(visitor)
