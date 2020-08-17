@@ -10,14 +10,14 @@ use crate::util::ref_move::{ref_move, Anchor};
 pub enum LayoutResult<T> {
     None,
     // TODO: Deferred,
-    Complete { min_area: Area, layout: T },
+    Complete { min_size: Size, layout: T },
     CompleteNode(LayoutNode),
 }
 
 pub struct LayoutNode {
     pub type_id: TypeId,
     pub index: LayoutIndex,
-    pub min_area: Area,
+    pub min_size: Size,
 }
 
 pub struct LayoutContext<'thrd, 'frm, C> {
@@ -25,14 +25,14 @@ pub struct LayoutContext<'thrd, 'frm, C> {
     pub(in crate::core) frame_ctx: &'frm FrameContext,
     pub(in crate::core) thread_ctx: &'thrd ThreadContext<'frm, C>,
 
-    pub(in crate::core) max_area: Area,
+    pub(in crate::core) max_size: Size,
     pub(in crate::core) children: Vec<(SocketName, SubDevice<'thrd, 'frm, C>)>,
 }
 
 impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
     #[inline]
-    pub fn max_area(&self) -> Area {
-        self.max_area
+    pub fn max_size(&self) -> Size {
+        self.max_size
     }
 
     pub fn socket_children_len(&self, socket: SocketName) -> usize {
@@ -47,7 +47,7 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
 
     pub fn device_tree<D: Anchor<dyn Device + 'frm>, T: LayoutTree<'frm, C>>(
         &mut self,
-        max_area: Area,
+        max_size: Size,
         device: D,
         subtree: T,
     ) -> LayoutResult<()> {
@@ -79,7 +79,7 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
             frame_ctx: self.frame_ctx,
             thread_ctx: self.thread_ctx,
 
-            max_area,
+            max_size,
             children: sub_device.children,
         };
 
@@ -89,7 +89,7 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
         }
     }
 
-    pub fn socket<S: Socket>(&mut self, name: SocketName, max_area: Area, socket: &mut S) {
+    pub fn socket<S: Socket>(&mut self, name: SocketName, max_size: Size, socket: &mut S) {
         // Fill the socket
         let mut iter = self
             .children
@@ -106,7 +106,7 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
                 frame_ctx: self.frame_ctx,
                 thread_ctx: self.thread_ctx,
 
-                max_area,
+                max_size,
                 children: std::mem::take(&mut device.children),
             };
 
@@ -117,8 +117,8 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
         }
     }
 
-    pub fn layout<T>(&self, min_area: Area, layout: T) -> LayoutResult<T> {
-        LayoutResult::Complete { min_area, layout }
+    pub fn layout<T>(&self, min_size: Size, layout: T) -> LayoutResult<T> {
+        LayoutResult::Complete { min_size, layout }
     }
 
     #[inline]

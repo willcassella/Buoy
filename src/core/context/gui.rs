@@ -53,7 +53,7 @@ impl<C: 'static> GuiContext<C> {
             frame_ctx: &frame_context,
             thread_ctx: &thread_context,
 
-            max_area: window_region.area,
+            max_size: window_region.size,
             children: Vec::default(),
         };
 

@@ -89,9 +89,9 @@ impl<'frm, C, T: Renderer<'frm, C>> RendererWrapper<'frm, C> for RendererWrapper
             .take()
             .unwrap();
 
-        let (min_area, layout) = match self.renderer.layout(dev, ctx) {
+        let (min_size, layout) = match self.renderer.layout(dev, ctx) {
             LayoutResult::None => return RendererLayoutResult::None,
-            LayoutResult::Complete { min_area, layout } => (min_area, layout),
+            LayoutResult::Complete { min_size, layout } => (min_size, layout),
             LayoutResult::CompleteNode(node) => return RendererLayoutResult::Complete(node),
         };
 
@@ -100,7 +100,7 @@ impl<'frm, C, T: Renderer<'frm, C>> RendererWrapper<'frm, C> for RendererWrapper
         let layout_index = LayoutIndex(layouts.len() - 1);
 
         RendererLayoutResult::Complete(LayoutNode {
-            min_area,
+            min_size,
             type_id: T::Device::type_id(),
             index: layout_index,
         })
