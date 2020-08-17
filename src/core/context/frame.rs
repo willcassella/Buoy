@@ -9,7 +9,7 @@ impl FrameContext {
         FrameContext { incoming_messages }
     }
 
-    pub fn read_message<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
-        self.incoming_messages.read(inbox)
+    pub fn read_message<T: Message, I: Into<Inbox<T>>>(&self, inbox: I) -> Option<T> {
+        self.incoming_messages.read(inbox.into())
     }
 }

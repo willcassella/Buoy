@@ -122,12 +122,12 @@ impl<'thrd, 'frm, C: 'static> LayoutContext<'thrd, 'frm, C> {
     }
 
     #[inline]
-    pub fn message<T: Message>(&mut self, id: Id) -> (Inbox<T>, Outbox<T>) {
-        (Inbox::new(id), Outbox::new(id))
+    pub fn message<T: Message>(&mut self, id: Id) -> Outbox<T> {
+        Outbox::new(id)
     }
 
     #[inline]
-    pub fn read_message<T: Message>(&self, inbox: Inbox<T>) -> Option<T> {
+    pub fn read_message<T: Message, I: Into<Inbox<T>>>(&self, inbox: I) -> Option<T> {
         self.frame_ctx.read_message(inbox)
     }
 
