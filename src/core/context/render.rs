@@ -1,29 +1,19 @@
 use crate::core::context::{GuiContext, ThreadContext};
-use crate::space::Region;
+use crate::space::*;
 use crate::LayoutNode;
 
-pub struct RenderContext<'slf, 'frm, C> {
-    pub(in crate::core) region: Region,
+pub struct RenderContext<'slf, 'frm, C, S: Space> {
+    pub(in crate::core) region: Region<S>,
     pub(in crate::core) gui_ctx: &'frm GuiContext<C>,
-    pub(in crate::core) thread_ctx: &'slf ThreadContext<'frm, C>,
+    pub(in crate::core) thread_ctx: &'slf ThreadContext<'frm>,
 }
 
-impl<'slf, 'frm, C: 'static> RenderContext<'slf, 'frm, C> {
-    pub fn render(&self, node: LayoutNode, region: Region, canvas: &mut C) {
-        // Get the renderer for this node
-        let renderer = self.thread_ctx.renderer_for(self.gui_ctx, node.type_id);
-
-        // Create a render context
-        let ctx = RenderContext {
-            region,
-            gui_ctx: self.gui_ctx,
-            thread_ctx: self.thread_ctx,
-        };
-
-        renderer.render(node.index, ctx, canvas);
+impl<'slf, 'frm, C: 'static, S: Space> RenderContext<'slf, 'frm, C, S> {
+    pub fn render(&self, node: LayoutNode<C, S>, region: Region<S>, canvas: &mut C) {
+        unimplemented!()
     }
 
-    pub fn region(&self) -> Region {
+    pub fn region(&self) -> Region<S> {
         self.region
     }
 }

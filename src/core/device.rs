@@ -1,49 +1,45 @@
-mod type_id;
-pub use type_id::TypeId;
-
 mod socket;
-pub use socket::{Socket, SocketName};
+pub use socket::{Socket, SocketSource};
 
-mod renderer;
-pub use self::renderer::{
-    DeviceIndex, IntoRenderer, LayoutIndex, Renderer, RendererLayoutResult, RendererWrapper,
-};
+use crate::core::context::{LayoutContext, RenderContext};
+use crate::space::Space;
 
-// This trait is unsafe because a careless implementation
-// of 'get_type_id()' (ie, returning a different TypeId than what this was registered with)
-// will cause an improper downcast.
-pub unsafe trait DynDevice {
-    fn get_type_id(&self) -> TypeId;
-    fn get_package_name(&self) -> &'static str;
-    fn get_type_name(&self) -> &'static str;
+pub trait Device<C> {
+    type Space: Space;
+
+    fn layout(self, ctx: LayoutContext<C, Self::Space>);
 }
 
-pub trait Device: DynDevice {
-    fn type_id() -> TypeId
-    where
-        Self: Sized;
+pub trait DeviceWrapper<C> {
+    type Space: Space;
 
-    fn package_name() -> &'static str
-    where
-        Self: Sized;
-
-    fn type_name() -> &'static str
-    where
-        Self: Sized;
+    fn layout(self: Box<Self>, ctx: LayoutContext<C, Self::Space>);
 }
 
-auto_impl_upcast!(dyn Device);
+impl<C, T: Device<C>> DeviceWrapper<C> for T {
+    type Space = T::Space;
 
-unsafe impl<T: Device> DynDevice for T {
-    fn get_type_id(&self) -> TypeId {
-        T::type_id()
+    fn layout(self: Box<Self>, ctx: LayoutContext<C, Self::Space>) {
+        (*self).layout(ctx);
     }
+}
 
-    fn get_package_name(&self) -> &'static str {
-        T::package_name()
-    }
+pub trait Layout<C> {
+    type Space: Space;
 
-    fn get_type_name(&self) -> &'static str {
-        T::type_name()
+    fn render(self, ctx: RenderContext<C, Self::Space>, canvas: &mut C);
+}
+
+pub trait LayoutWrapper<C> {
+    type Space: Space;
+
+    fn render(self: Box<Self>, ctx: RenderContext<C, Self::Space>, canvas: &mut C);
+}
+
+impl<C, T: Layout<C>> LayoutWrapper<C> for T {
+    type Space = T::Space;
+
+    fn render(self: Box<Self>, ctx: RenderContext<C, Self::Space>, canvas: &mut C) {
+        (*self).render(ctx, canvas);
     }
 }
